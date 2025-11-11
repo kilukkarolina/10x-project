@@ -36,6 +36,13 @@ When modifying the directory structure, always update this section.
 
 ## Coding practices
 
+### Code Style
+
+- **Always use double quotes (`"`) for strings in JavaScript and TypeScript code**, never single quotes (`'`).
+  - Example: `import { pingSupabase } from "@/lib/ping";` ✅
+  - Not: `import { pingSupabase } from '@/lib/ping';` ❌
+- Always use semicolons at the end of statements.
+
 ### Guidelines for clean code
 
 - Use feedback from linters to improve the code when making changes.
