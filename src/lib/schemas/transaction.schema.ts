@@ -57,3 +57,84 @@ export const CreateTransactionSchema = z.object({
  * Type inference from Zod schema for use in TypeScript
  */
 export type CreateTransactionSchemaType = z.infer<typeof CreateTransactionSchema>;
+
+/**
+ * Zod schema for GET /api/v1/transactions query parameters
+ * Validates filtering, search, and pagination parameters
+ *
+ * Validation rules:
+ * - month: Optional, YYYY-MM format (e.g., "2025-01")
+ * - type: Optional, enum ["INCOME", "EXPENSE", "ALL"], default: "ALL"
+ * - category: Optional, non-empty string (category code)
+ * - search: Optional, string for full-text search in notes
+ * - cursor: Optional, base64-encoded pagination cursor
+ * - limit: Optional, integer 1-100, default: 50
+ */
+export const GetTransactionsQuerySchema = z.object({
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
+    .optional(),
+
+  type: z.enum(["INCOME", "EXPENSE", "ALL"]).default("ALL"),
+
+  category: z.string().min(1).optional(),
+
+  search: z.string().optional(),
+
+  cursor: z.string().optional(),
+
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+/**
+ * Type inference from GetTransactionsQuerySchema
+ */
+export type GetTransactionsQuery = z.infer<typeof GetTransactionsQuerySchema>;
+
+/**
+ * Decode base64 pagination cursor
+ * Format: base64("{occurred_on}_{id}")
+ *
+ * @param cursor - Base64-encoded cursor string
+ * @returns Object with occurred_on (YYYY-MM-DD) and id (UUID)
+ * @throws Error - Invalid cursor format, structure, date, or UUID
+ */
+export function decodeCursor(cursor: string): { occurred_on: string; id: string } {
+  try {
+    const decoded = atob(cursor);
+    const parts = decoded.split("_");
+
+    if (parts.length !== 2) {
+      throw new Error("Invalid cursor structure");
+    }
+
+    const [occurred_on, id] = parts;
+
+    // Validate date format YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(occurred_on)) {
+      throw new Error("Invalid date in cursor");
+    }
+
+    // Validate UUID format
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      throw new Error("Invalid UUID in cursor");
+    }
+
+    return { occurred_on, id };
+  } catch {
+    throw new Error("Invalid cursor format");
+  }
+}
+
+/**
+ * Encode pagination cursor to base64
+ * Format: base64("{occurred_on}_{id}")
+ *
+ * @param occurredOn - Transaction occurred_on date (YYYY-MM-DD)
+ * @param id - Transaction UUID
+ * @returns Base64-encoded cursor string
+ */
+export function encodeCursor(occurredOn: string, id: string): string {
+  return btoa(`${occurredOn}_${id}`);
+}

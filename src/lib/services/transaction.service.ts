@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@/db/supabase.client";
-import type { CreateTransactionCommand, TransactionDTO } from "@/types";
+import type { CreateTransactionCommand, TransactionDTO, TransactionListResponseDTO } from "@/types";
+import { decodeCursor, encodeCursor } from "@/lib/schemas/transaction.schema";
 
 /**
  * Custom error class for business validation errors
@@ -113,5 +114,160 @@ export async function createTransaction(
     note: transaction.note,
     created_at: transaction.created_at,
     updated_at: transaction.updated_at,
+  };
+}
+
+/**
+ * Filters for listing transactions
+ * Used as parameter for listTransactions function
+ */
+export interface ListTransactionsFilters {
+  month?: string; // YYYY-MM format
+  type: "INCOME" | "EXPENSE" | "ALL";
+  category?: string;
+  search?: string;
+  cursor?: string; // base64-encoded
+  limit: number;
+}
+
+/**
+ * List user transactions with filtering and pagination
+ *
+ * Business logic flow:
+ * 1. Decode pagination cursor (if provided)
+ * 2. Build query with filters (month, type, category, search)
+ * 3. Apply cursor-based pagination (keyset)
+ * 4. Fetch limit+1 records to detect has_more
+ * 5. Map results to TransactionDTO with category_label
+ * 6. Calculate metadata (count, total_amount_cents)
+ * 7. Generate next_cursor from last record
+ * 8. Return TransactionListResponseDTO
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user
+ * @param filters - Validated filter parameters
+ * @returns Promise<TransactionListResponseDTO>
+ * @throws ValidationError - Invalid cursor format
+ * @throws Error - Database error
+ */
+export async function listTransactions(
+  supabase: SupabaseClient,
+  userId: string,
+  filters: ListTransactionsFilters
+): Promise<TransactionListResponseDTO> {
+  // Step 1: Decode cursor if provided
+  let cursorData: { occurred_on: string; id: string } | null = null;
+  if (filters.cursor) {
+    try {
+      cursorData = decodeCursor(filters.cursor);
+    } catch (error) {
+      throw new ValidationError("Invalid cursor format", {
+        cursor: error instanceof Error ? error.message : "Invalid format",
+      });
+    }
+  }
+
+  // Step 2: Build base query with JOIN
+  let query = supabase
+    .from("transactions")
+    .select(
+      `
+      id,
+      type,
+      category_code,
+      amount_cents,
+      occurred_on,
+      note,
+      created_at,
+      updated_at,
+      transaction_categories!inner(label_pl)
+    `
+    )
+    .eq("user_id", userId)
+    .is("deleted_at", null);
+
+  // Step 3: Apply filters
+
+  // Month filter (convert YYYY-MM to date)
+  if (filters.month) {
+    const monthStart = `${filters.month}-01`;
+    query = query.eq("month", monthStart);
+  }
+
+  // Type filter (INCOME/EXPENSE, skip if ALL)
+  if (filters.type !== "ALL") {
+    query = query.eq("type", filters.type);
+  }
+
+  // Category filter
+  if (filters.category) {
+    query = query.eq("category_code", filters.category);
+  }
+
+  // Search filter (trigram matching in notes)
+  if (filters.search) {
+    query = query.ilike("note", `%${filters.search}%`);
+  }
+
+  // Step 4: Apply cursor-based pagination
+  if (cursorData) {
+    // Keyset pagination: WHERE (occurred_on, id) < (cursor_date, cursor_id)
+    // Supabase doesn't support tuple comparison, so we use OR logic:
+    // (occurred_on < cursor_date) OR (occurred_on = cursor_date AND id < cursor_id)
+    query = query.or(
+      `occurred_on.lt.${cursorData.occurred_on},and(occurred_on.eq.${cursorData.occurred_on},id.lt.${cursorData.id})`
+    );
+  }
+
+  // Step 5: Order and limit
+  query = query
+    .order("occurred_on", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(filters.limit + 1); // +1 to detect has_more
+
+  // Step 6: Execute query
+  const { data: rawData, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  // Step 7: Detect has_more and slice to limit
+  const hasMore = rawData.length > filters.limit;
+  const transactions = hasMore ? rawData.slice(0, filters.limit) : rawData;
+
+  // Step 8: Map to TransactionDTO[]
+  const data: TransactionDTO[] = transactions.map((tx) => ({
+    id: tx.id,
+    type: tx.type,
+    category_code: tx.category_code,
+    category_label: (tx.transaction_categories as { label_pl: string }).label_pl,
+    amount_cents: tx.amount_cents,
+    occurred_on: tx.occurred_on,
+    note: tx.note,
+    created_at: tx.created_at,
+    updated_at: tx.updated_at,
+  }));
+
+  // Step 9: Calculate metadata
+  const totalAmountCents = data.reduce((sum, tx) => sum + tx.amount_cents, 0);
+  const count = data.length;
+
+  // Step 10: Generate next_cursor
+  const nextCursor =
+    hasMore && data.length > 0 ? encodeCursor(data[data.length - 1].occurred_on, data[data.length - 1].id) : null;
+
+  // Step 11: Build response
+  return {
+    data,
+    pagination: {
+      next_cursor: nextCursor,
+      has_more: hasMore,
+      limit: filters.limit,
+    },
+    meta: {
+      total_amount_cents: totalAmountCents,
+      count,
+    },
   };
 }
