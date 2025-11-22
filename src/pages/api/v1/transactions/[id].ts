@@ -2,8 +2,12 @@ import type { APIContext } from "astro";
 import { z } from "zod";
 
 import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
-import { GetTransactionByIdParamsSchema } from "@/lib/schemas/transaction.schema";
-import { getTransactionById } from "@/lib/services/transaction.service";
+import {
+  GetTransactionByIdParamsSchema,
+  UpdateTransactionParamsSchema,
+  UpdateTransactionSchema,
+} from "@/lib/schemas/transaction.schema";
+import { getTransactionById, updateTransaction, ValidationError } from "@/lib/services/transaction.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -97,6 +101,118 @@ export async function GET(context: APIContext) {
     // Handle all other unexpected errors (500 Internal Server Error)
     // eslint-disable-next-line no-console
     console.error("Unexpected error in GET /api/v1/transactions/:id:", error);
+    const errorResponse: ErrorResponseDTO = {
+      error: "Internal Server Error",
+      message: "An unexpected error occurred. Please try again later.",
+    };
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+/**
+ * PATCH /api/v1/transactions/:id
+ *
+ * Update an existing transaction. Supports partial updates (all fields optional).
+ * Cannot change transaction type - use DELETE + POST instead.
+ * Changing occurred_on to different month triggers backdate recalculation.
+ *
+ * Path parameters:
+ * - id: Transaction UUID (validated with Zod)
+ *
+ * Request body (all optional):
+ * {
+ *   category_code?: string;
+ *   amount_cents?: number;
+ *   occurred_on?: string;  // YYYY-MM-DD
+ *   note?: string | null;
+ * }
+ *
+ * Success response: 200 OK with TransactionDTO
+ * {
+ *   id: "uuid-string",
+ *   type: "EXPENSE",
+ *   category_code: "RESTAURANTS",
+ *   category_label: "Restauracje",
+ *   amount_cents: 18000,
+ *   occurred_on: "2025-01-14",
+ *   note: "Kolacja w restauracji",
+ *   created_at: "2025-01-15T18:30:00Z",
+ *   updated_at: "2025-01-16T10:00:00Z",
+ *   backdate_warning: true  // Only present if month changed
+ * }
+ *
+ * Error responses:
+ * - 400: Invalid request data (Zod validation failed)
+ * - 404: Transaction not found or soft-deleted
+ * - 422: Business validation failed (category invalid, etc.)
+ * - 500: Unexpected server error
+ *
+ * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
+ * Auth will be implemented comprehensively in a future iteration.
+ */
+export async function PATCH(context: APIContext) {
+  try {
+    // Step 1: Parse and validate path parameter
+    const params = UpdateTransactionParamsSchema.parse(context.params);
+
+    // Step 2: Parse and validate request body
+    const body = await context.request.json();
+    const command = UpdateTransactionSchema.parse(body);
+
+    // Step 3: Call service layer to update transaction
+    // Note: Using DEFAULT_USER_ID until auth is implemented
+    const transaction = await updateTransaction(supabaseClient, DEFAULT_USER_ID, params.id, command);
+
+    // Step 4: Handle not found case
+    if (!transaction) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Not Found",
+        message: "Transaction not found or has been deleted",
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 5: Return success response
+    return new Response(JSON.stringify(transaction), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    // Handle Zod validation errors (400 Bad Request)
+    if (error instanceof z.ZodError) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid request data",
+        details: formatZodErrors(error),
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle ValidationError from service layer (422 Unprocessable Entity)
+    if (error instanceof ValidationError) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Unprocessable Entity",
+        message: "Validation failed",
+        details: error.details,
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 422,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle all other unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
+    console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
     const errorResponse: ErrorResponseDTO = {
       error: "Internal Server Error",
       message: "An unexpected error occurred. Please try again later.",

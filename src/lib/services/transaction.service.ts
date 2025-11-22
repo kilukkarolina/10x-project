@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@/db/supabase.client";
-import type { CreateTransactionCommand, TransactionDTO, TransactionListResponseDTO } from "@/types";
+import type {
+  CreateTransactionCommand,
+  TransactionDTO,
+  TransactionListResponseDTO,
+  UpdateTransactionCommand,
+} from "@/types";
 import { decodeCursor, encodeCursor } from "@/lib/schemas/transaction.schema";
 
 /**
@@ -343,4 +348,167 @@ export async function getTransactionById(
     created_at: data.created_at,
     updated_at: data.updated_at,
   };
+}
+
+/**
+ * Updates an existing transaction for the authenticated user
+ *
+ * Business logic flow:
+ * 1. Fetch existing transaction (validate ownership, not soft-deleted)
+ * 2. If category_code is being changed:
+ *    - Validate category exists and is active
+ *    - Validate category kind matches transaction type (cannot change type)
+ * 3. Detect if month is changing (for backdate_warning)
+ * 4. Build update payload with only provided fields
+ * 5. Execute UPDATE with RETURNING clause
+ * 6. Return TransactionDTO with backdate_warning if month changed
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param transactionId - UUID of transaction to update
+ * @param command - Validated command data (UpdateTransactionCommand)
+ * @returns Promise<TransactionDTO | null> - Updated transaction, or null if not found
+ * @throws ValidationError - Business validation failed (422)
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function updateTransaction(
+  supabase: SupabaseClient,
+  userId: string,
+  transactionId: string,
+  command: UpdateTransactionCommand
+): Promise<TransactionDTO | null> {
+  // Step 1: Fetch existing transaction
+  // We need: type (for category validation), occurred_on (for backdate detection)
+  const { data: existing, error: fetchError } = await supabase
+    .from("transactions")
+    .select("id, type, category_code, occurred_on")
+    .eq("id", transactionId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .single();
+
+  // Handle not found cases
+  if (fetchError) {
+    // Supabase returns PGRST116 for .single() when no rows found
+    if (fetchError.code === "PGRST116") {
+      return null;
+    }
+    // Other database errors should propagate as 500
+    throw fetchError;
+  }
+
+  if (!existing) {
+    return null;
+  }
+
+  // Step 2: Validate category if being changed
+  if (command.category_code !== undefined) {
+    const { data: category, error: categoryError } = await supabase
+      .from("transaction_categories")
+      .select("kind, is_active")
+      .eq("code", command.category_code)
+      .single();
+
+    if (categoryError || !category) {
+      throw new ValidationError("Category code does not exist or is inactive", {
+        category_code: command.category_code,
+      });
+    }
+
+    if (!category.is_active) {
+      throw new ValidationError("Category is not active", {
+        category_code: command.category_code,
+      });
+    }
+
+    // Validate category kind matches transaction type (cannot change type)
+    if (category.kind !== existing.type) {
+      throw new ValidationError(`Category ${command.category_code} is not valid for ${existing.type} transactions`, {
+        category_code: `Category kind ${category.kind} does not match transaction type ${existing.type}`,
+      });
+    }
+  }
+
+  // Step 3: Detect month change for backdate_warning
+  let monthChanged = false;
+  if (command.occurred_on !== undefined && command.occurred_on !== existing.occurred_on) {
+    // Extract YYYY-MM from YYYY-MM-DD
+    const oldMonth = existing.occurred_on.substring(0, 7);
+    const newMonth = command.occurred_on.substring(0, 7);
+    monthChanged = oldMonth !== newMonth;
+  }
+
+  // Step 4: Build update payload
+  // Only include fields that are present in command (partial update)
+  const updateData: Record<string, string | number | null> = {
+    updated_by: userId, // Always update this field
+  };
+
+  if (command.category_code !== undefined) {
+    updateData.category_code = command.category_code;
+  }
+  if (command.amount_cents !== undefined) {
+    updateData.amount_cents = command.amount_cents;
+  }
+  if (command.occurred_on !== undefined) {
+    updateData.occurred_on = command.occurred_on;
+  }
+  if (command.note !== undefined) {
+    updateData.note = command.note;
+  }
+
+  // Step 5: Execute UPDATE with RETURNING
+  const { data: updated, error: updateError } = await supabase
+    .from("transactions")
+    .update(updateData)
+    .eq("id", transactionId)
+    .eq("user_id", userId)
+    .is("deleted_at", null) // Extra safety check
+    .select(
+      `
+      id,
+      type,
+      category_code,
+      amount_cents,
+      occurred_on,
+      note,
+      created_at,
+      updated_at,
+      transaction_categories!inner(label_pl)
+    `
+    )
+    .single();
+
+  if (updateError) {
+    // Handle not found (e.g., concurrent soft-delete)
+    if (updateError.code === "PGRST116") {
+      return null;
+    }
+    // Let other database errors propagate
+    throw updateError;
+  }
+
+  if (!updated) {
+    return null;
+  }
+
+  // Step 6: Map to TransactionDTO with optional backdate_warning
+  const result: TransactionDTO = {
+    id: updated.id,
+    type: updated.type,
+    category_code: updated.category_code,
+    category_label: (updated.transaction_categories as { label_pl: string }).label_pl,
+    amount_cents: updated.amount_cents,
+    occurred_on: updated.occurred_on,
+    note: updated.note,
+    created_at: updated.created_at,
+    updated_at: updated.updated_at,
+  };
+
+  // Add backdate_warning only if month changed
+  if (monthChanged) {
+    result.backdate_warning = true;
+  }
+
+  return result;
 }

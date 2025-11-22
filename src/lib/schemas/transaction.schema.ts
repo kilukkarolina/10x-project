@@ -151,3 +151,73 @@ export const GetTransactionByIdParamsSchema = z.object({
  * Type inference from schema
  */
 export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSchema>;
+
+/**
+ * Zod schema for UpdateTransactionCommand
+ * Validates incoming request data for PATCH /api/v1/transactions/:id
+ *
+ * Validation rules:
+ * - All fields are optional (partial update)
+ * - category_code: Non-empty string
+ * - amount_cents: Positive integer
+ * - occurred_on: YYYY-MM-DD format, not in the future
+ * - note: Optional, max 500 chars, no control characters, nullable
+ * - At least one field must be provided
+ */
+export const UpdateTransactionSchema = z
+  .object({
+    category_code: z.string().min(1, "Category code cannot be empty").optional(),
+
+    amount_cents: z
+      .number({
+        invalid_type_error: "Amount must be a number",
+      })
+      .int("Amount must be an integer")
+      .positive("Amount must be greater than 0")
+      .optional(),
+
+    occurred_on: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+      .refine(
+        (date) => {
+          const transactionDate = new Date(date);
+          const today = new Date();
+          today.setHours(23, 59, 59, 999); // End of today
+          return transactionDate <= today;
+        },
+        { message: "Transaction date cannot be in the future" }
+      )
+      .optional(),
+
+    note: z
+      .string()
+      .max(500, "Note cannot exceed 500 characters")
+      // eslint-disable-next-line no-control-regex
+      .regex(/^[^\x00-\x1F\x7F]*$/, {
+        message: "Note cannot contain control characters",
+      })
+      .nullable()
+      .optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided for update",
+  });
+
+/**
+ * Type inference from Zod schema for use in TypeScript
+ */
+export type UpdateTransactionSchemaType = z.infer<typeof UpdateTransactionSchema>;
+
+/**
+ * Zod schema for PATCH /api/v1/transactions/:id path parameters
+ * Validates transaction UUID in URL path
+ */
+export const UpdateTransactionParamsSchema = z.object({
+  id: z.string().uuid("Transaction ID must be a valid UUID"),
+});
+
+/**
+ * Type inference from schema
+ */
+export type UpdateTransactionParams = z.infer<typeof UpdateTransactionParamsSchema>;
