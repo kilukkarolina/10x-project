@@ -271,3 +271,76 @@ export async function listTransactions(
     },
   };
 }
+
+/**
+ * Get a single transaction by ID for the authenticated user
+ *
+ * Business logic flow:
+ * 1. Query transaction with INNER JOIN on transaction_categories
+ * 2. Filter by user_id (explicit ownership check)
+ * 3. Filter by id (UUID)
+ * 4. Filter deleted_at IS NULL (exclude soft-deleted)
+ * 5. Return TransactionDTO or null if not found
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param transactionId - UUID of transaction to fetch
+ * @returns Promise<TransactionDTO | null> - Transaction with category label, or null if not found
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function getTransactionById(
+  supabase: SupabaseClient,
+  userId: string,
+  transactionId: string
+): Promise<TransactionDTO | null> {
+  // Step 1: Query with JOIN on transaction_categories
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(
+      `
+      id,
+      type,
+      category_code,
+      amount_cents,
+      occurred_on,
+      note,
+      created_at,
+      updated_at,
+      transaction_categories!inner(label_pl)
+    `
+    )
+    .eq("user_id", userId)
+    .eq("id", transactionId)
+    .is("deleted_at", null)
+    .single();
+
+  // Step 2: Handle database errors
+  if (error) {
+    // Supabase returns PGRST116 for .single() when no rows found
+    // We return null for consistent 404 handling in API route
+    if (error.code === "PGRST116") {
+      return null;
+    }
+
+    // Other database errors should propagate as 500
+    throw error;
+  }
+
+  // Step 3: Handle not found (null data)
+  if (!data) {
+    return null;
+  }
+
+  // Step 4: Map to TransactionDTO
+  return {
+    id: data.id,
+    type: data.type,
+    category_code: data.category_code,
+    category_label: (data.transaction_categories as { label_pl: string }).label_pl,
+    amount_cents: data.amount_cents,
+    occurred_on: data.occurred_on,
+    note: data.note,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+  };
+}

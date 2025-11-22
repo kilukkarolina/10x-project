@@ -138,3 +138,16 @@ export function decodeCursor(cursor: string): { occurred_on: string; id: string 
 export function encodeCursor(occurredOn: string, id: string): string {
   return btoa(`${occurredOn}_${id}`);
 }
+
+/**
+ * Zod schema for GET /api/v1/transactions/:id path parameters
+ * Validates transaction UUID in URL path
+ */
+export const GetTransactionByIdParamsSchema = z.object({
+  id: z.string().uuid("Transaction ID must be a valid UUID"),
+});
+
+/**
+ * Type inference from schema
+ */
+export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSchema>;
