@@ -6,8 +6,14 @@ import {
   GetTransactionByIdParamsSchema,
   UpdateTransactionParamsSchema,
   UpdateTransactionSchema,
+  DeleteTransactionParamsSchema,
 } from "@/lib/schemas/transaction.schema";
-import { getTransactionById, updateTransaction, ValidationError } from "@/lib/services/transaction.service";
+import {
+  getTransactionById,
+  updateTransaction,
+  deleteTransaction,
+  ValidationError,
+} from "@/lib/services/transaction.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -213,6 +219,86 @@ export async function PATCH(context: APIContext) {
     // Handle all other unexpected errors (500 Internal Server Error)
     // eslint-disable-next-line no-console
     console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
+    const errorResponse: ErrorResponseDTO = {
+      error: "Internal Server Error",
+      message: "An unexpected error occurred. Please try again later.",
+    };
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+/**
+ * DELETE /api/v1/transactions/:id
+ *
+ * Soft-delete an existing transaction.
+ * Sets deleted_at and deleted_by fields instead of physically removing the record.
+ * This allows for data recovery and audit trail.
+ *
+ * Path parameters:
+ * - id: Transaction UUID (validated with Zod)
+ *
+ * Success response: 204 No Content (empty body)
+ *
+ * Error responses:
+ * - 400: Invalid transaction ID format (not a valid UUID)
+ * - 404: Transaction not found, already deleted, or belongs to different user
+ * - 500: Unexpected server error
+ *
+ * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
+ * Auth will be implemented comprehensively in a future iteration.
+ *
+ * Idempotency: Calling DELETE multiple times on the same transaction
+ * will return 404 after the first successful deletion.
+ */
+export async function DELETE(context: APIContext) {
+  try {
+    // Step 1: Parse and validate path parameter
+    const params = DeleteTransactionParamsSchema.parse(context.params);
+
+    // Step 2: Get user context
+    // Note: Using DEFAULT_USER_ID until auth is implemented
+    const userId = DEFAULT_USER_ID;
+
+    // Step 3: Call service layer to soft-delete transaction
+    const deleted = await deleteTransaction(supabaseClient, userId, params.id);
+
+    // Step 4: Handle not found case
+    if (!deleted) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Not Found",
+        message: "Transaction not found or has been deleted",
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 5: Return success response (204 No Content)
+    return new Response(null, {
+      status: 204,
+      // No Content-Type header needed for 204
+    });
+  } catch (error) {
+    // Handle Zod validation errors (400 Bad Request)
+    if (error instanceof z.ZodError) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid transaction ID format",
+        details: formatZodErrors(error),
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle all other unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
+    console.error("Unexpected error in DELETE /api/v1/transactions/:id:", error);
     const errorResponse: ErrorResponseDTO = {
       error: "Internal Server Error",
       message: "An unexpected error occurred. Please try again later.",

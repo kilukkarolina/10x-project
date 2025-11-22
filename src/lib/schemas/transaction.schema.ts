@@ -221,3 +221,16 @@ export const UpdateTransactionParamsSchema = z.object({
  * Type inference from schema
  */
 export type UpdateTransactionParams = z.infer<typeof UpdateTransactionParamsSchema>;
+
+/**
+ * Zod schema for DELETE /api/v1/transactions/:id path parameters
+ * Validates transaction UUID in URL path
+ */
+export const DeleteTransactionParamsSchema = z.object({
+  id: z.string().uuid("Transaction ID must be a valid UUID"),
+});
+
+/**
+ * Type inference from schema
+ */
+export type DeleteTransactionParams = z.infer<typeof DeleteTransactionParamsSchema>;

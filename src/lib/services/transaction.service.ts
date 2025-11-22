@@ -512,3 +512,71 @@ export async function updateTransaction(
 
   return result;
 }
+
+/**
+ * Soft-deletes a transaction for the authenticated user
+ *
+ * Business logic flow:
+ * 1. Execute UPDATE with WHERE filters:
+ *    - id = transactionId (find specific transaction)
+ *    - user_id = userId (ownership check)
+ *    - deleted_at IS NULL (prevent double-delete)
+ * 2. Set fields:
+ *    - deleted_at = now()
+ *    - deleted_by = userId
+ *    - updated_at = now()
+ *    - updated_by = userId
+ * 3. Use RETURNING to check if row was updated
+ * 4. Return true if deleted, false if not found/already deleted
+ *
+ * Database triggers automatically:
+ * - Log operation to audit_log (action: DELETE)
+ * - Update monthly_metrics (adjust income/expenses aggregates)
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param transactionId - UUID of transaction to soft-delete
+ * @returns Promise<boolean> - true if deleted, false if not found or already deleted
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function deleteTransaction(
+  supabase: SupabaseClient,
+  userId: string,
+  transactionId: string
+): Promise<boolean> {
+  // Step 1: Execute soft-delete UPDATE
+  const { data, error } = await supabase
+    .from("transactions")
+    .update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: userId,
+      updated_at: new Date().toISOString(),
+      updated_by: userId,
+    })
+    .eq("id", transactionId)
+    .eq("user_id", userId) // Ownership check
+    .is("deleted_at", null) // Prevent double-delete
+    .select("id") // Return only id to check if row was updated
+    .single();
+
+  // Step 2: Handle database errors
+  if (error) {
+    // Supabase returns PGRST116 for .single() when no rows found/updated
+    // We return false for consistent 404 handling in API route
+    if (error.code === "PGRST116") {
+      return false;
+    }
+
+    // Other database errors should propagate as 500
+    throw error;
+  }
+
+  // Step 3: Check if row was updated
+  // If data is null (no row matched), transaction not found or already deleted
+  if (!data) {
+    return false;
+  }
+
+  // Step 4: Success - transaction was soft-deleted
+  return true;
+}
