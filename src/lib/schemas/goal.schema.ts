@@ -44,3 +44,44 @@ export const ListGoalsQuerySchema = z.object({
     return val; // Leave invalid values to be caught by z.boolean()
   }, z.boolean().default(false)),
 });
+
+/**
+ * Zod schema for GET /api/v1/goals/:id path parameter
+ * Validates that the goal ID is a valid UUID
+ */
+export const GetGoalByIdParamsSchema = z.object({
+  id: z.string().uuid("Invalid goal ID format"),
+});
+
+/**
+ * Zod schema for GET /api/v1/goals/:id query parameters
+ * Validates and transforms include_events and month parameters
+ *
+ * Validation rules:
+ * - include_events: Optional boolean, defaults to true
+ * - month: Optional string in YYYY-MM format, cannot be in the future
+ */
+export const GetGoalByIdQuerySchema = z.object({
+  include_events: z.preprocess((val) => {
+    if (val === null || val === undefined) return true;
+    if (typeof val === "boolean") return val;
+    if (val === "true" || val === "1") return true;
+    if (val === "false" || val === "0") return false;
+    return val; // Leave invalid values to be caught by z.boolean()
+  }, z.boolean().default(true)),
+
+  month: z.preprocess(
+    (val) => (val === null || val === undefined || val === "" ? undefined : val),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
+      .refine(
+        (val) => {
+          const date = new Date(val + "-01");
+          return date <= new Date();
+        },
+        { message: "Month cannot be in the future" }
+      )
+      .optional()
+  ),
+});

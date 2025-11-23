@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@/db/supabase.client";
-import type { CreateGoalCommand, GoalDTO } from "@/types";
+import type { CreateGoalCommand, GoalDTO, GoalDetailDTO } from "@/types";
 
 /**
  * Custom error class for business validation errors
@@ -226,4 +226,146 @@ export async function listGoals(supabase: SupabaseClient, userId: string, includ
 
     return goalDTO;
   });
+}
+
+/**
+ * Retrieves detailed information about a specific goal
+ *
+ * Business logic flow:
+ * 1. Query goal with JOIN to goal_types for type_label
+ * 2. Filter out soft-deleted goals (deleted_at IS NULL)
+ * 3. Return null if goal doesn't exist or doesn't belong to user (RLS)
+ * 4. Compute progress_percentage
+ * 5. If includeEvents=true, fetch goal events (optionally filtered by month)
+ * 6. Compute monthly_change_cents for specified month
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param goalId - UUID of the goal to retrieve
+ * @param includeEvents - Whether to include goal events history (default: true)
+ * @param month - Optional month filter in YYYY-MM format
+ * @returns Promise<GoalDetailDTO | null> - Goal details with events and monthly change, or null if not found
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function getGoalById(
+  supabase: SupabaseClient,
+  userId: string,
+  goalId: string,
+  includeEvents = true,
+  month?: string
+): Promise<GoalDetailDTO | null> {
+  // Step 1: Fetch goal with joined type_label
+  const { data: goal, error: goalError } = await supabase
+    .from("goals")
+    .select(
+      `
+      id,
+      name,
+      type_code,
+      target_amount_cents,
+      current_balance_cents,
+      is_priority,
+      archived_at,
+      created_at,
+      updated_at,
+      goal_types!inner(label_pl)
+    `
+    )
+    .eq("id", goalId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (goalError) {
+    throw new Error(`Failed to fetch goal: ${goalError.message}`);
+  }
+
+  // Step 2: Return null if goal doesn't exist
+  if (!goal) {
+    return null;
+  }
+
+  // Step 3: Extract type_label from joined data
+  const goalTypes = goal.goal_types as { label_pl: string } | { label_pl: string }[];
+  const typeLabel = Array.isArray(goalTypes) ? goalTypes[0].label_pl : goalTypes.label_pl;
+
+  // Step 4: Compute progress_percentage
+  const progressPercentage =
+    goal.target_amount_cents > 0 ? (goal.current_balance_cents / goal.target_amount_cents) * 100 : 0;
+
+  // Step 5: Fetch events if requested
+  let events: {
+    id: string;
+    type: string;
+    amount_cents: number;
+    occurred_on: string;
+    created_at: string;
+  }[] = [];
+
+  // Convert month from YYYY-MM to YYYY-MM-01 for database query (month column is date type)
+  const monthDate = month ? `${month}-01` : undefined;
+
+  if (includeEvents) {
+    let eventsQuery = supabase
+      .from("goal_events")
+      .select("id, type, amount_cents, occurred_on, created_at")
+      .eq("goal_id", goalId)
+      .eq("user_id", userId)
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    // Apply month filter if provided
+    if (monthDate) {
+      eventsQuery = eventsQuery.eq("month", monthDate);
+    }
+
+    const { data: eventsData, error: eventsError } = await eventsQuery;
+
+    if (eventsError) {
+      throw new Error(`Failed to fetch goal events: ${eventsError.message}`);
+    }
+
+    events = eventsData || [];
+  }
+
+  // Step 6: Compute monthly_change_cents if month is provided
+  let monthlyChangeCents = 0;
+
+  if (monthDate) {
+    const { data: monthlyData, error: monthlyError } = await supabase
+      .from("goal_events")
+      .select("type, amount_cents")
+      .eq("goal_id", goalId)
+      .eq("user_id", userId)
+      .eq("month", monthDate);
+
+    if (monthlyError) {
+      throw new Error(`Failed to compute monthly change: ${monthlyError.message}`);
+    }
+
+    if (monthlyData) {
+      monthlyChangeCents = monthlyData.reduce((sum, event) => {
+        return sum + (event.type === "DEPOSIT" ? event.amount_cents : -event.amount_cents);
+      }, 0);
+    }
+  }
+
+  // Step 7: Build and return GoalDetailDTO
+  const goalDetailDTO: GoalDetailDTO = {
+    id: goal.id,
+    name: goal.name,
+    type_code: goal.type_code,
+    type_label: typeLabel,
+    target_amount_cents: goal.target_amount_cents,
+    current_balance_cents: goal.current_balance_cents,
+    progress_percentage: progressPercentage,
+    is_priority: goal.is_priority,
+    archived_at: goal.archived_at,
+    created_at: goal.created_at,
+    updated_at: goal.updated_at,
+    events: events,
+    monthly_change_cents: monthlyChangeCents,
+  };
+
+  return goalDetailDTO;
 }
