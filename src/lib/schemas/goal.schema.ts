@@ -85,3 +85,43 @@ export const GetGoalByIdQuerySchema = z.object({
       .optional()
   ),
 });
+
+/**
+ * Zod schema for PATCH /api/v1/goals/:id path parameter
+ * Validates that the goal ID is a valid UUID
+ */
+export const UpdateGoalParamsSchema = z.object({
+  id: z.string().uuid("Invalid goal ID format"),
+});
+
+/**
+ * Zod schema for UpdateGoalCommand (PATCH /api/v1/goals/:id request body)
+ * Validates incoming request data for updating a goal
+ *
+ * Validation rules:
+ * - name: Optional, 1-100 characters if provided
+ * - target_amount_cents: Optional, positive integer if provided
+ * - is_priority: Optional boolean if provided
+ * - At least one field must be provided (non-empty body)
+ */
+export const UpdateGoalSchema = z
+  .object({
+    name: z.string().min(1, "Name cannot be empty").max(100, "Name cannot exceed 100 characters").optional(),
+
+    target_amount_cents: z
+      .number({
+        invalid_type_error: "Target amount must be a number",
+      })
+      .int("Target amount must be an integer")
+      .positive("Target amount must be greater than 0")
+      .optional(),
+
+    is_priority: z
+      .boolean({
+        invalid_type_error: "Priority must be a boolean",
+      })
+      .optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });

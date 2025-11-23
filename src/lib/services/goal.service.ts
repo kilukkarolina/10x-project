@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@/db/supabase.client";
-import type { CreateGoalCommand, GoalDTO, GoalDetailDTO } from "@/types";
+import type { CreateGoalCommand, GoalDTO, GoalDetailDTO, UpdateGoalCommand } from "@/types";
 
 /**
  * Custom error class for business validation errors
@@ -368,4 +368,150 @@ export async function getGoalById(
   };
 
   return goalDetailDTO;
+}
+
+/**
+ * Updates an existing goal for the authenticated user
+ *
+ * Business logic flow:
+ * 1. Fetch goal and verify ownership (RLS)
+ * 2. Validate goal is not archived
+ * 3. If is_priority=true, unset priority on other goals (atomic)
+ * 4. Update goal with provided fields only (partial update)
+ * 5. Fetch updated goal with joined type_label
+ * 6. Compute progress_percentage and return GoalDTO
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param goalId - UUID of the goal to update
+ * @param command - Validated command data (UpdateGoalCommand) with only fields to update
+ * @returns Promise<GoalDTO | null> - Updated goal with type label and progress, or null if not found
+ * @throws ValidationError - Business validation failed (422)
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function updateGoal(
+  supabase: SupabaseClient,
+  userId: string,
+  goalId: string,
+  command: UpdateGoalCommand
+): Promise<GoalDTO | null> {
+  // Step 1: Fetch goal to verify it exists and belongs to user
+  const { data: existingGoal, error: fetchError } = await supabase
+    .from("goals")
+    .select("id, archived_at")
+    .eq("id", goalId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch goal: ${fetchError.message}`);
+  }
+
+  // Step 2: Return null if goal doesn't exist or doesn't belong to user
+  if (!existingGoal) {
+    return null;
+  }
+
+  // Step 3: Validate goal is not archived
+  if (existingGoal.archived_at !== null) {
+    throw new ValidationError("Cannot update archived goal", {
+      archived_at: existingGoal.archived_at,
+    });
+  }
+
+  // Step 4: If is_priority=true, unset priority on other goals
+  if (command.is_priority === true) {
+    const { error: priorityError } = await supabase
+      .from("goals")
+      .update({
+        is_priority: false,
+        updated_by: userId,
+      })
+      .eq("user_id", userId)
+      .neq("id", goalId)
+      .eq("is_priority", true)
+      .is("archived_at", null)
+      .is("deleted_at", null);
+
+    if (priorityError) {
+      throw new Error(`Failed to update priority on other goals: ${priorityError.message}`);
+    }
+  }
+
+  // Step 5: Build update object with only provided fields
+  const updateData: Record<string, unknown> = {
+    updated_by: userId,
+  };
+
+  if (command.name !== undefined) {
+    updateData.name = command.name;
+  }
+  if (command.target_amount_cents !== undefined) {
+    updateData.target_amount_cents = command.target_amount_cents;
+  }
+  if (command.is_priority !== undefined) {
+    updateData.is_priority = command.is_priority;
+  }
+
+  // Step 6: Update goal
+  const { error: updateError } = await supabase.from("goals").update(updateData).eq("id", goalId).eq("user_id", userId);
+
+  if (updateError) {
+    throw new Error(`Failed to update goal: ${updateError.message}`);
+  }
+
+  // Step 7: Fetch updated goal with joined type_label
+  const { data: updatedGoal, error: selectError } = await supabase
+    .from("goals")
+    .select(
+      `
+      id,
+      name,
+      type_code,
+      target_amount_cents,
+      current_balance_cents,
+      is_priority,
+      archived_at,
+      created_at,
+      updated_at,
+      goal_types!inner(label_pl)
+    `
+    )
+    .eq("id", goalId)
+    .eq("user_id", userId)
+    .single();
+
+  if (selectError) {
+    throw new Error(`Failed to fetch updated goal: ${selectError.message}`);
+  }
+
+  if (!updatedGoal) {
+    throw new Error("Goal was not updated");
+  }
+
+  // Step 8: Transform to GoalDTO with computed progress_percentage
+  const goalTypes = updatedGoal.goal_types as { label_pl: string } | { label_pl: string }[];
+  const typeLabel = Array.isArray(goalTypes) ? goalTypes[0].label_pl : goalTypes.label_pl;
+
+  const progressPercentage =
+    updatedGoal.target_amount_cents > 0
+      ? (updatedGoal.current_balance_cents / updatedGoal.target_amount_cents) * 100
+      : 0;
+
+  const goalDTO: GoalDTO = {
+    id: updatedGoal.id,
+    name: updatedGoal.name,
+    type_code: updatedGoal.type_code,
+    type_label: typeLabel,
+    target_amount_cents: updatedGoal.target_amount_cents,
+    current_balance_cents: updatedGoal.current_balance_cents,
+    progress_percentage: progressPercentage,
+    is_priority: updatedGoal.is_priority,
+    archived_at: updatedGoal.archived_at,
+    created_at: updatedGoal.created_at,
+    updated_at: updatedGoal.updated_at,
+  };
+
+  return goalDTO;
 }

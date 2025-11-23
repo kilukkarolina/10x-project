@@ -2,8 +2,13 @@ import type { APIContext } from "astro";
 import { z } from "zod";
 
 import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
-import { GetGoalByIdParamsSchema, GetGoalByIdQuerySchema } from "@/lib/schemas/goal.schema";
-import { getGoalById } from "@/lib/services/goal.service";
+import {
+  GetGoalByIdParamsSchema,
+  GetGoalByIdQuerySchema,
+  UpdateGoalParamsSchema,
+  UpdateGoalSchema,
+} from "@/lib/schemas/goal.schema";
+import { getGoalById, updateGoal, ValidationError } from "@/lib/services/goal.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -132,6 +137,144 @@ export async function GET(context: APIContext) {
     // Handle all unexpected errors (500 Internal Server Error)
     // eslint-disable-next-line no-console
     console.error("Unexpected error in GET /api/v1/goals/:id:", error);
+    const errorResponse: ErrorResponseDTO = {
+      error: "Internal Server Error",
+      message: "An unexpected error occurred. Please try again later.",
+    };
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+/**
+ * PATCH /api/v1/goals/:id
+ *
+ * Updates an existing goal (partial update).
+ *
+ * Path parameters:
+ * - id (required, UUID): Goal identifier
+ *
+ * Request body (all fields optional, but at least one required):
+ * - name (optional, string): Goal name, 1-100 characters
+ * - target_amount_cents (optional, number): Target amount in cents, positive integer
+ * - is_priority (optional, boolean): Priority flag
+ *
+ * Business rules:
+ * - Cannot update archived goals (422 Unprocessable Entity)
+ * - Cannot update current_balance_cents (use goal-events instead)
+ * - Setting is_priority=true automatically unsets priority on other goals
+ * - Only one goal can be marked as priority at a time
+ *
+ * Success response: 200 OK with GoalDTO
+ * {
+ *   id: string,
+ *   name: string,
+ *   type_code: string,
+ *   type_label: string,
+ *   target_amount_cents: number,
+ *   current_balance_cents: number,
+ *   progress_percentage: number,
+ *   is_priority: boolean,
+ *   archived_at: string | null,
+ *   created_at: string,
+ *   updated_at: string
+ * }
+ *
+ * Error responses:
+ * - 400: Invalid path parameter or request body (Zod validation failed)
+ * - 404: Goal not found or doesn't belong to user
+ * - 422: Cannot update archived goal
+ * - 500: Unexpected server error
+ *
+ * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
+ * Auth will be implemented comprehensively in a future iteration.
+ */
+export async function PATCH(context: APIContext) {
+  try {
+    // Step 1: Validate path parameter (goal ID)
+    const paramsValidation = UpdateGoalParamsSchema.safeParse({ id: context.params.id });
+
+    if (!paramsValidation.success) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid goal ID format",
+        details: formatZodErrors(paramsValidation.error),
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 2: Parse and validate request body
+    let requestBody;
+    try {
+      requestBody = await context.request.json();
+    } catch {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid JSON in request body",
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const bodyValidation = UpdateGoalSchema.safeParse(requestBody);
+
+    if (!bodyValidation.success) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid request data",
+        details: formatZodErrors(bodyValidation.error),
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 3: Call service layer to update goal
+    // Note: Using DEFAULT_USER_ID until auth is implemented
+    const goal = await updateGoal(supabaseClient, DEFAULT_USER_ID, paramsValidation.data.id, bodyValidation.data);
+
+    // Step 4: Return 404 if goal doesn't exist
+    if (!goal) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Not Found",
+        message: "Goal not found",
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 5: Return 200 OK with updated GoalDTO
+    return new Response(JSON.stringify(goal), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    // Handle ValidationError (422 Unprocessable Entity)
+    if (error instanceof ValidationError) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Unprocessable Entity",
+        message: error.message,
+        details: error.details,
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 422,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle all unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
+    console.error("Unexpected error in PATCH /api/v1/goals/:id:", error);
     const errorResponse: ErrorResponseDTO = {
       error: "Internal Server Error",
       message: "An unexpected error occurred. Please try again later.",
