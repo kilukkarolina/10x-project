@@ -44,3 +44,38 @@ export const CreateGoalEventSchema = z.object({
     .string({ required_error: "Client request ID is required" })
     .min(1, "Client request ID cannot be empty"),
 });
+
+/**
+ * Zod schema for GET /api/v1/goal-events query parameters
+ * Validates filtering and pagination params for listing goal events
+ *
+ * Validation rules:
+ * - goal_id: Optional, valid UUID format
+ * - month: Optional, YYYY-MM format (e.g., "2025-01")
+ * - type: Optional, must be DEPOSIT or WITHDRAW
+ * - cursor: Optional, base64-encoded string (structure validated in service layer)
+ * - limit: Optional, integer between 1-100, defaults to 50
+ */
+export const ListGoalEventsQuerySchema = z.object({
+  goal_id: z.string().uuid("Goal ID must be a valid UUID").optional(),
+
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
+    .optional(),
+
+  type: z
+    .enum(["DEPOSIT", "WITHDRAW"], {
+      invalid_type_error: "Type must be DEPOSIT or WITHDRAW",
+    })
+    .optional(),
+
+  cursor: z.string().optional(),
+
+  limit: z.coerce
+    .number()
+    .int("Limit must be an integer")
+    .min(1, "Limit must be at least 1")
+    .max(100, "Limit cannot exceed 100")
+    .default(50),
+});

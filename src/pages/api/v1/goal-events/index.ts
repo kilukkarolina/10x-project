@@ -2,12 +2,113 @@ import type { APIContext } from "astro";
 import { z } from "zod";
 
 import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
-import { CreateGoalEventSchema } from "@/lib/schemas/goal-event.schema";
-import { createGoalEvent, NotFoundError, ValidationError } from "@/lib/services/goal-event.service";
+import { CreateGoalEventSchema, ListGoalEventsQuerySchema } from "@/lib/schemas/goal-event.schema";
+import { createGoalEvent, listGoalEvents, NotFoundError, ValidationError } from "@/lib/services/goal-event.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
 export const prerender = false;
+
+/**
+ * GET /api/v1/goal-events
+ *
+ * Lists goal events for authenticated user with filtering and pagination.
+ * Supports cursor-based pagination for efficient navigation through large datasets.
+ *
+ * Query parameters (all optional):
+ * - goal_id: Filter by specific goal (UUID)
+ * - month: Filter by month (YYYY-MM format, e.g., "2025-01")
+ * - type: Filter by type (DEPOSIT | WITHDRAW)
+ * - cursor: Pagination cursor (base64-encoded, from previous response)
+ * - limit: Records per page (default: 50, max: 100)
+ *
+ * Success response: 200 OK with GoalEventListResponseDTO
+ * {
+ *   data: GoalEventDTO[],
+ *   pagination: {
+ *     next_cursor: string | null,
+ *     has_more: boolean,
+ *     limit: number
+ *   }
+ * }
+ *
+ * Error responses:
+ * - 400: Invalid query parameters (Zod validation) or invalid cursor
+ * - 401: Unauthorized (future - authentication required)
+ * - 500: Unexpected server error
+ *
+ * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
+ * Auth will be implemented comprehensively in a future iteration.
+ */
+export async function GET(context: APIContext) {
+  try {
+    // 1. Extract query parameters from URL
+    const url = new URL(context.request.url);
+    const queryParams = {
+      goal_id: url.searchParams.get("goal_id") || undefined,
+      month: url.searchParams.get("month") || undefined,
+      type: url.searchParams.get("type") || undefined,
+      cursor: url.searchParams.get("cursor") || undefined,
+      limit: url.searchParams.get("limit") || undefined,
+    };
+
+    // 2. Validate with Zod schema
+    const validated = ListGoalEventsQuerySchema.safeParse(queryParams);
+
+    if (!validated.success) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid query parameters",
+        details: formatZodErrors(validated.error),
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // 3. Call service layer to list goal events
+    // Note: Using DEFAULT_USER_ID until auth is implemented
+    const result = await listGoalEvents(supabaseClient, DEFAULT_USER_ID, {
+      goalId: validated.data.goal_id,
+      month: validated.data.month,
+      type: validated.data.type,
+      cursor: validated.data.cursor,
+      limit: validated.data.limit,
+    });
+
+    // 4. Return 200 OK with GoalEventListResponseDTO
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    // Handle ValidationError (invalid cursor)
+    if (error instanceof ValidationError) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: error.message,
+        details: error.details,
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle all other unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
+    console.error("Unexpected error in GET /api/v1/goal-events:", error);
+    const errorResponse: ErrorResponseDTO = {
+      error: "Internal Server Error",
+      message: "An unexpected error occurred. Please try again later.",
+    };
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
 
 /**
  * Formats Zod validation errors into a flat object
