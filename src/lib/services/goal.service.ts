@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@/db/supabase.client";
-import type { CreateGoalCommand, GoalDTO, GoalDetailDTO, UpdateGoalCommand } from "@/types";
+import type { CreateGoalCommand, GoalDTO, GoalDetailDTO, UpdateGoalCommand, ArchiveGoalResponseDTO } from "@/types";
 
 /**
  * Custom error class for business validation errors
@@ -514,4 +514,90 @@ export async function updateGoal(
   };
 
   return goalDTO;
+}
+
+/**
+ * Archives a goal for the authenticated user (soft archive)
+ *
+ * Business logic flow:
+ * 1. Fetch goal and verify ownership (RLS + explicit user_id check)
+ * 2. Return null if goal doesn't exist or doesn't belong to user
+ * 3. Validate goal is not already archived (422)
+ * 4. Validate goal is not priority (409 Conflict)
+ * 5. UPDATE goals SET archived_at = NOW()
+ * 6. Return ArchiveGoalResponseDTO with success message
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param goalId - UUID of the goal to archive
+ * @returns Promise<ArchiveGoalResponseDTO | null> - Archive response with timestamp and message, or null if not found
+ * @throws ValidationError - Business validation failed (409 or 422)
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function archiveGoal(
+  supabase: SupabaseClient,
+  userId: string,
+  goalId: string
+): Promise<ArchiveGoalResponseDTO | null> {
+  // Step 1: Fetch goal and verify ownership
+  const { data: existingGoal, error: fetchError } = await supabase
+    .from("goals")
+    .select("id, name, archived_at, is_priority")
+    .eq("id", goalId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch goal: ${fetchError.message}`);
+  }
+
+  // Step 2: Return null if goal doesn't exist
+  if (!existingGoal) {
+    return null;
+  }
+
+  // Step 3: Validate goal is not already archived
+  if (existingGoal.archived_at !== null) {
+    throw new ValidationError("Goal is already archived", {
+      archived_at: existingGoal.archived_at,
+    });
+  }
+
+  // Step 4: Validate goal is not priority
+  if (existingGoal.is_priority) {
+    throw new ValidationError("Cannot archive priority goal. Please unset priority flag first.", {
+      is_priority: "true",
+    });
+  }
+
+  // Step 5: UPDATE goal to set archived_at
+  const { data: archivedGoal, error: updateError } = await supabase
+    .from("goals")
+    .update({
+      archived_at: new Date().toISOString(),
+      updated_by: userId,
+    })
+    .eq("id", goalId)
+    .eq("user_id", userId)
+    .select("id, name, archived_at")
+    .single();
+
+  if (updateError) {
+    throw new Error(`Failed to archive goal: ${updateError.message}`);
+  }
+
+  if (!archivedGoal) {
+    throw new Error("Goal was not archived");
+  }
+
+  // Step 6: Return response DTO
+  const response: ArchiveGoalResponseDTO = {
+    id: archivedGoal.id,
+    name: archivedGoal.name,
+    archived_at: archivedGoal.archived_at,
+    message: "Cel został zarchiwizowany. Dane historyczne pozostają niezmienione.",
+  };
+
+  return response;
 }

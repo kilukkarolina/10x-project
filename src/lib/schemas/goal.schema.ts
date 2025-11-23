@@ -125,3 +125,11 @@ export const UpdateGoalSchema = z
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided",
   });
+
+/**
+ * Zod schema for POST /api/v1/goals/:id/archive path parameter
+ * Validates that the goal ID is a valid UUID
+ */
+export const ArchiveGoalParamsSchema = z.object({
+  id: z.string().uuid("Invalid goal ID format"),
+});
