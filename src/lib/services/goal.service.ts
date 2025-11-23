@@ -143,3 +143,87 @@ export async function createGoal(
 
   return goalDTO;
 }
+
+/**
+ * Lists all goals for the authenticated user
+ *
+ * Business logic flow:
+ * 1. Query goals table with user_id filter
+ * 2. Join with goal_types to get type_label
+ * 3. Filter out soft-deleted goals (deleted_at IS NULL)
+ * 4. Optionally filter archived goals
+ * 5. Transform results to GoalDTO with computed progress_percentage
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param includeArchived - Whether to include archived goals (default: false)
+ * @returns Promise<GoalDTO[]> - Array of goals with type labels and progress
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function listGoals(supabase: SupabaseClient, userId: string, includeArchived = false): Promise<GoalDTO[]> {
+  // Build query with filters
+  let query = supabase
+    .from("goals")
+    .select(
+      `
+      id,
+      name,
+      type_code,
+      target_amount_cents,
+      current_balance_cents,
+      is_priority,
+      archived_at,
+      created_at,
+      updated_at,
+      goal_types!inner(label_pl)
+    `
+    )
+    .eq("user_id", userId)
+    .is("deleted_at", null); // Exclude soft-deleted goals
+
+  // Conditionally filter archived goals
+  if (!includeArchived) {
+    query = query.is("archived_at", null);
+  }
+
+  // Order by created_at descending (newest first)
+  query = query.order("created_at", { ascending: false });
+
+  // Execute query
+  const { data: goals, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to fetch goals: ${error.message}`);
+  }
+
+  if (!goals) {
+    return [];
+  }
+
+  // Transform to GoalDTO with computed progress_percentage
+  return goals.map((goal) => {
+    // Handle joined goal_types (can be array or single object)
+    const goalTypes = goal.goal_types as { label_pl: string } | { label_pl: string }[];
+    const typeLabel = Array.isArray(goalTypes) ? goalTypes[0].label_pl : goalTypes.label_pl;
+
+    // Compute progress percentage
+    const progressPercentage =
+      goal.target_amount_cents > 0 ? (goal.current_balance_cents / goal.target_amount_cents) * 100 : 0;
+
+    const goalDTO: GoalDTO = {
+      id: goal.id,
+      name: goal.name,
+      type_code: goal.type_code,
+      type_label: typeLabel,
+      target_amount_cents: goal.target_amount_cents,
+      current_balance_cents: goal.current_balance_cents,
+      progress_percentage: progressPercentage,
+      is_priority: goal.is_priority,
+      archived_at: goal.archived_at,
+      created_at: goal.created_at,
+      updated_at: goal.updated_at,
+    };
+
+    return goalDTO;
+  });
+}

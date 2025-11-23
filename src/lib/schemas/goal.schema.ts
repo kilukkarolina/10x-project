@@ -11,10 +11,7 @@ import { z } from "zod";
  * - is_priority: Optional boolean, defaults to false
  */
 export const CreateGoalSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .max(100, "Name cannot exceed 100 characters"),
+  name: z.string().min(1, "Name is required").max(100, "Name cannot exceed 100 characters"),
 
   type_code: z.string().min(1, "Goal type code is required"),
 
@@ -29,3 +26,21 @@ export const CreateGoalSchema = z.object({
   is_priority: z.boolean().optional().default(false),
 });
 
+/**
+ * Zod schema for GET /api/v1/goals query parameters
+ * Validates and transforms the include_archived parameter
+ *
+ * Validation rules:
+ * - include_archived: Optional boolean, defaults to false
+ * - Accepts: true, false, "true", "false", "1", "0", null, undefined
+ * - Rejects: any other string values (e.g., "maybe", "yes")
+ */
+export const ListGoalsQuerySchema = z.object({
+  include_archived: z.preprocess((val) => {
+    if (val === null || val === undefined) return false;
+    if (typeof val === "boolean") return val;
+    if (val === "true" || val === "1") return true;
+    if (val === "false" || val === "0") return false;
+    return val; // Leave invalid values to be caught by z.boolean()
+  }, z.boolean().default(false)),
+});

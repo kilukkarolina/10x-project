@@ -2,9 +2,9 @@ import type { APIContext } from "astro";
 import { z } from "zod";
 
 import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
-import { CreateGoalSchema } from "@/lib/schemas/goal.schema";
-import { createGoal, ValidationError } from "@/lib/services/goal.service";
-import type { ErrorResponseDTO } from "@/types";
+import { CreateGoalSchema, ListGoalsQuerySchema } from "@/lib/schemas/goal.schema";
+import { createGoal, listGoals, ValidationError } from "@/lib/services/goal.service";
+import type { ErrorResponseDTO, GoalListResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
 export const prerender = false;
@@ -23,6 +23,76 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
     formatted[path] = err.message;
   });
   return formatted;
+}
+
+/**
+ * GET /api/v1/goals
+ *
+ * Lists all goals for the authenticated user.
+ *
+ * Query parameters:
+ * - include_archived (optional, boolean): Include archived goals (default: false)
+ *   Accepts: true, false, "true", "false", "1", "0"
+ *
+ * Success response: 200 OK with GoalListResponseDTO
+ * {
+ *   data: GoalDTO[]
+ * }
+ *
+ * Error responses:
+ * - 400: Invalid query parameters (Zod validation failed)
+ * - 500: Unexpected server error
+ *
+ * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
+ * Auth will be implemented comprehensively in a future iteration.
+ */
+export async function GET(context: APIContext) {
+  try {
+    // Parse query parameters from URL
+    const url = new URL(context.request.url);
+    const queryParams = {
+      include_archived: url.searchParams.get("include_archived"),
+    };
+
+    // Validate with Zod schema
+    const validatedQuery = ListGoalsQuerySchema.parse(queryParams);
+
+    // Call service layer to list goals
+    // Note: Using DEFAULT_USER_ID until auth is implemented
+    const goals = await listGoals(supabaseClient, DEFAULT_USER_ID, validatedQuery.include_archived ?? false);
+
+    // Return 200 OK with GoalListResponseDTO
+    const response: GoalListResponseDTO = { data: goals };
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    // Handle Zod validation errors (400 Bad Request)
+    if (error instanceof z.ZodError) {
+      const errorResponse: ErrorResponseDTO = {
+        error: "Bad Request",
+        message: "Invalid query parameters",
+        details: formatZodErrors(error),
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle all other unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
+    console.error("Unexpected error in GET /api/v1/goals:", error);
+    const errorResponse: ErrorResponseDTO = {
+      error: "Internal Server Error",
+      message: "An unexpected error occurred. Please try again later.",
+    };
+    return new Response(JSON.stringify(errorResponse), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
 
 /**
