@@ -16,6 +16,7 @@ npx supabase migration up
 ```
 
 **Ważne migracje dla testów**:
+
 - `20251109120500_seed_test_user.sql` - dodaje test usera do profiles
 - `20251111090000_disable_rls_for_development.sql` - wyłącza RLS tymczasowo
 
@@ -28,11 +29,13 @@ PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
-✅ **Informacja**: 
+✅ **Informacja**:
+
 - Prefix `PUBLIC_` oznacza, że zmienne są dostępne zarówno na serwerze jak i kliencie
 - RLS jest tymczasowo wyłączony dla development, więc wystarczy anon key
 
 ⚠️ **Przypomnienie**: Przed production trzeba będzie:
+
 - Włączyć ponownie RLS (migracja do stworzenia)
 - Zaimplementować pełen auth middleware
 - Przełączyć na autentykowane requesty
@@ -43,7 +46,7 @@ W Supabase Studio lub przez SQL:
 
 ```sql
 -- Sprawdź czy test user istnieje w profiles
-SELECT * FROM profiles 
+SELECT * FROM profiles
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 
 -- Sprawdź czy user istnieje w auth.users
@@ -52,6 +55,7 @@ WHERE id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ```
 
 **Oczekiwany wynik**:
+
 - ✅ User w `auth.users`: `hareyo4707@wivstore.com` (confirmed_at not null)
 - ✅ User w `profiles`: `email_confirmed = true`
 
@@ -72,6 +76,7 @@ Server powinien być dostępny pod `http://localhost:3004`
 ### Test 1: ✅ Sukces - Utworzenie EXPENSE
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -86,6 +91,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `201 Created`
+
 ```json
 {
   "id": "uuid",
@@ -105,6 +111,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 2: ✅ Sukces - Utworzenie INCOME
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -125,6 +132,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 3: ❌ Błąd 400 - Brak wymaganych pól
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -135,6 +143,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -152,6 +161,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 4: ❌ Błąd 400 - Niewłaściwy typ danych
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -165,6 +175,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -182,6 +193,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 5: ❌ Błąd 400 - Data w przyszłości
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -195,6 +207,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -210,6 +223,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 6: ❌ Błąd 409 - Duplikat client_request_id (idempotencja)
 
 **Request:** (powtórz request z Test 1)
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -224,6 +238,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `409 Conflict`
+
 ```json
 {
   "error": "Conflict",
@@ -236,6 +251,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 7: ❌ Błąd 422 - Nieistniejąca kategoria
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -249,6 +265,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `422 Unprocessable Entity`
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -264,6 +281,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 8: ❌ Błąd 422 - Niezgodność typu kategorii
 
 **Request:** (GROCERIES to EXPENSE, ale próbujemy użyć dla INCOME)
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -277,6 +295,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `422 Unprocessable Entity`
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -292,6 +311,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 9: ✅ Edge case - Notatka z maksymalną długością
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -312,6 +332,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ### Test 10: ❌ Błąd 400 - Notatka zbyt długa
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -326,6 +347,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -344,7 +366,7 @@ Po testach 1 i 2 (sukcesy), sprawdź dane w bazie:
 
 ```sql
 -- Sprawdź utworzone transakcje
-SELECT * FROM transactions 
+SELECT * FROM transactions
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 ORDER BY created_at DESC;
 
@@ -386,6 +408,7 @@ ORDER BY performed_at DESC;
 **Diagnostyka**: Sprawdź console.error w terminalu gdzie działa dev server.
 
 **Częste przyczyny**:
+
 1. Brak połączenia z Supabase - sprawdź `SUPABASE_URL` i `SUPABASE_KEY`
 2. Błędne dane w `.env` - upewnij się, że nie ma spacji wokół wartości
 3. Dev server wymaga restartu po zmianie `.env`
@@ -393,11 +416,13 @@ ORDER BY performed_at DESC;
 ### Problem: "Category code does not exist" (422)
 
 **Rozwiązanie**: Kategorie nie zostały załadowane. Uruchom migracje:
+
 ```bash
 npx supabase db reset
 ```
 
 Sprawdź w Supabase Studio czy tabela `transaction_categories` ma dane:
+
 ```sql
 SELECT * FROM transaction_categories;
 ```
@@ -408,15 +433,16 @@ SELECT * FROM transaction_categories;
 
 ```bash
 # Sprawdź status RLS
-SELECT tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public' 
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
   AND tablename IN ('transactions', 'goals', 'goal_events', 'monthly_metrics');
 ```
 
 Oczekiwany wynik: `rowsecurity = false` dla wszystkich tabel.
 
 Jeśli `rowsecurity = true`, uruchom:
+
 ```bash
 npx supabase migration up
 ```
@@ -427,6 +453,7 @@ npx supabase migration up
 
 1. Sprawdź czy user jest w auth.users (Supabase Studio → Authentication)
 2. Uruchom migrację:
+
 ```bash
 npx supabase migration up
 ```
@@ -434,9 +461,10 @@ npx supabase migration up
 ### Problem: Trigger nie aktualizuje monthly_metrics
 
 **Diagnostyka**:
+
 ```sql
 -- Sprawdź czy trigger istnieje
-SELECT * FROM pg_trigger 
+SELECT * FROM pg_trigger
 WHERE tgname LIKE '%monthly_metrics%';
 
 -- Sprawdź monthly_metrics po dodaniu transakcji
@@ -445,6 +473,7 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ```
 
 **Rozwiązanie**: Trigger nie został stworzony. Sprawdź migracje:
+
 ```bash
 npx supabase db reset
 ```
@@ -457,4 +486,3 @@ npx supabase db reset
 2. 📝 Dokumentacja API (opcjonalnie Swagger/OpenAPI)
 3. 🔐 Implementacja pełnego auth middleware (przyszła iteracja)
 4. 🚀 Implementacja kolejnych endpointów zgodnie z api-plan.md
-

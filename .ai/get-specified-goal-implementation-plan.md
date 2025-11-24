@@ -5,6 +5,7 @@
 Endpoint służy do pobierania szczegółowych informacji o konkretnym celu finansowym użytkownika, wraz z opcjonalną historią wydarzeń (wpłaty/wypłaty) oraz obliczeniami zmian miesięcznych.
 
 **Główne funkcje:**
+
 - Pobieranie pełnych danych celu z bazy danych
 - Join z tabelą `goal_types` w celu uzyskania czytelnej etykiety typu celu
 - Obliczanie procentu realizacji celu (`progress_percentage`)
@@ -13,6 +14,7 @@ Endpoint służy do pobierania szczegółowych informacji o konkretnym celu fina
 - Obliczanie miesięcznej zmiany salda celu (`monthly_change_cents`)
 
 **Zabezpieczenia:**
+
 - Dostęp tylko dla zalogowanych użytkowników z potwierdzonym emailem
 - RLS (Row Level Security) zapewnia, że użytkownik widzi tylko swoje cele
 - Soft-deleted cele są ukryte
@@ -22,31 +24,36 @@ Endpoint służy do pobierania szczegółowych informacji o konkretnym celu fina
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `GET`
 
 ### Struktura URL
+
 ```
 /api/v1/goals/:id
 ```
 
 ### Parametry URL (Path Parameters)
+
 - **`id`** (required, UUID) - Identyfikator celu do pobrania
 
 ### Query Parameters
+
 - **`include_events`** (optional, boolean) - Czy dołączyć historię wydarzeń celu
   - Default: `true`
   - Wartości: `"true"` lub `"false"` (jako string w query)
-  
 - **`month`** (optional, string) - Filtruj wydarzenia po miesiącu
   - Format: `YYYY-MM` (np. `"2025-01"`)
   - Walidacja: musi być prawidłową datą, nie może być w przyszłości
   - Działa tylko gdy `include_events=true`
 
 ### Request Headers
+
 - **`Authorization`** - Bearer token (zarządzany przez Supabase Auth)
 - **`Content-Type`** - `application/json`
 
 ### Request Body
+
 Brak (metoda GET)
 
 ---
@@ -56,6 +63,7 @@ Brak (metoda GET)
 ### Typy z `src/types.ts`
 
 **Typ odpowiedzi:**
+
 ```typescript
 export interface GoalDetailDTO extends GoalDTO {
   events: GoalEventInDetailDTO[];
@@ -64,6 +72,7 @@ export interface GoalDetailDTO extends GoalDTO {
 ```
 
 **Typ bazowy GoalDTO:**
+
 ```typescript
 export interface GoalDTO
   extends Pick<
@@ -84,14 +93,13 @@ export interface GoalDTO
 ```
 
 **Typ wydarzenia:**
+
 ```typescript
-type GoalEventInDetailDTO = Pick<
-  GoalEventEntity, 
-  "id" | "type" | "amount_cents" | "occurred_on" | "created_at"
->;
+type GoalEventInDetailDTO = Pick<GoalEventEntity, "id" | "type" | "amount_cents" | "occurred_on" | "created_at">;
 ```
 
 **Typ błędu:**
+
 ```typescript
 export interface ErrorResponseDTO {
   error: string;
@@ -103,6 +111,7 @@ export interface ErrorResponseDTO {
 ### Nowe schematy Zod (do utworzenia)
 
 **Schema dla query parameters:**
+
 ```typescript
 // src/lib/schemas/goal.schema.ts
 
@@ -137,6 +146,7 @@ export const getGoalByIdParamsSchema = z.object({
 ### Success Response: `200 OK`
 
 **Struktura:**
+
 ```json
 {
   "id": "uuid-string",
@@ -164,6 +174,7 @@ export const getGoalByIdParamsSchema = z.object({
 ```
 
 **Opis pól:**
+
 - `progress_percentage` - Obliczony jako `(current_balance_cents / target_amount_cents) * 100`
 - `type_label` - Pobrane z `goal_types.label_pl` przez JOIN
 - `events` - Tablica wydarzeń, pusta jeśli `include_events=false`
@@ -172,6 +183,7 @@ export const getGoalByIdParamsSchema = z.object({
 ### Error Responses
 
 **`400 Bad Request`** - Nieprawidłowe parametry zapytania
+
 ```json
 {
   "error": "validation_error",
@@ -183,6 +195,7 @@ export const getGoalByIdParamsSchema = z.object({
 ```
 
 **`401 Unauthorized`** - Brak autoryzacji
+
 ```json
 {
   "error": "unauthorized",
@@ -191,6 +204,7 @@ export const getGoalByIdParamsSchema = z.object({
 ```
 
 **`403 Forbidden`** - Email nie zweryfikowany
+
 ```json
 {
   "error": "forbidden",
@@ -199,6 +213,7 @@ export const getGoalByIdParamsSchema = z.object({
 ```
 
 **`404 Not Found`** - Cel nie istnieje lub nie należy do użytkownika
+
 ```json
 {
   "error": "not_found",
@@ -207,6 +222,7 @@ export const getGoalByIdParamsSchema = z.object({
 ```
 
 **`500 Internal Server Error`** - Błąd serwera
+
 ```json
 {
   "error": "internal_error",
@@ -265,8 +281,9 @@ async getGoalById(
 ```
 
 **Query do pobrania celu:**
+
 ```sql
-SELECT 
+SELECT
   g.id,
   g.name,
   g.type_code,
@@ -285,8 +302,9 @@ WHERE g.id = $1
 ```
 
 **Query do pobrania wydarzeń (jeśli includeEvents=true):**
+
 ```sql
-SELECT 
+SELECT
   id,
   type,
   amount_cents,
@@ -300,13 +318,14 @@ ORDER BY occurred_on DESC, created_at DESC
 ```
 
 **Query do obliczenia monthly_change_cents (jeśli month podane):**
+
 ```sql
-SELECT 
+SELECT
   COALESCE(
     SUM(
-      CASE 
-        WHEN type = 'DEPOSIT' THEN amount_cents 
-        ELSE -amount_cents 
+      CASE
+        WHEN type = 'DEPOSIT' THEN amount_cents
+        ELSE -amount_cents
       END
     ),
     0
@@ -322,16 +341,18 @@ WHERE goal_id = $1
 ## 6. Względy bezpieczeństwa
 
 ### 1. Uwierzytelnianie (Authentication)
+
 - Endpoint wymaga aktywnej sesji użytkownika (Bearer token w headerze Authorization)
 - Middleware Astro (`src/middleware/index.ts`) powinno weryfikować token przed dotarciem do handlera
 - Jeśli brak tokenu → `401 Unauthorized`
 
 ### 2. Autoryzacja (Authorization)
+
 - **RLS (Row Level Security)** na tabeli `goals`:
   ```sql
   USING (user_id = auth.uid() AND EXISTS(
-    SELECT 1 FROM profiles p 
-    WHERE p.user_id = auth.uid() 
+    SELECT 1 FROM profiles p
+    WHERE p.user_id = auth.uid()
     AND p.email_confirmed
   ))
   ```
@@ -339,23 +360,28 @@ WHERE goal_id = $1
 - Dodatkowa walidacja w service: zawsze przekazuj `userId` z auth context
 
 ### 3. Weryfikacja Email
+
 - RLS wymaga `email_confirmed = true` w tabeli `profiles`
 - Jeśli email nie zweryfikowany, RLS zwróci pusty wynik → traktuj jako `403 Forbidden`
 
 ### 4. Walidacja Input
+
 - **UUID validation**: Waliduj format UUID dla `:id` przed query (zapobiega SQL injection)
 - **Month format**: Regex `/^\d{4}-\d{2}$/` + walidacja czy data nie jest w przyszłości
 - **Boolean coercion**: Przekształć string "true"/"false" na boolean
 
 ### 5. Soft-Delete
+
 - Zawsze filtruj `deleted_at IS NULL` w queries
 - Cele soft-deleted powinny zwracać `404 Not Found`
 
 ### 6. Information Disclosure
+
 - Nie ujawniaj różnicy między "cel nie istnieje" a "cel należy do innego użytkownika"
 - Oba przypadki zwracają `404 Not Found` z tym samym komunikatem
 
 ### 7. Rate Limiting
+
 - Rozważ implementację rate limitingu dla tego endpointu (np. 100 req/min per user)
 - Można użyć middleware lub Edge Function Supabase
 
@@ -365,19 +391,19 @@ WHERE goal_id = $1
 
 ### Scenariusze błędów i ich obsługa
 
-| Scenariusz | Kod HTTP | Error Code | Message | Akcja |
-|------------|----------|------------|---------|-------|
-| Nieprawidłowy format UUID w `:id` | 400 | `validation_error` | `"Invalid goal ID format"` | Walidacja Zod, zwróć szczegóły |
-| Nieprawidłowy format `month` | 400 | `validation_error` | `"Month must be in YYYY-MM format"` | Walidacja Zod, zwróć szczegóły |
-| Miesiąc w przyszłości | 400 | `validation_error` | `"Month cannot be in the future"` | Walidacja Zod |
-| Brak tokenu auth | 401 | `unauthorized` | `"Authentication required"` | Middleware zwraca 401 |
-| Nieprawidłowy token | 401 | `unauthorized` | `"Invalid or expired token"` | Supabase zwraca błąd auth |
-| Email nie zweryfikowany | 403 | `forbidden` | `"Email verification required"` | Sprawdź profiles.email_confirmed |
-| Cel nie istnieje | 404 | `not_found` | `"Goal not found"` | Service zwraca null → 404 |
-| Cel jest soft-deleted | 404 | `not_found` | `"Goal not found"` | Service zwraca null → 404 |
-| Cel należy do innego użytkownika | 404 | `not_found` | `"Goal not found"` | RLS filtruje → null → 404 |
-| Błąd połączenia z bazą | 500 | `internal_error` | `"An unexpected error occurred"` | Loguj błąd, zwróć 500 |
-| Nieoczekiwany błąd w service | 500 | `internal_error` | `"An unexpected error occurred"` | Loguj błąd, zwróć 500 |
+| Scenariusz                        | Kod HTTP | Error Code         | Message                             | Akcja                            |
+| --------------------------------- | -------- | ------------------ | ----------------------------------- | -------------------------------- |
+| Nieprawidłowy format UUID w `:id` | 400      | `validation_error` | `"Invalid goal ID format"`          | Walidacja Zod, zwróć szczegóły   |
+| Nieprawidłowy format `month`      | 400      | `validation_error` | `"Month must be in YYYY-MM format"` | Walidacja Zod, zwróć szczegóły   |
+| Miesiąc w przyszłości             | 400      | `validation_error` | `"Month cannot be in the future"`   | Walidacja Zod                    |
+| Brak tokenu auth                  | 401      | `unauthorized`     | `"Authentication required"`         | Middleware zwraca 401            |
+| Nieprawidłowy token               | 401      | `unauthorized`     | `"Invalid or expired token"`        | Supabase zwraca błąd auth        |
+| Email nie zweryfikowany           | 403      | `forbidden`        | `"Email verification required"`     | Sprawdź profiles.email_confirmed |
+| Cel nie istnieje                  | 404      | `not_found`        | `"Goal not found"`                  | Service zwraca null → 404        |
+| Cel jest soft-deleted             | 404      | `not_found`        | `"Goal not found"`                  | Service zwraca null → 404        |
+| Cel należy do innego użytkownika  | 404      | `not_found`        | `"Goal not found"`                  | RLS filtruje → null → 404        |
+| Błąd połączenia z bazą            | 500      | `internal_error`   | `"An unexpected error occurred"`    | Loguj błąd, zwróć 500            |
+| Nieoczekiwany błąd w service      | 500      | `internal_error`   | `"An unexpected error occurred"`    | Loguj błąd, zwróć 500            |
 
 ### Implementacja obsługi błędów w route handler
 
@@ -487,14 +513,14 @@ try {
 
 2. **Pobieranie wszystkich wydarzeń dla celu**
    - Ryzyko: Cel z wieloma wydarzeniami może zwracać dużo danych
-   - Mitigacja: 
+   - Mitigacja:
      - Limituj liczbę zwracanych wydarzeń (np. ostatnie 100)
      - Użyj parametru `month` do filtrowania
      - Rozważ paginację w przyszłości
 
 3. **Obliczanie monthly_change_cents**
    - Ryzyko: Agregacja może być kosztowna
-   - Mitigacja: 
+   - Mitigacja:
      - Użyj indeksu `idx_ge_goal_month(goal_id, month)`
      - Agregacja SUM jest szybka dla małych zbiorów danych
 
@@ -507,15 +533,17 @@ try {
 ### Strategie optymalizacji
 
 #### 1. Cache na poziomie aplikacji
+
 - Nie zalecane dla tego endpointu (dane mogą się często zmieniać)
 - Jeśli potrzebne, użyj krótkiego TTL (np. 30 sekund)
 
 #### 2. Optymalizacja zapytań SQL
 
 **Połączone zapytanie z CTEs:**
+
 ```sql
 WITH goal_data AS (
-  SELECT 
+  SELECT
     g.id, g.name, g.type_code, g.target_amount_cents,
     g.current_balance_cents, g.is_priority, g.archived_at,
     g.created_at, g.updated_at,
@@ -525,7 +553,7 @@ WITH goal_data AS (
   WHERE g.id = $1 AND g.user_id = $2 AND g.deleted_at IS NULL
 ),
 events_data AS (
-  SELECT 
+  SELECT
     json_agg(
       json_build_object(
         'id', id,
@@ -540,7 +568,7 @@ events_data AS (
     [AND month = $3]  -- opcjonalnie
 ),
 monthly_change AS (
-  SELECT 
+  SELECT
     COALESCE(
       SUM(CASE WHEN type = 'DEPOSIT' THEN amount_cents ELSE -amount_cents END),
       0
@@ -548,7 +576,7 @@ monthly_change AS (
   FROM goal_events
   WHERE goal_id = $1 AND user_id = $2 AND month = $3
 )
-SELECT 
+SELECT
   gd.*,
   COALESCE(ed.events, '[]'::json) as events,
   COALESCE(mc.change, 0) as monthly_change_cents
@@ -558,15 +586,18 @@ LEFT JOIN monthly_change mc ON true;
 ```
 
 #### 3. Indeksy (już zdefiniowane w db-plan.md)
+
 - ✅ `idx_goals_user_month(user_id, id desc)` - dla podstawowego filtrowania
 - ✅ `idx_ge_goal_month(goal_id, month)` - dla agregacji wydarzeń
 - ✅ `idx_goals_active(user_id) where deleted_at is null` - dla aktywnych celów
 
 #### 4. Connection pooling
+
 - Supabase ma wbudowany connection pooling
 - Używaj Supabase client z connection pooling (już domyślnie)
 
 #### 5. Limitowanie danych
+
 ```typescript
 // W service: limit wydarzeń do ostatnich 100
 const { data: events } = await supabase
@@ -584,9 +615,11 @@ const { data: events } = await supabase
 ## 9. Etapy wdrożenia
 
 ### Krok 1: Rozszerzenie schematów Zod
+
 **Plik:** `src/lib/schemas/goal.schema.ts`
 
 1.1. Dodaj schemat dla query parameters:
+
 ```typescript
 export const getGoalByIdQuerySchema = z.object({
   include_events: z
@@ -609,6 +642,7 @@ export const getGoalByIdQuerySchema = z.object({
 ```
 
 1.2. Dodaj schemat dla path parameters:
+
 ```typescript
 export const getGoalByIdParamsSchema = z.object({
   id: z.string().uuid("Invalid goal ID format"),
@@ -616,9 +650,11 @@ export const getGoalByIdParamsSchema = z.object({
 ```
 
 ### Krok 2: Rozszerzenie goal.service.ts
+
 **Plik:** `src/lib/services/goal.service.ts`
 
 2.1. Dodaj metodę `getGoalById`:
+
 ```typescript
 async getGoalById(
   userId: string,
@@ -631,6 +667,7 @@ async getGoalById(
 ```
 
 2.2. Implementuj logikę:
+
 - Query do pobrania celu z JOIN do goal_types
 - Sprawdzenie czy cel istnieje (deleted_at IS NULL)
 - Obliczenie progress_percentage
@@ -639,9 +676,11 @@ async getGoalById(
 - Zwróć GoalDetailDTO lub null
 
 ### Krok 3: Utworzenie route handler
+
 **Plik:** `src/pages/api/v1/goals/[id].ts`
 
 3.1. Utwórz plik z exportem `GET` funkcji:
+
 ```typescript
 export const prerender = false;
 
@@ -666,68 +705,86 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 ### Krok 4: Testowanie manualne
 
 4.1. **Test pozytywny - podstawowy:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{goal-id}" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 200 OK z pełnymi danymi celu
 
 4.2. **Test pozytywny - bez wydarzeń:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{goal-id}?include_events=false" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 200 OK, events = []
 
 4.3. **Test pozytywny - filtr po miesiącu:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{goal-id}?month=2025-01" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 200 OK, tylko wydarzenia z stycznia 2025
 
 4.4. **Test negatywny - nieprawidłowy UUID:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/invalid-id" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 400 Bad Request
 
 4.5. **Test negatywny - nieprawidłowy format month:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{goal-id}?month=2025-1" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 400 Bad Request
 
 4.6. **Test negatywny - brak autoryzacji:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{goal-id}"
 ```
+
 Oczekiwany wynik: 401 Unauthorized
 
 4.7. **Test negatywny - cel nie istnieje:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{non-existent-uuid}" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 404 Not Found
 
 4.8. **Test negatywny - cel należy do innego użytkownika:**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals/{other-user-goal-id}" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany wynik: 404 Not Found (dzięki RLS)
 
 ### Krok 5: Walidacja działania RLS
 
 5.1. Sprawdź w pgAdmin/Supabase Dashboard, że polityka RLS dla `goals` jest aktywna:
+
 ```sql
 SELECT * FROM pg_policies WHERE tablename = 'goals';
 ```
 
 5.2. Przetestuj query bezpośrednio w SQL Editor z `auth.uid()`:
+
 ```sql
 SELECT * FROM goals WHERE id = '{goal-id}';
 -- Powinno zwrócić tylko cele zalogowanego użytkownika
@@ -736,9 +793,10 @@ SELECT * FROM goals WHERE id = '{goal-id}';
 ### Krok 6: Sprawdzenie wydajności
 
 6.1. Użyj `EXPLAIN ANALYZE` dla głównego query:
+
 ```sql
 EXPLAIN ANALYZE
-SELECT 
+SELECT
   g.id, g.name, g.type_code, g.target_amount_cents,
   g.current_balance_cents, g.is_priority, g.archived_at,
   g.created_at, g.updated_at,
@@ -751,41 +809,49 @@ WHERE g.id = '{goal-id}'
 ```
 
 6.2. Sprawdź czy używane są odpowiednie indeksy:
+
 - Index Scan na `goals_pkey` lub `idx_goals_active`
 - Index Scan na `goal_types_pkey`
 
-6.3. Zmierz czas odpowiedzi:
+  6.3. Zmierz czas odpowiedzi:
+
 ```bash
 time curl -X GET "http://localhost:4321/api/v1/goals/{goal-id}" \
   -H "Authorization: Bearer {token}"
 ```
+
 Oczekiwany czas: < 200ms
 
 ### Krok 7: Obsługa edge cases
 
 7.1. **Cel bez wydarzeń:**
+
 - events powinno być pustą tablicą `[]`
 - monthly_change_cents powinno być `0`
 
-7.2. **Cel z archived_at:**
+  7.2. **Cel z archived_at:**
+
 - Powinien być zwrócony normalnie (200 OK)
 - archived_at nie null w odpowiedzi
 
-7.3. **Cel z bardzo dużą liczbą wydarzeń:**
+  7.3. **Cel z bardzo dużą liczbą wydarzeń:**
+
 - Rozważ dodanie limitu (np. 100 ostatnich)
 - Sprawdź czy czas odpowiedzi pozostaje akceptowalny
 
-7.4. **Miesiąc bez wydarzeń:**
+  7.4. **Miesiąc bez wydarzeń:**
+
 - events = []
 - monthly_change_cents = 0
 
 ### Krok 8: Dokumentacja
 
 8.1. Dodaj komentarze JSDoc do metody w service:
+
 ```typescript
 /**
  * Retrieves detailed information about a specific goal
- * 
+ *
  * @param userId - ID of the authenticated user
  * @param goalId - UUID of the goal to retrieve
  * @param includeEvents - Whether to include goal events history (default: true)
@@ -817,6 +883,7 @@ async getGoalById(...)
 ### Krok 10: Integracja z frontendem (opcjonalnie)
 
 10.1. Utwórz TypeScript client function:
+
 ```typescript
 // src/lib/api/goals.ts
 export async function getGoalById(
@@ -834,14 +901,11 @@ export async function getGoalById(
     params.set("month", options.month);
   }
 
-  const response = await fetch(
-    `/api/v1/goals/${goalId}?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${getAccessToken()}`,
-      },
-    }
-  );
+  const response = await fetch(`/api/v1/goals/${goalId}?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${getAccessToken()}`,
+    },
+  });
 
   if (!response.ok) {
     throw new Error(await response.text());
@@ -862,7 +926,6 @@ Ten plan wdrożenia obejmuje wszystkie aspekty implementacji endpointu `GET /api
 ✅ **Obsługa błędów**: Wszystkie scenariusze błędów z odpowiednimi kodami HTTP  
 ✅ **Zgodność**: Następuje guidelines projektu (Astro, TypeScript, Zod, Supabase)  
 ✅ **Testowanie**: Szczegółowe kroki testowania manualnego  
-✅ **Dokumentacja**: JSDoc, komentarze, checklist code review  
+✅ **Dokumentacja**: JSDoc, komentarze, checklist code review
 
 Po wykonaniu wszystkich kroków endpoint będzie gotowy do użycia w środowisku produkcyjnym.
-

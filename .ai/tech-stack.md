@@ -1,11 +1,13 @@
 Świetnie — wariant A z Astro 5 + React 19 + shadcn/ui, Supabase Free i Postmark „free” jest wykonalny dla MVP z jednym ważnym zastrzeżeniem: Postmark zazwyczaj nie ma trwałego darmowego planu produkcyjnego (zwykle to limit/test). Możemy to obejść tak, by nadal nie płacić za e‑maile: skonfiguruj Postmark jako pierwszy dostawca (na start/testy), a w razie wyczerpania limitu przełączysz samą konfigurację SMTP na Resend/Brevo (darmowe pule) — bez zmian w kodzie.
 
 ### Architektura – wariant A (prawie‑SPA na Astro)
+
 - Frontend: Astro statyczny + jeden duży „React island” (panel po zalogowaniu), Tailwind 4, shadcn/ui. Brak SSR — dane przez `@supabase/supabase-js`.
 - Backend: Supabase (Postgres + RLS, Auth, Edge Functions).
 - E‑mail: Supabase Auth wysyła przez SMTP Postmark (domena z DKIM/SPF/DMARC). Fallback SMTP: Resend/Brevo, gdyby darmowy limit Postmark okazał się testowy.
 
 ### Co zrobić krok po kroku (skrócone)
+
 - Wersje: zablokuj wersje Astro 5 / React 19 / Tailwind 4 / shadcn/ui, przetestuj hydrację komponentów.
 - Supabase:
   - RLS on dla wszystkich tabel.
@@ -28,16 +30,20 @@
   - Skoro akceptujesz koszt hostingu: hostuj FE na DigitalOcean App Platform (statycznie) lub, jeśli chcesz jednak oszczędzić, na Cloudflare Pages (free).
 
 ### Konfiguracja SMTP w Supabase (Postmark)
+
 W panelu Supabase (Authentication → SMTP) ustaw:
+
 ```
 Host: smtp.postmarkapp.com
 Port: 587
 Username/Password: zgodnie z danymi z Postmark (Server Token wg dokumentacji)
 From: FinFlow <no-reply@twojadomena.pl>
 ```
+
 Po weryfikacji DKIM/SPF/DMARC w Postmark jakość dostarczalności spełni PRD. Jeśli limit „free” się skończy, zmieniasz tylko SMTP na Resend/Brevo — bez modyfikacji kodu.
 
 ### Czy spełnimy PRD „za free” (poza hostingiem)?
+
 - Tak, dla skali MVP i testów: Auth, RLS, limity 3/30, audit_log 30 dni, idempotencja, rounding, agregaty, spójny format błędów (przez Edge Functions) — wszystko jest osiągalne na Supabase Free + CI/CD w GitHub Actions + Postmark (o ile mieścisz się w darmowych/gratisowych limitach startowych). Gdy Postmark przestanie być „free”, przełączysz SMTP na Resend/Brevo.
 
 - Najważniejsze ryzyko: Postmark „free” nie jest planem długoterminowym produkcyjnie. Mitigacja: adapter SMTP i szybki fallback (zmiana konfiguracji), plus twarde limity 3/30 i blokada floodingu.
@@ -47,6 +53,7 @@ Po weryfikacji DKIM/SPF/DMARC w Postmark jakość dostarczalności spełni PRD. 
 - Koszt: płacisz tylko za hosting FE. Supabase i e‑mail pozostają w „free” dopóki mieszczą się w limitach.
 
 - Minimalna konfiguracja środowiska (przykład):
+
 ```bash
 # Supabase Auth SMTP (Postmark)
 AUTH_SMTP_HOST=smtp.postmarkapp.com

@@ -246,8 +246,9 @@ export interface GoalEventListResponseDTO {
 export interface MonthlyMetricsDTO
   extends Pick<
     MonthlyMetricsEntity,
-    "month" | "income_cents" | "expenses_cents" | "net_saved_cents" | "free_cash_flow_cents" | "refreshed_at"
+    "month" | "income_cents" | "expenses_cents" | "net_saved_cents" | "free_cash_flow_cents"
   > {
+  refreshed_at: string | null; // Nullable when no data exists for the month
   free_cash_flow_formula: string; // Formatted formula for UI display
 }
 

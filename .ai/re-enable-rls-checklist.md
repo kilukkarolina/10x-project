@@ -3,6 +3,7 @@
 ## Ważne: RLS jest obecnie WYŁĄCZONY
 
 Migracja `20251111090000_disable_rls_for_development.sql` wyłączyła RLS na następujących tabelach:
+
 - ✅ `transactions`
 - ✅ `goals`
 - ✅ `goal_events`
@@ -28,27 +29,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const refreshToken = context.cookies.get("sb-refresh-token")?.value;
 
   if (accessToken && refreshToken) {
-    const { data: { user }, error } = await supabaseClient.auth.getUser(accessToken);
-    
+    const {
+      data: { user },
+      error,
+    } = await supabaseClient.auth.getUser(accessToken);
+
     if (!error && user) {
       // Set user in context
       context.locals.user = user;
-      
+
       // Create user-specific supabase client
-      context.locals.supabase = createClient<Database>(
-        import.meta.env.SUPABASE_URL,
-        import.meta.env.SUPABASE_KEY,
-        {
-          auth: {
-            persistSession: false,
+      context.locals.supabase = createClient<Database>(import.meta.env.SUPABASE_URL, import.meta.env.SUPABASE_KEY, {
+        auth: {
+          persistSession: false,
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
           },
-          global: {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          },
-        }
-      );
+        },
+      });
     }
   }
 
@@ -68,7 +68,7 @@ declare global {
   namespace App {
     interface Locals {
       supabase: SupabaseClient<Database>;
-      user?: User;  // Add user type
+      user?: User; // Add user type
     }
   }
 }
@@ -82,31 +82,33 @@ declare global {
 export async function POST(context: APIContext) {
   // Check auth
   if (!context.locals.user) {
-    return new Response(JSON.stringify({
-      error: "Unauthorized",
-      message: "User not authenticated"
-    }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" }
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Unauthorized",
+        message: "User not authenticated",
+      }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   try {
     const body = await context.request.json();
     const command = CreateTransactionSchema.parse(body);
-    
+
     // Use authenticated user ID instead of DEFAULT_USER_ID
     const transaction = await createTransaction(
-      context.locals.supabase,  // User-specific client with auth header
-      context.locals.user.id,    // Real user ID from session
+      context.locals.supabase, // User-specific client with auth header
+      context.locals.user.id, // Real user ID from session
       command
     );
-    
+
     return new Response(JSON.stringify(transaction), {
       status: 201,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json" },
     });
-    
   } catch (error) {
     // ... error handling
   }
@@ -148,17 +150,17 @@ DO $$
 DECLARE
   rls_status RECORD;
 BEGIN
-  FOR rls_status IN 
-    SELECT tablename, rowsecurity 
-    FROM pg_tables 
-    WHERE schemaname = 'public' 
+  FOR rls_status IN
+    SELECT tablename, rowsecurity
+    FROM pg_tables
+    WHERE schemaname = 'public'
       AND tablename IN ('transactions', 'goals', 'goal_events', 'monthly_metrics')
   LOOP
     IF NOT rls_status.rowsecurity THEN
       RAISE EXCEPTION 'RLS not enabled on table: %', rls_status.tablename;
     END IF;
   END LOOP;
-  
+
   RAISE NOTICE 'RLS successfully enabled on all tables';
 END $$;
 ```
@@ -177,6 +179,7 @@ END $$;
 ### 5. ✅ Testy przed deployem
 
 #### Test 1: RLS verification
+
 ```sql
 -- Run as anon user (should return 0 rows)
 SELECT * FROM transactions;
@@ -187,12 +190,14 @@ VALUES ('some-user-id', 'EXPENSE', 'GROCERIES', 1000, '2025-11-11', gen_random_u
 ```
 
 #### Test 2: Auth flow
+
 - [ ] User może się zalogować
 - [ ] User może tworzyć swoje transakcje
 - [ ] User NIE może widzieć transakcji innych userów
 - [ ] User NIE może modyfikować transakcji innych userów
 
 #### Test 3: Endpoint z prawdziwą sesją
+
 ```bash
 # Login first to get session token
 curl -X POST https://your-supabase-url/auth/v1/token?grant_type=password \
@@ -224,11 +229,11 @@ curl -X POST https://your-app.com/api/v1/transactions \
 
 ```sql
 -- Check RLS status for all tables
-SELECT 
+SELECT
   schemaname,
   tablename,
   rowsecurity as rls_enabled
-FROM pg_tables 
+FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY tablename;
 
@@ -244,8 +249,7 @@ ORDER BY tablename;
 ## Contact / Notes
 
 Po włączeniu RLS i implementacji auth:
+
 - Zaktualizuj ten dokument z datą wdrożenia
 - Zarchiwizuj instrukcje development (DEFAULT_USER_ID)
 - Zaktualizuj README z informacją o security
-
-

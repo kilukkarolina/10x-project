@@ -5,6 +5,7 @@
 Endpoint DELETE /api/v1/transactions/:id wykonuje **soft-delete** transakcji należącej do uwierzytelnionego użytkownika. Operacja nie usuwa fizycznie rekordu z bazy danych, a jedynie ustawia pola `deleted_at` i `deleted_by`.
 
 **Kluczowe cechy:**
+
 - **Soft-delete** - rekord pozostaje w bazie, ale jest oznaczony jako usunięty
 - **Idempotencja** - wielokrotne wywołanie zwraca 404 po pierwszym sukcesie
 - **Ownership check** - użytkownik może usunąć tylko swoje transakcje
@@ -29,6 +30,7 @@ npx supabase migration up
 ```
 
 **Ważne migracje dla testów**:
+
 - `20251109120500_seed_test_user.sql` - dodaje test usera do profiles
 - `20251111090000_disable_rls_for_development.sql` - wyłącza RLS tymczasowo
 
@@ -41,7 +43,8 @@ PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
-✅ **Informacja**: 
+✅ **Informacja**:
+
 - Prefix `PUBLIC_` oznacza, że zmienne są dostępne zarówno na serwerze jak i kliencie
 - RLS jest tymczasowo wyłączony dla development, więc wystarczy anon key
 
@@ -51,7 +54,7 @@ W Supabase Studio lub przez SQL:
 
 ```sql
 -- Sprawdź czy test user istnieje w profiles
-SELECT * FROM profiles 
+SELECT * FROM profiles
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 
 -- Sprawdź czy user istnieje w auth.users
@@ -60,6 +63,7 @@ WHERE id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ```
 
 **Oczekiwany wynik**:
+
 - ✅ User w `auth.users`: `hareyo4707@wivstore.com` (confirmed_at not null)
 - ✅ User w `profiles`: `email_confirmed = true`
 
@@ -125,6 +129,7 @@ Server powinien być dostępny pod `http://localhost:3004`
 Użyj ID transakcji zwróconego z Transakcji 1 (krok 4).
 
 **Request:**
+
 ```bash
 # Zamień TRANSACTION_ID_HERE na rzeczywiste UUID
 curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
@@ -132,6 +137,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
 ```
 
 **Oczekiwana odpowiedź:** `204 No Content`
+
 ```
 HTTP/1.1 204 No Content
 Content-Length: 0
@@ -140,6 +146,7 @@ Content-Length: 0
 **Body:** Pusta odpowiedź (brak JSON)
 
 **Co sprawdzić:**
+
 - ✅ Status code = 204
 - ✅ Brak zawartości w body
 - ✅ Header `Content-Length: 0`
@@ -149,12 +156,14 @@ Content-Length: 0
 ### Test 2: ❌ Błąd 404 - Transakcja nie istnieje
 
 **Request:**
+
 ```bash
 curl -X DELETE http://localhost:3004/api/v1/transactions/00000000-0000-0000-0000-000000000000 \
   -v
 ```
 
 **Oczekiwana odpowiedź:** `404 Not Found`
+
 ```json
 {
   "error": "Not Found",
@@ -169,12 +178,14 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/00000000-0000-0000-0000
 ### Test 3: ❌ Błąd 400 - Nieprawidłowy format UUID
 
 **Request:**
+
 ```bash
 curl -X DELETE http://localhost:3004/api/v1/transactions/invalid-uuid \
   -v
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -186,6 +197,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/invalid-uuid \
 ```
 
 **Inne przykłady nieprawidłowych UUID do przetestowania:**
+
 - `123` (za krótki)
 - `abc-def-ghi` (nieprawidłowy format)
 - pusty string (brak ID)
@@ -195,6 +207,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/invalid-uuid \
 ### Test 4: ❌ Błąd 400 - Brak ID w ścieżce
 
 **Request:**
+
 ```bash
 curl -X DELETE http://localhost:3004/api/v1/transactions/ \
   -v
@@ -209,6 +222,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/ \
 ### Test 5: ✅ Idempotencja - Podwójne usunięcie (pierwszy raz: 204, drugi raz: 404)
 
 **Request (pierwszy raz):**
+
 ```bash
 # Użyj ID transakcji z Transakcji 2 (krok 4)
 curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
@@ -218,6 +232,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
 **Oczekiwana odpowiedź:** `204 No Content` ✅
 
 **Request (drugi raz - ten sam ID):**
+
 ```bash
 # Ten sam ID co powyżej
 curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
@@ -225,6 +240,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
 ```
 
 **Oczekiwana odpowiedź:** `404 Not Found` ✅
+
 ```json
 {
   "error": "Not Found",
@@ -233,6 +249,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
 ```
 
 **Co sprawdzić:**
+
 - ✅ Pierwsze wywołanie zwraca 204
 - ✅ Drugie wywołanie zwraca 404
 - ✅ Trzecie, czwarte... wywołanie również 404 (idempotencja)
@@ -245,12 +262,14 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID_HERE \
 Wymaga stworzenia transakcji dla innego usera (pomiń jeśli nie masz drugiego test usera).
 
 **Request:**
+
 ```bash
 curl -X DELETE http://localhost:3004/api/v1/transactions/OTHER_USER_TRANSACTION_ID \
   -v
 ```
 
 **Oczekiwana odpowiedź:** `404 Not Found`
+
 ```json
 {
   "error": "Not Found",
@@ -270,12 +289,12 @@ Po wykonaniu Test 1 (successful delete), sprawdź w bazie:
 
 ```sql
 -- Znajdź transakcję po client_request_id
-SELECT 
-  id, 
-  type, 
+SELECT
+  id,
+  type,
   category_code,
-  amount_cents, 
-  deleted_at, 
+  amount_cents,
+  deleted_at,
   deleted_by,
   updated_at,
   updated_by
@@ -284,12 +303,14 @@ WHERE client_request_id = 'delete-test-001';
 ```
 
 **Oczekiwany wynik:**
+
 - ✅ `deleted_at` IS NOT NULL (timestamp usunięcia)
 - ✅ `deleted_by` = `'4eef0567-df09-4a61-9219-631def0eb53e'` (DEFAULT_USER_ID)
 - ✅ `updated_at` = `deleted_at` (zaktualizowany w tym samym czasie)
 - ✅ `updated_by` = `deleted_by`
 
 **❌ NIE powinno być:**
+
 - Rekord fizycznie usunięty z tabeli (hard-delete)
 
 ---
@@ -300,7 +321,7 @@ Sprawdź czy soft-delete został zalogowany:
 
 ```sql
 -- Sprawdź audit_log dla usuniętej transakcji
-SELECT 
+SELECT
   entity_type,
   entity_id,
   action,
@@ -314,6 +335,7 @@ LIMIT 1;
 ```
 
 **Oczekiwany wynik:**
+
 - ✅ `entity_type` = `'transaction'`
 - ✅ `action` = `'DELETE'`
 - ✅ `before_deleted_at` = `null` (przed operacją nie było deleted_at)
@@ -329,9 +351,9 @@ Sprawdź czy agregaty zostały zaktualizowane po soft-delete:
 **Krok 1: Sprawdź monthly_metrics PRZED usunięciem Transakcji 3**
 
 ```sql
-SELECT 
-  month, 
-  income_cents, 
+SELECT
+  month,
+  income_cents,
   expenses_cents,
   net_saved_cents,
   free_cash_flow_cents,
@@ -353,9 +375,9 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_3_ID \
 **Krok 3: Sprawdź monthly_metrics PO usunięciu**
 
 ```sql
-SELECT 
-  month, 
-  income_cents, 
+SELECT
+  month,
+  income_cents,
   expenses_cents,
   net_saved_cents,
   free_cash_flow_cents,
@@ -366,6 +388,7 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 ```
 
 **Oczekiwany wynik:**
+
 - ✅ `income_cents` zmniejszyło się o 500000
 - ✅ `net_saved_cents` zaktualizowane (income - expenses)
 - ✅ `free_cash_flow_cents` zaktualizowane
@@ -388,6 +411,7 @@ curl -X GET http://localhost:3004/api/v1/transactions/DELETED_TRANSACTION_ID \
 ```
 
 **Oczekiwany wynik:**
+
 - ✅ Lista (`GET /transactions`) NIE zawiera usuniętej transakcji
 - ✅ Single (`GET /transactions/:id`) zwraca 404 Not Found
 
@@ -398,6 +422,7 @@ curl -X GET http://localhost:3004/api/v1/transactions/DELETED_TRANSACTION_ID \
 ### Pełny flow: CREATE → GET → DELETE → GET (404)
 
 **Krok 1: Utwórz transakcję**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/transactions \
   -H "Content-Type: application/json" \
@@ -414,6 +439,7 @@ curl -X POST http://localhost:3004/api/v1/transactions \
 **Zapisz zwrócone ID** (np. `abc123...`)
 
 **Krok 2: Pobierz transakcję (potwierdzenie istnienia)**
+
 ```bash
 curl -X GET http://localhost:3004/api/v1/transactions/abc123... \
   -v
@@ -422,6 +448,7 @@ curl -X GET http://localhost:3004/api/v1/transactions/abc123... \
 Oczekiwany wynik: **200 OK** z pełnymi danymi transakcji
 
 **Krok 3: Usuń transakcję**
+
 ```bash
 curl -X DELETE http://localhost:3004/api/v1/transactions/abc123... \
   -v
@@ -430,6 +457,7 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/abc123... \
 Oczekiwany wynik: **204 No Content**
 
 **Krok 4: Próba ponownego pobrania (powinno zwrócić 404)**
+
 ```bash
 curl -X GET http://localhost:3004/api/v1/transactions/abc123... \
   -v
@@ -438,9 +466,10 @@ curl -X GET http://localhost:3004/api/v1/transactions/abc123... \
 Oczekiwany wynik: **404 Not Found**
 
 **Krok 5: Weryfikacja soft-delete w bazie**
+
 ```sql
-SELECT id, deleted_at, deleted_by 
-FROM transactions 
+SELECT id, deleted_at, deleted_by
+FROM transactions
 WHERE client_request_id = 'e2e-delete-test-001';
 ```
 
@@ -451,6 +480,7 @@ Oczekiwany wynik: Rekord **istnieje** w bazie, ale ma `deleted_at NOT NULL`
 ## Checklist testów
 
 ### Testy funkcjonalne
+
 - [ ] Test 1: Successful delete (204)
 - [ ] Test 2: Transaction not found (404)
 - [ ] Test 3: Invalid UUID format (400)
@@ -459,12 +489,14 @@ Oczekiwany wynik: Rekord **istnieje** w bazie, ale ma `deleted_at NOT NULL`
 - [ ] Test 6: Próba usunięcia transakcji innego usera (404)
 
 ### Weryfikacja w bazie danych
+
 - [ ] Weryfikacja 1: Soft-delete ustawia deleted_at i deleted_by
 - [ ] Weryfikacja 2: Wpis w audit_log z action=DELETE
 - [ ] Weryfikacja 3: monthly_metrics zaktualizowane
 - [ ] Weryfikacja 4: Usunięta transakcja nie pojawia się w GET
 
 ### E2E scenario
+
 - [ ] CREATE → GET (200) → DELETE (204) → GET (404) → Verify soft-delete
 
 ---
@@ -473,11 +505,13 @@ Oczekiwany wynik: Rekord **istnieje** w bazie, ale ma `deleted_at NOT NULL`
 
 ### Problem: 500 Internal Server Error
 
-**Diagnostyka:** 
+**Diagnostyka:**
 Sprawdź console.error w terminalu gdzie działa dev server.
 
 **Możliwe przyczyny:**
+
 1. **Brak połączenia z Supabase**
+
    ```bash
    # Sprawdź czy zmienne są ustawione
    echo $PUBLIC_SUPABASE_URL
@@ -491,8 +525,8 @@ Sprawdź console.error w terminalu gdzie działa dev server.
 3. **RLS błędy** (jeśli RLS jest włączone)
    ```sql
    -- Sprawdź status RLS
-   SELECT tablename, rowsecurity 
-   FROM pg_tables 
+   SELECT tablename, rowsecurity
+   FROM pg_tables
    WHERE schemaname = 'public' AND tablename = 'transactions';
    ```
 
@@ -501,9 +535,10 @@ Sprawdź console.error w terminalu gdzie działa dev server.
 ### Problem: Trigger nie aktualizuje monthly_metrics
 
 **Diagnostyka:**
+
 ```sql
 -- Sprawdź czy trigger istnieje
-SELECT 
+SELECT
   trigger_name,
   event_manipulation,
   action_statement
@@ -514,6 +549,7 @@ WHERE event_object_table = 'transactions'
 
 **Rozwiązanie:**
 Jeśli trigger nie istnieje, uruchom migracje:
+
 ```bash
 npx supabase db reset
 ```
@@ -523,9 +559,10 @@ npx supabase db reset
 ### Problem: Audit log nie zapisuje operacji DELETE
 
 **Diagnostyka:**
+
 ```sql
 -- Sprawdź czy trigger audit_log istnieje
-SELECT 
+SELECT
   trigger_name,
   event_manipulation
 FROM information_schema.triggers
@@ -536,6 +573,7 @@ WHERE event_object_table = 'transactions'
 **Rozwiązanie:**
 Trigger powinien być typu `AFTER UPDATE` (bo soft-delete to UPDATE, nie DELETE).
 Jeśli nie istnieje:
+
 ```bash
 npx supabase db reset
 ```
@@ -547,12 +585,14 @@ npx supabase db reset
 **Możliwe przyczyny:**
 
 1. **Transakcja należy do innego usera**
+
    ```sql
    SELECT user_id FROM transactions WHERE id = 'TRANSACTION_ID';
    -- Porównaj z DEFAULT_USER_ID: '4eef0567-df09-4a61-9219-631def0eb53e'
    ```
 
 2. **Transakcja jest już usunięta (deleted_at NOT NULL)**
+
    ```sql
    SELECT deleted_at FROM transactions WHERE id = 'TRANSACTION_ID';
    ```
@@ -568,16 +608,19 @@ npx supabase db reset
 **To NIE jest oczekiwane zachowanie!**
 
 **Diagnostyka:**
+
 ```sql
 -- Sprawdź czy rekord istnieje (powinien!)
 SELECT * FROM transactions WHERE id = 'DELETED_TRANSACTION_ID';
 ```
 
 **Jeśli rekord nie istnieje:**
+
 - ❌ Kod wykonuje `DELETE FROM` zamiast `UPDATE`
 - ❌ Trigger wykonuje hard-delete (błędna konfiguracja)
 
 **Sprawdź kod service layer:**
+
 ```typescript
 // POPRAWNE (soft-delete):
 .update({ deleted_at: now(), deleted_by: userId })
@@ -623,21 +666,23 @@ curl -X DELETE http://localhost:3004/api/v1/transactions/TRANSACTION_ID \
 Endpoint DELETE /api/v1/transactions/:id wykonuje **soft-delete**, co oznacza:
 
 ✅ **Zalety soft-delete:**
+
 - Możliwość odzyskania danych (customer support)
 - Pełny audit trail w audit_log
 - Bezpieczne dla relacji (nie psuje FK)
 - Zgodność z GDPR (możemy później hard-delete)
 
 ✅ **Kluczowe cechy:**
+
 - Idempotencja (wielokrotne DELETE → 404)
 - Ownership check (tylko swoje transakcje)
 - Automatyczne triggery (audit_log, monthly_metrics)
 - Odpowiedź 204 No Content (RESTful best practice)
 
 ✅ **Bezpieczeństwo:**
+
 - Information disclosure prevention (ogólne komunikaty 404)
 - RLS policies (gdy włączone)
 - SQL injection protection (parametryzowane queries)
 
 **Happy testing! 🧪**
-

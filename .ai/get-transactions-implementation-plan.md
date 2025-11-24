@@ -5,6 +5,7 @@
 Endpoint **GET /api/v1/transactions** służy do pobierania listy transakcji użytkownika z możliwością filtrowania i paginacji. Implementuje cursor-based pagination (keyset) dla wydajnego przeglądania dużych zbiorów danych.
 
 **Główne funkcjonalności:**
+
 - Filtrowanie po miesiącu, typie transakcji i kategorii
 - Wyszukiwanie pełnotekstowe w notatkach (pg_trgm)
 - Cursor-based pagination z limitem rekordów
@@ -12,6 +13,7 @@ Endpoint **GET /api/v1/transactions** służy do pobierania listy transakcji uż
 - Zgodność z RLS (Row Level Security) - użytkownik widzi tylko swoje dane
 
 **Kontekst implementacji:**
+
 - Obecnie w trybie development z wyłączonymi politykami RLS
 - Używa DEFAULT_USER_ID do testów
 - Przygotowany na przyszłą pełną implementację auth z JWT
@@ -21,23 +23,25 @@ Endpoint **GET /api/v1/transactions** służy do pobierania listy transakcji uż
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `GET`
 
 ### Struktura URL
+
 ```
 /api/v1/transactions
 ```
 
 ### Query Parameters
 
-| Parametr | Typ | Wymagany | Domyślnie | Opis |
-|----------|-----|----------|-----------|------|
-| `month` | string | Nie | - | Filtr po miesiącu w formacie YYYY-MM (np. "2025-01") |
-| `type` | string | Nie | "ALL" | Typ transakcji: "INCOME", "EXPENSE", "ALL" |
-| `category` | string | Nie | - | Kod kategorii do filtrowania |
-| `search` | string | Nie | - | Wyszukiwanie pełnotekstowe w notatkach |
-| `cursor` | string | Nie | - | Kursor paginacji (base64-encoded "{occurred_on}_{id}") |
-| `limit` | number | Nie | 50 | Liczba rekordów na stronę (min: 1, max: 100) |
+| Parametr   | Typ    | Wymagany | Domyślnie | Opis                                                   |
+| ---------- | ------ | -------- | --------- | ------------------------------------------------------ |
+| `month`    | string | Nie      | -         | Filtr po miesiącu w formacie YYYY-MM (np. "2025-01")   |
+| `type`     | string | Nie      | "ALL"     | Typ transakcji: "INCOME", "EXPENSE", "ALL"             |
+| `category` | string | Nie      | -         | Kod kategorii do filtrowania                           |
+| `search`   | string | Nie      | -         | Wyszukiwanie pełnotekstowe w notatkach                 |
+| `cursor`   | string | Nie      | -         | Kursor paginacji (base64-encoded "{occurred*on}*{id}") |
+| `limit`    | number | Nie      | 50        | Liczba rekordów na stronę (min: 1, max: 100)           |
 
 ### Przykładowe żądania
 
@@ -65,6 +69,7 @@ GET /api/v1/transactions?month=2025-01&category=GROCERIES
 ### Istniejące typy (src/types.ts)
 
 **TransactionListResponseDTO** - główna struktura odpowiedzi:
+
 ```typescript
 interface TransactionListResponseDTO {
   data: TransactionDTO[];
@@ -77,6 +82,7 @@ interface TransactionListResponseDTO {
 ```
 
 **TransactionDTO** - pojedyncza transakcja:
+
 ```typescript
 interface TransactionDTO {
   id: string;
@@ -93,6 +99,7 @@ interface TransactionDTO {
 ```
 
 **PaginationDTO** - informacje o paginacji:
+
 ```typescript
 interface PaginationDTO {
   next_cursor: string | null;
@@ -102,6 +109,7 @@ interface PaginationDTO {
 ```
 
 **ErrorResponseDTO** - struktura błędów:
+
 ```typescript
 interface ErrorResponseDTO {
   error: string;
@@ -113,18 +121,22 @@ interface ErrorResponseDTO {
 ### Nowe typy do utworzenia
 
 **GetTransactionsQuerySchema** (Zod schema w `src/lib/schemas/transaction.schema.ts`):
+
 ```typescript
 export const GetTransactionsQuerySchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format").optional(),
-  
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
+    .optional(),
+
   type: z.enum(["INCOME", "EXPENSE", "ALL"]).default("ALL"),
-  
+
   category: z.string().min(1).optional(),
-  
+
   search: z.string().optional(),
-  
+
   cursor: z.string().optional(),
-  
+
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
@@ -132,6 +144,7 @@ export type GetTransactionsQuery = z.infer<typeof GetTransactionsQuerySchema>;
 ```
 
 **ListTransactionsFilters** (interface w `src/lib/services/transaction.service.ts`):
+
 ```typescript
 interface ListTransactionsFilters {
   month?: string;
@@ -144,6 +157,7 @@ interface ListTransactionsFilters {
 ```
 
 **DecodedCursor** (internal type dla parsowania):
+
 ```typescript
 interface DecodedCursor {
   occurred_on: string;
@@ -160,6 +174,7 @@ interface DecodedCursor {
 **Content-Type:** `application/json`
 
 **Body:**
+
 ```json
 {
   "data": [
@@ -188,8 +203,9 @@ interface DecodedCursor {
 ```
 
 **Uwagi:**
+
 - `data`: Tablica transakcji posortowana malejąco po (occurred_on, id)
-- `pagination.next_cursor`: Base64-encoded string "{occurred_on}_{id}" ostatniego rekordu, lub null jeśli brak kolejnych stron
+- `pagination.next_cursor`: Base64-encoded string "{occurred*on}*{id}" ostatniego rekordu, lub null jeśli brak kolejnych stron
 - `pagination.has_more`: Boolean wskazujący czy są kolejne strony
 - `meta.total_amount_cents`: Suma amount_cents wszystkich transakcji na bieżącej stronie
 - `meta.count`: Liczba transakcji na bieżącej stronie
@@ -197,6 +213,7 @@ interface DecodedCursor {
 ### Error Responses
 
 #### 400 Bad Request
+
 Nieprawidłowe parametry query (walidacja Zod).
 
 ```json
@@ -211,6 +228,7 @@ Nieprawidłowe parametry query (walidacja Zod).
 ```
 
 #### 401 Unauthorized
+
 Brak lub nieprawidłowy token JWT (obecnie wyłączone w development).
 
 ```json
@@ -221,6 +239,7 @@ Brak lub nieprawidłowy token JWT (obecnie wyłączone w development).
 ```
 
 #### 500 Internal Server Error
+
 Nieoczekiwany błąd serwera lub bazy danych.
 
 ```json
@@ -235,11 +254,13 @@ Nieoczekiwany błąd serwera lub bazy danych.
 ## 5. Przepływ danych
 
 ### 1. Walidacja query parameters
+
 ```
 Request → Parse URL params → Validate with Zod schema → GetTransactionsQuery
 ```
 
 **Transformacje:**
+
 - `limit`: coerce string → number, default 50
 - `type`: default "ALL"
 - `month`: validate format YYYY-MM
@@ -263,6 +284,7 @@ listTransactions(supabase, userId, filters) →
 ```
 
 **Wykorzystane indeksy (z db-plan.md):**
+
 - `idx_tx_keyset(user_id, occurred_on desc, id desc)` - główny indeks paginacji
 - `idx_tx_user_month(user_id, month)` - filtr miesiąca
 - `idx_tx_user_type_month(user_id, type, month)` - filtr typu
@@ -293,32 +315,38 @@ TransactionListResponseDTO → JSON.stringify → Response(200)
 ## 6. Względy bezpieczeństwa
 
 ### 1. Row Level Security (RLS)
+
 - **Obecnie**: RLS wyłączone w development (migracja 20251111090000)
 - **Produkcja**: RLS zapewni, że `WHERE user_id = auth.uid()` jest wymuszane na poziomie bazy
 - **Polityki**: SELECT policy z warunkiem `user_id = auth.uid() AND email_confirmed = true`
 
 ### 2. SQL Injection Prevention
+
 - Używamy Supabase query builder (nie raw SQL)
 - Wszystkie parametry są escapowane automatycznie
 - Walidacja Zod zapobiega przekazaniu nieprawidłowych typów
 
 ### 3. Pagination Cursor Security
+
 - Cursor jest base64-encoded, ale **nie jest szyfrowany**
 - Zawiera tylko publiczne dane (occurred_on, id)
 - Walidacja struktury cursora przed użyciem
 - Nieprawidłowy cursor → 400 Bad Request
 
 ### 4. DoS Prevention
+
 - Limit max 100 rekordów na stronę
 - Indeksy PostgreSQL zapewniają szybkie zapytania
 - Brak możliwości wykonania kosztownych agregacji (count bez limitu)
 
 ### 5. XSS Prevention
+
 - API zwraca surowe dane JSON
 - Frontend odpowiedzialny za sanityzację przy renderowaniu
 - Pole `note` może zawierać dowolny tekst (ale bez znaków kontrolnych - CHECK w DB)
 
 ### 6. Authorization
+
 - **Obecnie**: Używany DEFAULT_USER_ID dla development
 - **Produkcja**: JWT token w header `Authorization: Bearer <token>`
 - Middleware weryfikuje token i ustawia `context.locals.user`
@@ -329,30 +357,32 @@ TransactionListResponseDTO → JSON.stringify → Response(200)
 
 ### Kategorie błędów
 
-| Scenariusz | Status | Error | Message | Details |
-|------------|--------|-------|---------|---------|
-| Nieprawidłowy format `month` | 400 | Bad Request | Invalid query parameters | { month: "Month must be in YYYY-MM format" } |
-| `limit` poza zakresem (0, 101) | 400 | Bad Request | Invalid query parameters | { limit: "Number must be between 1 and 100" } |
-| Nieprawidłowy format `cursor` | 400 | Bad Request | Invalid query parameters | { cursor: "Invalid cursor format" } |
-| Nieprawidłowy `type` | 400 | Bad Request | Invalid query parameters | { type: "Type must be INCOME, EXPENSE, or ALL" } |
-| Brak autentykacji | 401 | Unauthorized | Authentication required | - |
-| Błąd bazy danych | 500 | Internal Server Error | An unexpected error occurred | - |
-| Nieoczekiwany błąd | 500 | Internal Server Error | An unexpected error occurred | - |
+| Scenariusz                     | Status | Error                 | Message                      | Details                                          |
+| ------------------------------ | ------ | --------------------- | ---------------------------- | ------------------------------------------------ |
+| Nieprawidłowy format `month`   | 400    | Bad Request           | Invalid query parameters     | { month: "Month must be in YYYY-MM format" }     |
+| `limit` poza zakresem (0, 101) | 400    | Bad Request           | Invalid query parameters     | { limit: "Number must be between 1 and 100" }    |
+| Nieprawidłowy format `cursor`  | 400    | Bad Request           | Invalid query parameters     | { cursor: "Invalid cursor format" }              |
+| Nieprawidłowy `type`           | 400    | Bad Request           | Invalid query parameters     | { type: "Type must be INCOME, EXPENSE, or ALL" } |
+| Brak autentykacji              | 401    | Unauthorized          | Authentication required      | -                                                |
+| Błąd bazy danych               | 500    | Internal Server Error | An unexpected error occurred | -                                                |
+| Nieoczekiwany błąd             | 500    | Internal Server Error | An unexpected error occurred | -                                                |
 
 ### Szczegółowe scenariusze
 
 #### 1. Zod Validation Error
+
 ```typescript
 if (error instanceof z.ZodError) {
   return Response(400, {
     error: "Bad Request",
     message: "Invalid query parameters",
-    details: formatZodErrors(error)
+    details: formatZodErrors(error),
   });
 }
 ```
 
 #### 2. Invalid Cursor Format
+
 ```typescript
 // W service layer przy dekodowaniu cursora
 try {
@@ -367,12 +397,13 @@ try {
 ```
 
 #### 3. Database Error
+
 ```typescript
 // Logowanie szczegółów błędu, zwrot generycznej wiadomości
 console.error("Database error in GET /api/v1/transactions:", error);
 return Response(500, {
   error: "Internal Server Error",
-  message: "An unexpected error occurred. Please try again later."
+  message: "An unexpected error occurred. Please try again later.",
 });
 ```
 
@@ -383,6 +414,7 @@ return Response(500, {
 ### 1. Indeksy
 
 **Wykorzystane indeksy:**
+
 - `idx_tx_keyset(user_id, occurred_on desc, id desc) where deleted_at is null`
   - Główny indeks dla paginacji keyset
   - Częściowy (partial) - ignoruje soft-deleted
@@ -392,6 +424,7 @@ return Response(500, {
   - Wyszukiwanie trigram w notatkach
 
 **Koszt zapytania:**
+
 - Bez filtrów: Index Scan na idx_tx_keyset - O(log n + limit)
 - Z month: Index Scan na idx_tx_user_month - O(log n + limit)
 - Z search: Bitmap Index Scan na idx_tx_note_trgm - O(matches)
@@ -399,11 +432,13 @@ return Response(500, {
 ### 2. Paginacja keyset (cursor-based)
 
 **Zalety:**
+
 - Stabilna paginacja (nowe rekordy nie przesuwają stron)
 - Wydajność O(log n) niezależnie od offset
 - Lepsze od OFFSET/LIMIT dla dużych zbiorów
 
 **Implementacja:**
+
 ```sql
 WHERE (occurred_on, id) < (cursor_occurred_on, cursor_id)
 ORDER BY occurred_on DESC, id DESC
@@ -415,8 +450,8 @@ LIMIT 51
 ### 3. JOIN z transaction_categories
 
 ```sql
-SELECT 
-  t.id, t.type, t.category_code, t.amount_cents, t.occurred_on, 
+SELECT
+  t.id, t.type, t.category_code, t.amount_cents, t.occurred_on,
   t.note, t.created_at, t.updated_at,
   tc.label_pl as category_label
 FROM transactions t
@@ -428,6 +463,7 @@ INNER JOIN transaction_categories tc ON t.category_code = tc.code
 ### 4. Agregacje metadata
 
 **Strategia:**
+
 - Agregujemy tylko bieżącą stronę (count, sum)
 - Nie obliczamy total count dla całego zbioru (kosztowne)
 - Frontend może oszacować total z pagination.has_more
@@ -440,6 +476,7 @@ const count = data.length;
 ### 5. N+1 Problem Prevention
 
 **Zabezpieczenie:**
+
 - Używamy INNER JOIN zamiast osobnych zapytań
 - Jedna kwerenda zwraca wszystkie dane (transakcje + labels)
 - Brak dodatkowych roundtrip do bazy
@@ -447,6 +484,7 @@ const count = data.length;
 ### 6. Optymalizacje potencjalne
 
 **Jeśli wydajność będzie problemem:**
+
 - Materializowany widok dla często używanych filtrów
 - Caching w Redis dla popularnych zapytań
 - Partial index dla każdego typu (INCOME/EXPENSE)
@@ -461,12 +499,14 @@ const count = data.length;
 **Cel:** Dodać walidację query parameters dla GET endpoint
 
 **Zadania:**
+
 1. Dodać `GetTransactionsQuerySchema` z validacją wszystkich parametrów
 2. Dodać helper function `decodeCursor(cursor: string): DecodedCursor` do dekodowania base64
 3. Dodać helper function `encodeCursor(occurredOn: string, id: string): string` do enkodowania base64
 4. Walidacja formatu cursora po dekodowaniu (data + UUID)
 
 **Kod:**
+
 ```typescript
 // W src/lib/schemas/transaction.schema.ts
 
@@ -475,15 +515,15 @@ export const GetTransactionsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
     .optional(),
-  
+
   type: z.enum(["INCOME", "EXPENSE", "ALL"]).default("ALL"),
-  
+
   category: z.string().min(1).optional(),
-  
+
   search: z.string().optional(),
-  
+
   cursor: z.string().optional(),
-  
+
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
@@ -497,23 +537,23 @@ export function decodeCursor(cursor: string): { occurred_on: string; id: string 
   try {
     const decoded = atob(cursor);
     const parts = decoded.split("_");
-    
+
     if (parts.length !== 2) {
       throw new Error("Invalid cursor structure");
     }
-    
+
     const [occurred_on, id] = parts;
-    
+
     // Validate date format YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(occurred_on)) {
       throw new Error("Invalid date in cursor");
     }
-    
+
     // Validate UUID format
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       throw new Error("Invalid UUID in cursor");
     }
-    
+
     return { occurred_on, id };
   } catch (error) {
     throw new Error("Invalid cursor format");
@@ -536,6 +576,7 @@ export function encodeCursor(occurredOn: string, id: string): string {
 **Cel:** Implementacja logiki biznesowej pobierania i filtrowania transakcji
 
 **Zadania:**
+
 1. Stworzyć interface `ListTransactionsFilters`
 2. Zaimplementować funkcję `listTransactions()`
 3. Budowa zapytania z filtrami
@@ -544,6 +585,7 @@ export function encodeCursor(occurredOn: string, id: string): string {
 6. Kalkulacja metadata
 
 **Kod:**
+
 ```typescript
 // W src/lib/services/transaction.service.ts
 
@@ -688,9 +730,7 @@ export async function listTransactions(
 
   // Step 10: Generate next_cursor
   const nextCursor =
-    hasMore && data.length > 0
-      ? encodeCursor(data[data.length - 1].occurred_on, data[data.length - 1].id)
-      : null;
+    hasMore && data.length > 0 ? encodeCursor(data[data.length - 1].occurred_on, data[data.length - 1].id) : null;
 
   // Step 11: Build response
   return {
@@ -715,6 +755,7 @@ export async function listTransactions(
 **Cel:** Dodać obsługę GET request w istniejącym pliku endpointu
 
 **Zadania:**
+
 1. Dodać funkcję `GET(context: APIContext)`
 2. Parsowanie i walidacja query parameters
 3. Wywołanie service layer
@@ -722,6 +763,7 @@ export async function listTransactions(
 5. Zwrot odpowiedzi 200 OK
 
 **Kod:**
+
 ```typescript
 // W src/pages/api/v1/transactions/index.ts
 
@@ -822,6 +864,7 @@ export async function GET(context: APIContext) {
 **Cel:** Weryfikacja poprawności implementacji przed wdrożeniem
 
 **Zadania:**
+
 1. Uruchomić dev server (`npm run dev`)
 2. Testować podstawowe scenariusze z curl/Postman
 3. Weryfikować poprawność odpowiedzi i błędów
@@ -865,6 +908,7 @@ curl "http://localhost:4321/api/v1/transactions?cursor=invalid"
 ```
 
 **Oczekiwane rezultaty:**
+
 - Testy 1-8: Status 200, poprawne dane w TransactionListResponseDTO
 - Testy 9-11: Status 400, ErrorResponseDTO z details
 
@@ -875,6 +919,7 @@ curl "http://localhost:4321/api/v1/transactions?cursor=invalid"
 **Cel:** Upewnić się, że zapytania są wydajne i wykorzystują indeksy
 
 **Zadania:**
+
 1. Sprawdzić plany wykonania zapytań (EXPLAIN ANALYZE)
 2. Zweryfikować użycie indeksów
 3. Przetestować z większą ilością danych (seed data)
@@ -885,8 +930,8 @@ curl "http://localhost:4321/api/v1/transactions?cursor=invalid"
 ```sql
 -- Test 1: Query bez filtrów (powinien użyć idx_tx_keyset)
 EXPLAIN ANALYZE
-SELECT 
-  t.id, t.type, t.category_code, t.amount_cents, 
+SELECT
+  t.id, t.type, t.category_code, t.amount_cents,
   t.occurred_on, t.note, t.created_at, t.updated_at,
   tc.label_pl
 FROM transactions t
@@ -900,8 +945,8 @@ LIMIT 50;
 
 -- Test 2: Query z filtrem miesiąca (powinien użyć idx_tx_user_month)
 EXPLAIN ANALYZE
-SELECT 
-  t.id, t.type, t.category_code, t.amount_cents, 
+SELECT
+  t.id, t.type, t.category_code, t.amount_cents,
   t.occurred_on, t.note, t.created_at, t.updated_at,
   tc.label_pl
 FROM transactions t
@@ -916,8 +961,8 @@ LIMIT 50;
 
 -- Test 3: Query z wyszukiwaniem (powinien użyć idx_tx_note_trgm)
 EXPLAIN ANALYZE
-SELECT 
-  t.id, t.type, t.category_code, t.amount_cents, 
+SELECT
+  t.id, t.type, t.category_code, t.amount_cents,
   t.occurred_on, t.note, t.created_at, t.updated_at,
   tc.label_pl
 FROM transactions t
@@ -932,6 +977,7 @@ LIMIT 50;
 ```
 
 **Metryki akceptowalne:**
+
 - Czas odpowiedzi < 100ms dla typowych zapytań
 - Index Scan (nie Seq Scan) dla głównych filtrów
 - Nested Loop Join dla transaction_categories
@@ -943,6 +989,7 @@ LIMIT 50;
 **Cel:** Finalizacja implementacji z dokumentacją
 
 **Zadania:**
+
 1. Dodać JSDoc comments do wszystkich funkcji
 2. Zaktualizować README (jeśli potrzebne)
 3. Sprawdzić linting (`npm run lint`)
@@ -950,6 +997,7 @@ LIMIT 50;
 5. Commit z opisowym message
 
 **Commit message:**
+
 ```
 feat: implement GET /api/v1/transactions endpoint
 
@@ -1012,11 +1060,13 @@ Related: #[issue-number]
 ## 12. Zależności i wymagania
 
 ### Wymagane pakiety (już zainstalowane):
+
 - `@supabase/supabase-js` - klient Supabase
 - `zod` - walidacja schematów
 - `astro` - framework
 
 ### Wymagane migracje bazodanowe (już zastosowane):
+
 - `20251109120000_create_base_schema.sql` - tabela transactions
 - `20251109120100_create_business_tables.sql` - tabela transaction_categories
 - `20251109120200_create_auxiliary_tables.sql` - indeksy
@@ -1029,6 +1079,7 @@ Related: #[issue-number]
 ## 13. Uwagi końcowe
 
 ### Zgodność z wymaganiami PRD:
+
 - ✅ Cursor-based pagination (stabilna, wydajna)
 - ✅ Filtrowanie po miesiącu, typie, kategorii
 - ✅ Wyszukiwanie pełnotekstowe (pg_trgm)
@@ -1039,13 +1090,14 @@ Related: #[issue-number]
 - ✅ Wykorzystanie indeksów dla wydajności
 
 ### Rozwój w przyszłości:
+
 - Re-enable RLS po implementacji auth middleware
 - Dodać testy jednostkowe i integracyjne
 - Monitoring i alerting dla błędów 500
 - Rate limiting dla API (3 requests/30s zgodnie z PRD)
 
 ### Pytania do rozważenia:
+
 1. Czy potrzebujemy total count dla całego zbioru? (wydajność vs UX)
 2. Czy `backdate_warning` powinno być ustawiane w GET? (wymaga porównania month)
 3. Czy search powinno używać full-text search czy ILIKE? (obecnie ILIKE)
-

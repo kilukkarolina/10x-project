@@ -154,6 +154,7 @@ Poniżej kompletny, znormalizowany schemat (3NF) z ograniczeniami domenowymi, in
 - `profiles (1) — (N) rate_limits` przez `rate_limits.user_id`
 
 Kardynalność:
+
 - Jeden użytkownik ma wiele transakcji/celów/zdarzeń i wpisów w logu.
 - Jeden cel ma wiele zdarzeń (`goal_events`).
 - Kategorie i typy celów są słownikami globalnymi (wiele rekordów zależnych).
@@ -261,6 +262,7 @@ Kardynalność:
   - Brak dostępu z klienta; operacje wyłącznie z roli serwisowej/Edge Function.
 
 Bezpieczeństwo dodatkowe:
+
 - Nie tworzyć DELETE-polityk dla danych biznesowych; zamiast tego soft-delete (UPDATE `deleted_at`).
 - W funkcjach `SECURITY DEFINER` ustawić bezpieczny `search_path` i wymusić walidacje domenowe (np. `occurred_on <= current_date`).
 
@@ -294,5 +296,3 @@ Bezpieczeństwo dodatkowe:
 - Operacje administracyjne:
   - Hard-delete konta użytkownika (24h) kaskadowo usuwa dane powiązane (z zachowaniem retencji `audit_log` przez 30 dni).
   - `rate_limits` egzekwowane w Edge Function (limity 3/30 min), brak ekspozycji do klienta.
-
-

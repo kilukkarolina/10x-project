@@ -16,6 +16,7 @@ npx supabase migration up
 ```
 
 **Ważne migracje dla testów**:
+
 - `20251109120000_create_base_schema.sql` - tworzy goal_types i seed data
 - `20251109120100_create_business_tables.sql` - tworzy tabelę goals
 - `20251109120500_seed_test_user.sql` - dodaje test usera do profiles
@@ -30,11 +31,13 @@ PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
-✅ **Informacja**: 
+✅ **Informacja**:
+
 - Prefix `PUBLIC_` oznacza, że zmienne są dostępne zarówno na serwerze jak i kliencie
 - RLS jest tymczasowo wyłączony dla development, więc wystarczy anon key
 
 ⚠️ **Przypomnienie**: Przed production trzeba będzie:
+
 - Włączyć ponownie RLS (migracja do stworzenia)
 - Zaimplementować pełen auth middleware
 - Przełączyć na autentykowane requesty
@@ -45,7 +48,7 @@ W Supabase Studio lub przez SQL:
 
 ```sql
 -- Sprawdź czy test user istnieje w profiles
-SELECT * FROM profiles 
+SELECT * FROM profiles
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 
 -- Sprawdź czy user istnieje w auth.users
@@ -54,6 +57,7 @@ WHERE id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ```
 
 **Oczekiwany wynik**:
+
 - ✅ User w `auth.users`: `hareyo4707@wivstore.com` (confirmed_at not null)
 - ✅ User w `profiles`: `email_confirmed = true`
 
@@ -61,13 +65,14 @@ WHERE id = '4eef0567-df09-4a61-9219-631def0eb53e';
 
 ```sql
 -- Lista wszystkich aktywnych typów celów
-SELECT code, label_pl, is_active 
-FROM goal_types 
+SELECT code, label_pl, is_active
+FROM goal_types
 WHERE is_active = true
 ORDER BY code;
 ```
 
 **Oczekiwany wynik** (11 typów):
+
 - `AUTO` - Samochód
 - `EDUCATION` - Edukacja
 - `ELECTRONICS` - Elektronika
@@ -97,6 +102,7 @@ Server powinien być dostępny pod `http://localhost:3004`
 ### Test 1: ✅ Sukces - Utworzenie celu bez priorytetu
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -108,6 +114,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `201 Created`
+
 ```json
 {
   "id": "uuid",
@@ -129,6 +136,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 2: ✅ Sukces - Utworzenie celu z priorytetem
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -141,6 +149,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `201 Created`
+
 ```json
 {
   "id": "uuid",
@@ -162,6 +171,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 3: ❌ Błąd 400 - Brak wymaganych pól
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -171,6 +181,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -187,6 +198,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 4: ❌ Błąd 400 - Niewłaściwy typ danych
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -199,6 +211,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -215,6 +228,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 5: ❌ Błąd 400 - Nieprawidłowa wartość target_amount_cents
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -226,6 +240,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -241,6 +256,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 6: ❌ Błąd 400 - Nazwa zbyt długa
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -252,6 +268,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -267,6 +284,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 7: ❌ Błąd 400 - Pusta nazwa
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -278,6 +296,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -295,6 +314,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 **⚠️ Uwaga**: Ten test wymaga, aby wcześniej został utworzony cel z `is_priority: true` (Test 2)
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -307,6 +327,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `409 Conflict`
+
 ```json
 {
   "error": "Conflict",
@@ -322,6 +343,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 9: ❌ Błąd 422 - Nieistniejący type_code
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -333,6 +355,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `422 Unprocessable Entity`
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -348,6 +371,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 10: ✅ Edge case - Nazwa z maksymalną długością (100 znaków)
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -359,6 +383,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ```
 
 **Oczekiwana odpowiedź:** `201 Created`
+
 ```json
 {
   "id": "uuid",
@@ -380,6 +405,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 11: ✅ Edge case - Bardzo duża kwota docelowa
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -399,6 +425,7 @@ curl -X POST http://localhost:3004/api/v1/goals \
 ### Test 12: ✅ Edge case - Minimalna kwota docelowa
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:3004/api/v1/goals \
   -H "Content-Type: application/json" \
@@ -423,10 +450,10 @@ Po testach sukcesu (Testy 1, 2, 10, 11, 12), sprawdź dane w bazie:
 
 ```sql
 -- Sprawdź wszystkie utworzone cele
-SELECT 
-  g.id, 
-  g.name, 
-  g.type_code, 
+SELECT
+  g.id,
+  g.name,
+  g.type_code,
   gt.label_pl,
   g.target_amount_cents,
   g.current_balance_cents,
@@ -440,6 +467,7 @@ ORDER BY g.created_at DESC;
 ```
 
 **Oczekiwany wynik**:
+
 - ✅ 5 celów utworzonych (z Testów 1, 2, 10, 11, 12)
 - ✅ Wszystkie mają `current_balance_cents = 0`
 - ✅ Wszystkie mają `archived_at = NULL`
@@ -463,7 +491,7 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 
 ```sql
 -- Sprawdź domyślne wartości dla pierwszego celu
-SELECT 
+SELECT
   current_balance_cents,
   archived_at,
   deleted_at,
@@ -474,6 +502,7 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 ```
 
 **Oczekiwane wartości**:
+
 - `current_balance_cents = 0` ✅
 - `archived_at = NULL` ✅
 - `deleted_at = NULL` ✅
@@ -527,6 +556,7 @@ VALUES (
 **Diagnostyka**: Sprawdź console.error w terminalu gdzie działa dev server.
 
 **Częste przyczyny**:
+
 1. Brak połączenia z Supabase - sprawdź `SUPABASE_URL` i `SUPABASE_KEY`
 2. Błędne dane w `.env` - upewnij się, że nie ma spacji wokół wartości
 3. Dev server wymaga restartu po zmianie `.env`
@@ -534,11 +564,13 @@ VALUES (
 ### Problem: "Goal type code does not exist" (422)
 
 **Rozwiązanie**: Typy celów nie zostały załadowane. Uruchom migracje:
+
 ```bash
 npx supabase db reset
 ```
 
 Sprawdź w Supabase Studio czy tabela `goal_types` ma dane:
+
 ```sql
 SELECT * FROM goal_types;
 ```
@@ -549,15 +581,16 @@ SELECT * FROM goal_types;
 
 ```bash
 # Sprawdź status RLS
-SELECT tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public' 
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
   AND tablename IN ('goals', 'goal_types');
 ```
 
 Oczekiwany wynik: `rowsecurity = false` dla obu tabel.
 
 Jeśli `rowsecurity = true`, uruchom:
+
 ```bash
 npx supabase migration up
 ```
@@ -568,6 +601,7 @@ npx supabase migration up
 
 1. Sprawdź czy user jest w auth.users (Supabase Studio → Authentication)
 2. Uruchom migrację:
+
 ```bash
 npx supabase migration up
 ```
@@ -575,22 +609,25 @@ npx supabase migration up
 ### Problem: Constraint violation przy próbie utworzenia drugiego priorytetu
 
 **Diagnostyka**:
+
 ```sql
 -- Sprawdź czy istnieje już cel priorytetowy
-SELECT id, name, is_priority 
-FROM goals 
+SELECT id, name, is_priority
+FROM goals
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND is_priority = true
   AND archived_at IS NULL
   AND deleted_at IS NULL;
 ```
 
-**Rozwiązanie**: To poprawne zachowanie! Endpoint powinien zwrócić 409 Conflict (Test 8). 
+**Rozwiązanie**: To poprawne zachowanie! Endpoint powinien zwrócić 409 Conflict (Test 8).
 Jeśli chcesz utworzyć nowy priorytet:
+
 1. Usuń/archiwizuj poprzedni priorytetowy cel ALBO
 2. Zmień `is_priority` na `false` w poprzednim celu:
+
 ```sql
-UPDATE goals 
+UPDATE goals
 SET is_priority = false, updated_at = now()
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND is_priority = true;
@@ -599,14 +636,16 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 ### Problem: progress_percentage nie jest 0.0 dla nowych celów
 
 **Rozwiązanie**: To błąd w implementacji service layer. Sprawdź funkcję `createGoal()`:
+
 - `current_balance_cents` powinien być 0 dla nowych celów
 - `progress_percentage` powinien być wyliczany jako `(0 / target_amount_cents) * 100 = 0.0`
 
 ### Problem: type_label nie jest zwracany w response
 
 **Diagnostyka**: Sprawdź czy JOIN z `goal_types` działa poprawnie:
+
 ```sql
-SELECT 
+SELECT
   g.*,
   gt.label_pl
 FROM goals g
@@ -616,6 +655,7 @@ LIMIT 1;
 ```
 
 **Rozwiązanie**: Jeśli JOIN nie działa, sprawdź czy:
+
 1. Migracje zostały uruchomione poprawnie
 2. Tabela `goal_types` ma dane
 3. Foreign key między `goals.type_code` i `goal_types.code` istnieje
@@ -628,14 +668,15 @@ Po zakończeniu testów możesz wyczyścić utworzone cele:
 
 ```sql
 -- UWAGA: To usunie WSZYSTKIE cele test usera
-DELETE FROM goals 
+DELETE FROM goals
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ```
 
 Lub soft-delete (preferowane):
+
 ```sql
-UPDATE goals 
-SET 
+UPDATE goals
+SET
   deleted_at = now(),
   deleted_by = user_id
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
@@ -660,12 +701,14 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ### Różnice między transakcjami a celami
 
 **Transakcje** (transactions):
+
 - Wymagają `client_request_id` dla idempotencji (zapobieganie duplikatom)
 - Mają constraint na `occurred_on <= current_date` (nie można w przyszłości)
 - Mają trigger aktualizujący `monthly_metrics`
 - Mają audit log dla CREATE/UPDATE/DELETE
 
 **Cele** (goals):
+
 - NIE wymagają `client_request_id` (brak idempotencji na tym etapie)
 - Mają constraint priorytetu (tylko 1 aktywny priorytet na użytkownika)
 - Mają `current_balance_cents` aktualizowany przez `goal_events`
@@ -678,4 +721,3 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 3. **Database Constraints** (Krok 4): Ostateczna bariera bezpieczeństwa
 
 Jeśli walidacja przechodzi przez wszystkie 3 warstwy → dane są poprawne ✅
-

@@ -5,6 +5,7 @@
 Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną obsługą backdatingu (zmiana miesiąca transakcji). Wszystkie pola są opcjonalne - użytkownik może zaktualizować tylko wybrane atrybuty. Endpoint nie pozwala na zmianę typu transakcji (`type`), ponieważ wymaga to usunięcia starej i utworzenia nowej transakcji (DELETE + POST).
 
 **Kluczowe cechy:**
+
 - Częściowa aktualizacja (PATCH semantic) - tylko przesłane pola są aktualizowane
 - Wykrywanie zmian miesiąca - flag `backdate_warning` w odpowiedzi
 - Walidacja spójności kategoria-typ (jeśli kategoria jest zmieniana)
@@ -14,9 +15,11 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `PATCH`
 
 ### Struktura URL
+
 ```
 /api/v1/transactions/:id
 ```
@@ -24,6 +27,7 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
 ### Parametry
 
 #### Parametry ścieżki (path parameters)
+
 - **id** (wymagany)
   - Typ: `string` (UUID)
   - Opis: Unikalny identyfikator transakcji
@@ -31,6 +35,7 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
   - Przykład: `"550e8400-e29b-41d4-a716-446655440000"`
 
 #### Request Body (wszystkie pola opcjonalne)
+
 ```typescript
 {
   category_code?: string;
@@ -44,7 +49,7 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
 
 - **category_code** (opcjonalny)
   - Typ: `string`
-  - Walidacja: 
+  - Walidacja:
     - Minimum 1 znak
     - Musi istnieć w tabeli `transaction_categories`
     - Musi być aktywny (`is_active = true`)
@@ -75,6 +80,7 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
   - Przykład: `"Kolacja w restauracji"`, `null`
 
 ### Przykładowe żądanie
+
 ```json
 {
   "category_code": "RESTAURANTS",
@@ -85,6 +91,7 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
 ```
 
 ### Ograniczenia
+
 - **Nie można zmienić pola `type`** - próba przesłania tego pola powinna zostać zignorowana lub odrzucona z błędem 400
 - Request body nie może być pusty - przynajmniej jedno pole musi być przesłane
 - Wszystkie przesłane pola muszą przejść walidację Zod
@@ -94,6 +101,7 @@ Endpoint umożliwia aktualizację istniejącej transakcji użytkownika z pełną
 ### DTOs (istniejące w src/types.ts)
 
 #### TransactionDTO
+
 ```typescript
 interface TransactionDTO {
   id: string;
@@ -110,6 +118,7 @@ interface TransactionDTO {
 ```
 
 #### UpdateTransactionCommand (istniejący w src/types.ts)
+
 ```typescript
 interface UpdateTransactionCommand {
   category_code?: string;
@@ -120,6 +129,7 @@ interface UpdateTransactionCommand {
 ```
 
 #### ErrorResponseDTO (istniejący w src/types.ts)
+
 ```typescript
 interface ErrorResponseDTO {
   error: string;
@@ -131,47 +141,48 @@ interface ErrorResponseDTO {
 ### Zod Schemas (do utworzenia)
 
 #### UpdateTransactionSchema (nowy - src/lib/schemas/transaction.schema.ts)
+
 ```typescript
-export const UpdateTransactionSchema = z.object({
-  category_code: z.string().min(1, "Category code cannot be empty").optional(),
-  
-  amount_cents: z
-    .number({
-      invalid_type_error: "Amount must be a number",
-    })
-    .int("Amount must be an integer")
-    .positive("Amount must be greater than 0")
-    .optional(),
-  
-  occurred_on: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
-    .refine(
-      (date) => {
-        const transactionDate = new Date(date);
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        return transactionDate <= today;
-      },
-      { message: "Transaction date cannot be in the future" }
-    )
-    .optional(),
-  
-  note: z
-    .string()
-    .max(500, "Note cannot exceed 500 characters")
-    .regex(/^[^\x00-\x1F\x7F]*$/, {
-      message: "Note cannot contain control characters",
-    })
-    .nullable()
-    .optional(),
-}).refine(
-  (data) => Object.keys(data).length > 0,
-  { message: "At least one field must be provided for update" }
-);
+export const UpdateTransactionSchema = z
+  .object({
+    category_code: z.string().min(1, "Category code cannot be empty").optional(),
+
+    amount_cents: z
+      .number({
+        invalid_type_error: "Amount must be a number",
+      })
+      .int("Amount must be an integer")
+      .positive("Amount must be greater than 0")
+      .optional(),
+
+    occurred_on: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+      .refine(
+        (date) => {
+          const transactionDate = new Date(date);
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+          return transactionDate <= today;
+        },
+        { message: "Transaction date cannot be in the future" }
+      )
+      .optional(),
+
+    note: z
+      .string()
+      .max(500, "Note cannot exceed 500 characters")
+      .regex(/^[^\x00-\x1F\x7F]*$/, {
+        message: "Note cannot contain control characters",
+      })
+      .nullable()
+      .optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "At least one field must be provided for update" });
 ```
 
 #### UpdateTransactionParamsSchema (nowy - src/lib/schemas/transaction.schema.ts)
+
 ```typescript
 export const UpdateTransactionParamsSchema = z.object({
   id: z.string().uuid("Transaction ID must be a valid UUID"),
@@ -255,6 +266,7 @@ Błędy walidacji biznesowej (kategoria nieaktywna, niezgodność typu, etc.).
 ```
 
 **Możliwe komunikaty w `details`:**
+
 - `"Category code does not exist or is inactive"`
 - `"Category is not active"`
 - `"Category {code} is not valid for {type} transactions"`
@@ -302,6 +314,7 @@ Client Response
 **Funkcja**: `updateTransaction(supabase, userId, transactionId, command)`
 
 #### Krok 1: Pobranie istniejącej transakcji
+
 ```typescript
 const existing = await supabase
   .from("transactions")
@@ -313,11 +326,13 @@ const existing = await supabase
 ```
 
 **Obsługa błędów:**
+
 - Jeśli `error.code === "PGRST116"` → return null (404)
 - Jeśli `!data` → return null (404)
 - Inne błędy → throw error (500)
 
 #### Krok 2: Walidacja kategorii (jeśli category_code jest w command)
+
 ```typescript
 if (command.category_code) {
   const category = await supabase
@@ -325,7 +340,7 @@ if (command.category_code) {
     .select("kind, is_active")
     .eq("code", command.category_code)
     .single();
-  
+
   // Walidacje:
   // - kategoria musi istnieć
   // - kategoria musi być aktywna
@@ -334,11 +349,13 @@ if (command.category_code) {
 ```
 
 **Obsługa błędów:**
+
 - Kategoria nie istnieje → throw ValidationError (422)
 - Kategoria nieaktywna → throw ValidationError (422)
 - Kategoria nie pasuje do typu → throw ValidationError (422)
 
 #### Krok 3: Wykrycie zmiany miesiąca
+
 ```typescript
 let monthChanged = false;
 if (command.occurred_on && command.occurred_on !== existing.occurred_on) {
@@ -349,6 +366,7 @@ if (command.occurred_on && command.occurred_on !== existing.occurred_on) {
 ```
 
 #### Krok 4: Wykonanie UPDATE
+
 ```typescript
 const updateData: Record<string, any> = {
   updated_by: userId,
@@ -364,21 +382,25 @@ const { data: updated, error } = await supabase
   .update(updateData)
   .eq("id", transactionId)
   .eq("user_id", userId)
-  .select(`
+  .select(
+    `
     id, type, category_code, amount_cents, occurred_on, note,
     created_at, updated_at,
     transaction_categories!inner(label_pl)
-  `)
+  `
+  )
   .single();
 ```
 
 **Uwagi:**
+
 - RLS automatycznie weryfikuje `user_id = auth.uid()`
 - Trigger na UPDATE automatycznie aktualizuje `updated_at`
 - Trigger na UPDATE loguje zmianę do `audit_log`
 - Trigger na UPDATE przelicza `monthly_metrics` (jeśli zmienił się miesiąc lub kwota)
 
 #### Krok 5: Mapowanie do TransactionDTO
+
 ```typescript
 return {
   id: updated.id,
@@ -397,15 +419,18 @@ return {
 ### Interakcje z bazą danych
 
 #### Tabele odczytywane:
+
 - `transactions` - pobieranie istniejącej transakcji
 - `transaction_categories` - walidacja kategorii (jeśli zmieniana)
 
 #### Tabele modyfikowane:
+
 - `transactions` - UPDATE rekordu
 - `audit_log` - automatyczne logowanie przez trigger (INSERT)
 - `monthly_metrics` - automatyczne przeliczenie przez trigger (UPDATE/INSERT)
 
 #### Triggery wykonywane automatycznie:
+
 1. **Before UPDATE trigger**: Aktualizacja `updated_at = now()`
 2. **After UPDATE trigger**: INSERT do `audit_log` z `before` i `after` JSON
 3. **After UPDATE trigger**: Przeliczenie `monthly_metrics` dla starego i nowego miesiąca (jeśli zmiana)
@@ -415,19 +440,24 @@ return {
 ### Uwierzytelnianie i autoryzacja
 
 #### Obecny stan (MVP)
+
 - Tymczasowo używamy `DEFAULT_USER_ID` (hardcoded UUID)
 - Auth będzie zaimplementowany kompleksowo w przyszłej iteracji
 - Kod przygotowany na łatwą integrację z `context.locals.user`
 
 #### Docelowa implementacja (po auth)
+
 ```typescript
 // W przyszłości:
 const user = context.locals.user;
 if (!user) {
-  return new Response(JSON.stringify({
-    error: "Unauthorized",
-    message: "Authentication required"
-  }), { status: 401 });
+  return new Response(
+    JSON.stringify({
+      error: "Unauthorized",
+      message: "Authentication required",
+    }),
+    { status: 401 }
+  );
 }
 const userId = user.id;
 ```
@@ -435,6 +465,7 @@ const userId = user.id;
 ### Row Level Security (RLS)
 
 Supabase RLS automatycznie weryfikuje podczas UPDATE:
+
 ```sql
 -- Polityka RLS dla transactions UPDATE
 USING (user_id = auth.uid() AND EXISTS(
@@ -444,6 +475,7 @@ WITH CHECK (user_id = auth.uid())
 ```
 
 **Konsekwencje:**
+
 - Użytkownik może aktualizować tylko własne transakcje
 - Próba UPDATE cudzej transakcji zwróci 0 affected rows (404)
 - Niezweryfikowani użytkownicy są blokowi (po implementacji auth)
@@ -451,6 +483,7 @@ WITH CHECK (user_id = auth.uid())
 ### Walidacja danych wejściowych
 
 #### Warstwa 1: Zod Schema (format + podstawowe reguły)
+
 - Format UUID dla `id`
 - Format YYYY-MM-DD dla `occurred_on`
 - Typ integer dla `amount_cents`
@@ -458,11 +491,13 @@ WITH CHECK (user_id = auth.uid())
 - Brak znaków kontrolnych w `note` (XSS protection)
 
 #### Warstwa 2: Service Layer (reguły biznesowe)
+
 - Transakcja musi istnieć i nie być soft-deleted
 - Kategoria musi istnieć, być aktywna i pasować do typu
 - `occurred_on` nie może być w przyszłości
 
 #### Warstwa 3: Database Constraints (ostateczna ochrona)
+
 - CHECK constraints na `amount_cents > 0`
 - CHECK constraint na `occurred_on <= current_date`
 - FK constraint na `category_code` → `transaction_categories.code`
@@ -471,29 +506,35 @@ WITH CHECK (user_id = auth.uid())
 ### Ochrona przed atakami
 
 #### SQL Injection
+
 - **Mitygacja**: Supabase używa przygotowanych zapytań (parameterized queries)
 - Wszystkie wartości są przekazywane jako parametry, nie konkatenowane
 
 #### XSS (Cross-Site Scripting)
+
 - **Mitygacja**: Regex w Zod blokuje znaki kontrolne w `note`
 - Frontend powinien dodatkowo sanityzować przed wyświetleniem (DOMPurify)
 
 #### CSRF (Cross-Site Request Forgery)
+
 - **Mitygacja**: Supabase token w Authorization header (nie cookie)
 - SameSite cookie policy (po implementacji auth)
 
 #### Mass Assignment
+
 - **Mitygacja**: Explicit mapping pól w serwisie
 - Tylko pola z `UpdateTransactionCommand` są aktualizowane
 - Pole `type` jest explicite ignorowane/zablokowane
 
 #### Privilege Escalation
+
 - **Mitygacja**: RLS + explicit `user_id` check w query
 - Użytkownik nie może zmienić `user_id` transakcji
 
 ### Soft-Delete Protection
 
 Transakcje z `deleted_at IS NOT NULL` są:
+
 - Niewidoczne w queries (filtr `.is("deleted_at", null)`)
 - Niedostępne do edycji (zwracane jako 404)
 - Zachowane w bazie dla audit trail
@@ -502,19 +543,19 @@ Transakcje z `deleted_at IS NOT NULL` są:
 
 ### Tabela wszystkich scenariuszy błędów
 
-| Kod | Scenariusz | Warunek | Message | Details |
-|-----|------------|---------|---------|---------|
-| 400 | Nieprawidłowy UUID | Zod validation fail na `id` | "Invalid transaction ID format" | `{ "id": "Transaction ID must be a valid UUID" }` |
-| 400 | Nieprawidłowy request body | Zod validation fail na body | "Invalid request data" | Szczegóły z Zod errors |
-| 400 | Pusty request body | Brak żadnego pola | "Invalid request data" | `{ "_root": "At least one field must be provided for update" }` |
-| 404 | Transakcja nie istnieje | Brak rekordu w DB | "Transaction not found or has been deleted" | brak |
-| 404 | Transakcja soft-deleted | `deleted_at IS NOT NULL` | "Transaction not found or has been deleted" | brak |
-| 404 | Transakcja innego użytkownika | `user_id != auth.uid()` (RLS) | "Transaction not found or has been deleted" | brak |
-| 422 | Kategoria nie istnieje | Brak w `transaction_categories` | "Validation failed" | `{ "category_code": "Category code does not exist or is inactive" }` |
-| 422 | Kategoria nieaktywna | `is_active = false` | "Validation failed" | `{ "category_code": "Category is not active" }` |
-| 422 | Niezgodność kategoria-typ | `category.kind != transaction.type` | "Validation failed" | `{ "category_code": "Category RESTAURANTS is not valid for INCOME transactions" }` |
-| 500 | Błąd bazy danych | Supabase client error | "An unexpected error occurred. Please try again later." | brak |
-| 500 | Niespodziewany błąd | Uncaught exception | "An unexpected error occurred. Please try again later." | brak |
+| Kod | Scenariusz                    | Warunek                             | Message                                                 | Details                                                                            |
+| --- | ----------------------------- | ----------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 400 | Nieprawidłowy UUID            | Zod validation fail na `id`         | "Invalid transaction ID format"                         | `{ "id": "Transaction ID must be a valid UUID" }`                                  |
+| 400 | Nieprawidłowy request body    | Zod validation fail na body         | "Invalid request data"                                  | Szczegóły z Zod errors                                                             |
+| 400 | Pusty request body            | Brak żadnego pola                   | "Invalid request data"                                  | `{ "_root": "At least one field must be provided for update" }`                    |
+| 404 | Transakcja nie istnieje       | Brak rekordu w DB                   | "Transaction not found or has been deleted"             | brak                                                                               |
+| 404 | Transakcja soft-deleted       | `deleted_at IS NOT NULL`            | "Transaction not found or has been deleted"             | brak                                                                               |
+| 404 | Transakcja innego użytkownika | `user_id != auth.uid()` (RLS)       | "Transaction not found or has been deleted"             | brak                                                                               |
+| 422 | Kategoria nie istnieje        | Brak w `transaction_categories`     | "Validation failed"                                     | `{ "category_code": "Category code does not exist or is inactive" }`               |
+| 422 | Kategoria nieaktywna          | `is_active = false`                 | "Validation failed"                                     | `{ "category_code": "Category is not active" }`                                    |
+| 422 | Niezgodność kategoria-typ     | `category.kind != transaction.type` | "Validation failed"                                     | `{ "category_code": "Category RESTAURANTS is not valid for INCOME transactions" }` |
+| 500 | Błąd bazy danych              | Supabase client error               | "An unexpected error occurred. Please try again later." | brak                                                                               |
+| 500 | Niespodziewany błąd           | Uncaught exception                  | "An unexpected error occurred. Please try again later." | brak                                                                               |
 
 ### Implementacja obsługi błędów w API Route
 
@@ -523,55 +564,61 @@ export async function PATCH(context: APIContext) {
   try {
     // 1. Walidacja path params
     const params = UpdateTransactionParamsSchema.parse(context.params);
-    
+
     // 2. Walidacja request body
     const body = await context.request.json();
     const command = UpdateTransactionSchema.parse(body);
-    
+
     // 3. Wywołanie serwisu
-    const transaction = await updateTransaction(
-      supabaseClient,
-      DEFAULT_USER_ID,
-      params.id,
-      command
-    );
-    
+    const transaction = await updateTransaction(supabaseClient, DEFAULT_USER_ID, params.id, command);
+
     // 4. Not found
     if (!transaction) {
-      return new Response(JSON.stringify({
-        error: "Not Found",
-        message: "Transaction not found or has been deleted"
-      }), { status: 404 });
+      return new Response(
+        JSON.stringify({
+          error: "Not Found",
+          message: "Transaction not found or has been deleted",
+        }),
+        { status: 404 }
+      );
     }
-    
+
     // 5. Success
     return new Response(JSON.stringify(transaction), { status: 200 });
-    
   } catch (error) {
     // Zod validation errors (400)
     if (error instanceof z.ZodError) {
-      return new Response(JSON.stringify({
-        error: "Bad Request",
-        message: "Invalid request data",
-        details: formatZodErrors(error)
-      }), { status: 400 });
+      return new Response(
+        JSON.stringify({
+          error: "Bad Request",
+          message: "Invalid request data",
+          details: formatZodErrors(error),
+        }),
+        { status: 400 }
+      );
     }
-    
+
     // ValidationError from service (422)
     if (error instanceof ValidationError) {
-      return new Response(JSON.stringify({
-        error: "Unprocessable Entity",
-        message: "Validation failed",
-        details: error.details
-      }), { status: 422 });
+      return new Response(
+        JSON.stringify({
+          error: "Unprocessable Entity",
+          message: "Validation failed",
+          details: error.details,
+        }),
+        { status: 422 }
+      );
     }
-    
+
     // Database/unexpected errors (500)
     console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
-    return new Response(JSON.stringify({
-      error: "Internal Server Error",
-      message: "An unexpected error occurred. Please try again later."
-    }), { status: 500 });
+    return new Response(
+      JSON.stringify({
+        error: "Internal Server Error",
+        message: "An unexpected error occurred. Please try again later.",
+      }),
+      { status: 500 }
+    );
   }
 }
 ```
@@ -579,11 +626,13 @@ export async function PATCH(context: APIContext) {
 ### Logowanie błędów
 
 #### Console logging (development)
+
 ```typescript
 console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
 ```
 
 #### Production monitoring (future)
+
 - Sentry/LogRocket integration
 - Structured logging (JSON format)
 - Error rate monitoring
@@ -592,11 +641,13 @@ console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
 ### Komunikaty dla użytkownika
 
 #### Zasady:
+
 - **400/422**: Szczegółowe komunikaty pomocne dla developera/użytkownika
 - **404**: Ogólny komunikat (nie ujawniamy czy transakcja istnieje dla innego usera)
 - **500**: Ogólny komunikat (nie ujawniamy szczegółów wewnętrznych)
 
 #### Język:
+
 - Wszystkie komunikaty w języku angielskim (API convention)
 - Frontend odpowiada za tłumaczenie na polski dla użytkownika
 
@@ -605,11 +656,14 @@ console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
 ### Potencjalne wąskie gardła
 
 #### 1. Podwójne query do bazy (fetch existing + update)
+
 **Problem**: Wykonujemy 2 queries:
+
 - SELECT existing transaction
 - UPDATE transaction
 
 **Mitygacja**:
+
 - Oba queries są proste (primary key lookup)
 - Indexy na `transactions(id)` i `transactions(user_id, id)` zapewniają O(log n)
 - Alternatywa (single query with RETURNING old values) jest złożona w Supabase
@@ -617,23 +671,28 @@ console.error("Unexpected error in PATCH /api/v1/transactions/:id:", error);
 **Decyzja**: Pozostawiamy 2 queries dla czytelności kodu.
 
 #### 2. Walidacja kategorii (dodatkowy SELECT)
+
 **Problem**: Jeśli `category_code` jest zmieniane, wykonujemy dodatkowy SELECT do `transaction_categories`.
 
 **Mitygacja**:
+
 - Tabela `transaction_categories` jest słownikiem (mały rozmiar, ~20 rekordów)
 - Potencjalne cache'owanie w przyszłości (Redis/memory cache)
 - Primary key lookup jest bardzo szybki
 
 **Optymalizacja (future)**:
+
 ```typescript
 // Cache categories in memory (load on startup)
 const CATEGORIES_CACHE = new Map<string, Category>();
 ```
 
 #### 3. Triggery na UPDATE (audit_log, monthly_metrics)
+
 **Problem**: UPDATE na `transactions` uruchamia 2-3 triggery, co zwiększa czas wykonania.
 
 **Mitygacja**:
+
 - Triggery są niezbędne dla integralności danych (audit trail, metrics)
 - Są dobrze zindexowane i zoptymalizowane
 - Supabase wykonuje je asynchronicznie (nie blokuje response)
@@ -641,24 +700,27 @@ const CATEGORIES_CACHE = new Map<string, Category>();
 **Monitoring**: Mierzymy czas wykonania w production i ewentualnie optymalizujemy triggery.
 
 #### 4. Backdate recalculation (zmiana miesiąca)
+
 **Problem**: Zmiana `occurred_on` na inny miesiąc wymaga przeliczenia 2 wierszy w `monthly_metrics`.
 
 **Mitygacja**:
+
 - Trigger jest inkrementalny (odejmuje ze starego miesiąca, dodaje do nowego)
 - Nie wykonuje pełnego agregatu (sumowania wszystkich transactions)
 - Upsert na `(user_id, month)` jest atomowy i szybki
 
 **SQL trigger (uproszczony)**:
+
 ```sql
 -- Stary miesiąc
-UPDATE monthly_metrics 
+UPDATE monthly_metrics
 SET expenses_cents = expenses_cents - OLD.amount_cents
 WHERE user_id = OLD.user_id AND month = date_trunc('month', OLD.occurred_on);
 
--- Nowy miesiąc  
+-- Nowy miesiąc
 INSERT INTO monthly_metrics (user_id, month, expenses_cents)
 VALUES (NEW.user_id, date_trunc('month', NEW.occurred_on), NEW.amount_cents)
-ON CONFLICT (user_id, month) DO UPDATE 
+ON CONFLICT (user_id, month) DO UPDATE
   SET expenses_cents = monthly_metrics.expenses_cents + EXCLUDED.expenses_cents;
 ```
 
@@ -674,52 +736,59 @@ CREATE INDEX idx_transactions_pkey ON transactions(id);
 CREATE INDEX idx_tx_user ON transactions(user_id);
 
 -- Partial index dla active transactions
-CREATE INDEX idx_tx_keyset 
-  ON transactions(user_id, occurred_on DESC, id DESC) 
+CREATE INDEX idx_tx_keyset
+  ON transactions(user_id, occurred_on DESC, id DESC)
   WHERE deleted_at IS NULL;
 
 -- Index dla category lookup
-CREATE INDEX idx_transaction_categories_pkey 
+CREATE INDEX idx_transaction_categories_pkey
   ON transaction_categories(code);
 ```
 
 #### Prepared statements
+
 Supabase PostgREST automatycznie używa prepared statements dla wszystkich queries.
 
 #### Connection pooling
+
 Supabase automatycznie zarządza connection poolem (Supavisor/PgBouncer).
 
 #### Caching (future optimization)
 
 **Warstwa 1: Database query cache**
+
 - PostgreSQL shared_buffers (często używane tabele w RAM)
 - `transaction_categories` jest małe i zawsze w cache
 
 **Warstwa 2: Application cache (future)**
+
 ```typescript
 // Redis cache dla categories (optional)
-const category = await redis.get(`category:${code}`) 
-  ?? await fetchFromDB(code);
+const category = (await redis.get(`category:${code}`)) ?? (await fetchFromDB(code));
 ```
 
 **Warstwa 3: HTTP cache**
+
 - PATCH responses nie są cache'owalne (per HTTP spec)
 - Ale GET categories może mieć Cache-Control: max-age=3600
 
 ### Monitoring wydajności
 
 #### Metryki do śledzenia:
+
 - P50, P95, P99 response time dla PATCH endpoint
 - Query execution time (przez Supabase Dashboard)
 - Trigger execution time
 - Error rate (500 errors)
 
 #### Cele wydajnościowe (SLA):
+
 - P95 < 300ms (3 queries + 2 triggers)
 - P99 < 500ms
 - Error rate < 0.1%
 
 #### Alerty:
+
 - Response time > 1s
 - Error rate > 1% w 5 min
 - Database CPU > 80%
@@ -729,6 +798,7 @@ const category = await redis.get(`category:${code}`)
 ### Faza 1: Przygotowanie typów i schematów (30 min)
 
 #### Krok 1.1: Aktualizacja transaction.schema.ts
+
 **Plik**: `src/lib/schemas/transaction.schema.ts`
 
 **Dodać na końcu pliku:**
@@ -748,10 +818,7 @@ const category = await redis.get(`category:${code}`)
  */
 export const UpdateTransactionSchema = z
   .object({
-    category_code: z
-      .string()
-      .min(1, "Category code cannot be empty")
-      .optional(),
+    category_code: z.string().min(1, "Category code cannot be empty").optional(),
 
     amount_cents: z
       .number({
@@ -809,13 +876,16 @@ export type UpdateTransactionParams = z.infer<typeof UpdateTransactionParamsSche
 ```
 
 **Weryfikacja:**
+
 - Sprawdź brak błędów TypeScript
 - Upewnij się, że wszystkie importy są poprawne
 
 #### Krok 1.2: Weryfikacja typów w src/types.ts
+
 **Plik**: `src/types.ts`
 
 **Sprawdź, że istnieje:**
+
 ```typescript
 export interface UpdateTransactionCommand {
   category_code?: string;
@@ -826,6 +896,7 @@ export interface UpdateTransactionCommand {
 ```
 
 **Oraz że TransactionDTO ma opcjonalne pole:**
+
 ```typescript
 export interface TransactionDTO {
   // ... inne pola
@@ -838,6 +909,7 @@ export interface TransactionDTO {
 ### Faza 2: Implementacja warstwy serwisowej (60 min)
 
 #### Krok 2.1: Dodanie funkcji updateTransaction do transaction.service.ts
+
 **Plik**: `src/lib/services/transaction.service.ts`
 
 **Dodać na końcu pliku (przed ostatnią linią):**
@@ -916,12 +988,9 @@ export async function updateTransaction(
 
     // Validate category kind matches transaction type (cannot change type)
     if (category.kind !== existing.type) {
-      throw new ValidationError(
-        `Category ${command.category_code} is not valid for ${existing.type} transactions`,
-        {
-          category_code: `Category kind ${category.kind} does not match transaction type ${existing.type}`,
-        }
-      );
+      throw new ValidationError(`Category ${command.category_code} is not valid for ${existing.type} transactions`, {
+        category_code: `Category kind ${category.kind} does not match transaction type ${existing.type}`,
+      });
     }
   }
 
@@ -1011,38 +1080,42 @@ export async function updateTransaction(
 ```
 
 **Weryfikacja:**
+
 - Sprawdź brak błędów TypeScript
 - Upewnij się, że import `UpdateTransactionCommand` z `@/types` działa
 - Sprawdź, że `ValidationError` jest już zdefiniowana w tym samym pliku
 
 #### Krok 2.2: Dodanie typu do importów
+
 **Na górze pliku** `transaction.service.ts`:
 
 ```typescript
-import type { 
-  CreateTransactionCommand, 
-  TransactionDTO, 
+import type {
+  CreateTransactionCommand,
+  TransactionDTO,
   TransactionListResponseDTO,
-  UpdateTransactionCommand  // <-- Dodaj ten import
+  UpdateTransactionCommand, // <-- Dodaj ten import
 } from "@/types";
 ```
 
 ### Faza 3: Implementacja API route handler (45 min)
 
 #### Krok 3.1: Dodanie PATCH handler do [id].ts
+
 **Plik**: `src/pages/api/v1/transactions/[id].ts`
 
 **Dodać nowe importy na górze:**
+
 ```typescript
-import { 
+import {
   GetTransactionByIdParamsSchema,
-  UpdateTransactionParamsSchema,  // <-- Nowy
-  UpdateTransactionSchema         // <-- Nowy
+  UpdateTransactionParamsSchema, // <-- Nowy
+  UpdateTransactionSchema, // <-- Nowy
 } from "@/lib/schemas/transaction.schema";
-import { 
+import {
   getTransactionById,
-  updateTransaction,  // <-- Nowy
-  ValidationError     // <-- Nowy
+  updateTransaction, // <-- Nowy
+  ValidationError, // <-- Nowy
 } from "@/lib/services/transaction.service";
 ```
 
@@ -1101,12 +1174,7 @@ export async function PATCH(context: APIContext) {
 
     // Step 3: Call service layer to update transaction
     // Note: Using DEFAULT_USER_ID until auth is implemented
-    const transaction = await updateTransaction(
-      supabaseClient,
-      DEFAULT_USER_ID,
-      params.id,
-      command
-    );
+    const transaction = await updateTransaction(supabaseClient, DEFAULT_USER_ID, params.id, command);
 
     // Step 4: Handle not found case
     if (!transaction) {
@@ -1170,7 +1238,9 @@ export async function PATCH(context: APIContext) {
 ### Faza 4: Testowanie (60 min)
 
 #### Krok 4.1: Przygotowanie środowiska testowego
+
 **Terminal:**
+
 ```bash
 # Sprawdź, czy dev server działa
 npm run dev
@@ -1182,6 +1252,7 @@ npx supabase status
 #### Krok 4.2: Testy manualne (curl/Postman)
 
 **Test 1: Happy path - update single field**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1204,6 +1275,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 2: Happy path - update multiple fields**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1217,6 +1289,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 3: Backdate warning - change month**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1228,6 +1301,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 4: Error - invalid UUID**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/invalid-uuid \
   -H "Content-Type: application/json" \
@@ -1244,6 +1318,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/invalid-uuid \
 ```
 
 **Test 5: Error - not found**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/550e8400-e29b-41d4-a716-446655440000 \
   -H "Content-Type: application/json" \
@@ -1257,6 +1332,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/550e8400-e29b-41d4-a716-
 ```
 
 **Test 6: Error - empty body**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1273,6 +1349,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 7: Error - invalid category**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1291,6 +1368,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 8: Error - category kind mismatch**
+
 ```bash
 # Assuming existing transaction is EXPENSE, try to change to INCOME category
 curl -X PATCH http://localhost:4321/api/v1/transactions/{expense-id} \
@@ -1310,6 +1388,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{expense-id} \
 ```
 
 **Test 9: Error - invalid amount**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1328,6 +1407,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 10: Error - future date**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1346,6 +1426,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 11: Error - note too long**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1364,6 +1445,7 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 ```
 
 **Test 12: Edge case - set note to null**
+
 ```bash
 curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
   -H "Content-Type: application/json" \
@@ -1377,22 +1459,23 @@ curl -X PATCH http://localhost:4321/api/v1/transactions/{existing-id} \
 #### Krok 4.3: Weryfikacja w bazie danych
 
 **Supabase SQL Editor:**
+
 ```sql
 -- Sprawdź zaktualizowaną transakcję
-SELECT * FROM transactions 
+SELECT * FROM transactions
 WHERE id = 'your-transaction-id';
 
 -- Sprawdź audit_log entry (trigger)
-SELECT * FROM audit_log 
-WHERE entity_type = 'transaction' 
+SELECT * FROM audit_log
+WHERE entity_type = 'transaction'
   AND entity_id = 'your-transaction-id'
   AND action = 'UPDATE'
-ORDER BY performed_at DESC 
+ORDER BY performed_at DESC
 LIMIT 1;
 
 -- Sprawdź monthly_metrics (jeśli zmiana miesiąca)
-SELECT * FROM monthly_metrics 
-WHERE user_id = 'your-user-id' 
+SELECT * FROM monthly_metrics
+WHERE user_id = 'your-user-id'
   AND month IN ('2025-01-01', '2024-12-01')
 ORDER BY month DESC;
 ```
@@ -1400,12 +1483,14 @@ ORDER BY month DESC;
 #### Krok 4.4: Weryfikacja logów
 
 **Terminal (dev server logs):**
+
 ```bash
 # Sprawdź brak błędów console.error
 # Sprawdź poprawny flow logów
 ```
 
 **Supabase Dashboard:**
+
 - Sprawdź logi API w zakładce Logs
 - Sprawdź query performance w zakładce Database → Logs
 - Sprawdź trigger execution time
@@ -1415,11 +1500,13 @@ ORDER BY month DESC;
 #### Krok 5.1: Weryfikacja dokumentacji
 
 **Pliki do sprawdzenia:**
+
 - ✅ `src/lib/schemas/transaction.schema.ts` - JSDoc comments
 - ✅ `src/lib/services/transaction.service.ts` - JSDoc comments dla updateTransaction
 - ✅ `src/pages/api/v1/transactions/[id].ts` - JSDoc comment dla PATCH
 
 **Wszystkie funkcje mają:**
+
 - Opis co robią
 - Parametry (@param)
 - Zwracana wartość (@returns)
@@ -1428,6 +1515,7 @@ ORDER BY month DESC;
 #### Krok 5.2: Sprawdzenie linterów
 
 **Terminal:**
+
 ```bash
 # Uruchom ESLint
 npm run lint
@@ -1442,6 +1530,7 @@ npx tsc --noEmit
 #### Krok 5.3: Commit zmian
 
 **Git:**
+
 ```bash
 git status
 
@@ -1474,6 +1563,7 @@ git commit -m "feat: implement PATCH /api/v1/transactions/:id endpoint
 Zawartość analogiczna do `testing-guide-get-transaction-by-id.md`, z testami dla PATCH endpoint.
 
 **Sekcje:**
+
 1. Setup instructions
 2. Test scenarios (12 test cases)
 3. Database verification queries
@@ -1485,12 +1575,14 @@ Zawartość analogiczna do `testing-guide-get-transaction-by-id.md`, z testami d
 ## 10. Checklist implementacji
 
 ### Pre-implementation
+
 - [ ] Przeczytać cały plan implementacji
 - [ ] Zrozumieć flow danych i business logic
 - [ ] Przygotować środowisko (Supabase running, dev server ready)
 - [ ] Mieć dostęp do istniejącej transakcji w bazie (do testów)
 
 ### Implementation
+
 - [ ] Faza 1: Schematy i typy (UpdateTransactionSchema, UpdateTransactionParamsSchema)
 - [ ] Faza 2: Service layer (updateTransaction function)
 - [ ] Faza 3: API route handler (PATCH function)
@@ -1499,6 +1591,7 @@ Zawartość analogiczna do `testing-guide-get-transaction-by-id.md`, z testami d
 - [ ] Faza 6: Testing guide (opcjonalne)
 
 ### Verification
+
 - [ ] TypeScript kompiluje się bez błędów
 - [ ] ESLint nie pokazuje błędów
 - [ ] Wszystkie testy manualne przechodzą
@@ -1508,6 +1601,7 @@ Zawartość analogiczna do `testing-guide-get-transaction-by-id.md`, z testami d
 - [ ] Błędy 400/404/422/500 są poprawnie obsługiwane
 
 ### Post-implementation
+
 - [ ] Commit zmian z descriptive message
 - [ ] Update API documentation (jeśli istnieje Swagger/OpenAPI)
 - [ ] Poinformować team o nowym endpoincie
@@ -1565,18 +1659,21 @@ Zawartość analogiczna do `testing-guide-get-transaction-by-id.md`, z testami d
 ### Future improvements
 
 1. **Caching kategorii**
+
    ```typescript
    // In-memory cache dla transaction_categories
    const CATEGORIES_CACHE = new Map<string, Category>();
    ```
 
 2. **Batch updates**
+
    ```typescript
    // API endpoint dla bulk update (przyszłość)
-   PATCH /api/v1/transactions/batch
+   PATCH / api / v1 / transactions / batch;
    ```
 
 3. **Optimistic locking**
+
    ```typescript
    // Sprawdzenie updated_at przed UPDATE (prevent lost updates)
    .match({ id, updated_at: command.expected_version })
@@ -1641,7 +1738,7 @@ async function updateTransaction(
   }
 
   const transaction = await response.json();
-  
+
   // Show warning if month was changed
   if (transaction.backdate_warning) {
     showWarningToast("Miesiąc transakcji został zmieniony. Statystyki zostały przeliczone.");
@@ -1658,7 +1755,7 @@ function useUpdateTransaction() {
   const update = async (id: string, data: UpdateTransactionCommand) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await updateTransaction(id, data);
       return result;
@@ -1702,22 +1799,26 @@ try {
 ## 13. Odniesienia
 
 ### Powiązane plany implementacji
+
 - `post-transaction-implementation-plan.md` - POST /api/v1/transactions
 - `get-specified-transaction-implementation-plan.md` - GET /api/v1/transactions/:id
 - `get-transactions-implementation-plan.md` - GET /api/v1/transactions (list)
 
 ### Dokumentacja
+
 - `api-plan.md` - Pełna specyfikacja API
 - `db-plan.md` - Schemat bazy danych
 - `prd.md` - Product Requirements Document
 
 ### Tech stack
+
 - Astro 5 - https://docs.astro.build/
 - TypeScript 5 - https://www.typescriptlang.org/docs/
 - Supabase - https://supabase.com/docs
 - Zod - https://zod.dev/
 
 ### Database
+
 - PostgreSQL 15 - https://www.postgresql.org/docs/15/
 - RLS (Row Level Security) - https://supabase.com/docs/guides/auth/row-level-security
 - Triggers - https://www.postgresql.org/docs/15/triggers.html
@@ -1729,4 +1830,3 @@ try {
 Powodzenia w implementacji! 🚀
 
 W razie pytań lub problemów, sprawdź sekcję "Uwagi i potencjalne pułapki" lub skonsultuj się z pozostałymi planami implementacji.
-

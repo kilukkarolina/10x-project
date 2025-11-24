@@ -5,6 +5,7 @@
 Endpoint `POST /api/v1/goal-events` służy do dodawania depozytów (DEPOSIT) lub wypłat (WITHDRAW) do celów oszczędnościowych użytkownika. Jest to kluczowa operacja, która atomowo modyfikuje saldo celu i automatycznie aktualizuje metryki miesięczne.
 
 **Kluczowa charakterystyka**: Ten endpoint NIE wykonuje bezpośrednio operacji INSERT/UPDATE, ale wywołuje funkcję PostgreSQL `rpc.add_goal_event()` (SECURITY DEFINER), która w jednej transakcji:
+
 1. Waliduje własność celu i status (nie-zarchiwizowany, nie-usunięty)
 2. Blokuje wiersz celu (SELECT ... FOR UPDATE) - zapobiega race conditions
 3. Waliduje wystarczające saldo dla WITHDRAW
@@ -13,6 +14,7 @@ Endpoint `POST /api/v1/goal-events` służy do dodawania depozytów (DEPOSIT) lu
 6. Triggeruje automatyczne przeliczenie monthly_metrics
 
 **Odpowiedzialność warstw:**
+
 - **API endpoint** (`/src/pages/api/v1/goal-events/index.ts`): Walidacja schematu (Zod), orchestracja, mapowanie błędów
 - **Service layer** (`/src/lib/services/goal-event.service.ts`): Business logic, wywołanie RPC, konstrukcja DTO
 - **Database (RPC function)**: Transakcyjna logika, walidacja biznesowa na poziomie bazy, blokady, idempotencja
@@ -20,17 +22,21 @@ Endpoint `POST /api/v1/goal-events` służy do dodawania depozytów (DEPOSIT) lu
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `POST`
 
 ### Struktura URL
+
 `/api/v1/goal-events`
 
 ### Request Headers
+
 ```
 Content-Type: application/json
 ```
 
 ### Request Body (CreateGoalEventCommand)
+
 ```json
 {
   "goal_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -45,20 +51,22 @@ Content-Type: application/json
 
 #### Wymagane parametry:
 
-| Pole | Typ | Opis | Walidacja |
-|------|-----|------|-----------|
-| `goal_id` | string (uuid) | Identyfikator celu oszczędnościowego | Format UUID, cel musi istnieć i należeć do użytkownika, nie może być zarchiwizowany |
-| `type` | string | Typ operacji | Enum: "DEPOSIT" lub "WITHDRAW" |
-| `amount_cents` | number | Kwota w groszach | Integer, > 0 |
-| `occurred_on` | string | Data operacji (YYYY-MM-DD) | Format YYYY-MM-DD, <= current_date |
-| `client_request_id` | string | Unikalny identyfikator żądania dla idempotencji | Non-empty string, preferowane UUID |
+| Pole                | Typ           | Opis                                            | Walidacja                                                                           |
+| ------------------- | ------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `goal_id`           | string (uuid) | Identyfikator celu oszczędnościowego            | Format UUID, cel musi istnieć i należeć do użytkownika, nie może być zarchiwizowany |
+| `type`              | string        | Typ operacji                                    | Enum: "DEPOSIT" lub "WITHDRAW"                                                      |
+| `amount_cents`      | number        | Kwota w groszach                                | Integer, > 0                                                                        |
+| `occurred_on`       | string        | Data operacji (YYYY-MM-DD)                      | Format YYYY-MM-DD, <= current_date                                                  |
+| `client_request_id` | string        | Unikalny identyfikator żądania dla idempotencji | Non-empty string, preferowane UUID                                                  |
 
 #### Opcjonalne parametry:
+
 Brak
 
 ### Uwagi dotyczące parametrów:
+
 - **goal_id**: Musi wskazywać na istniejący cel użytkownika. Cele zarchiwizowane (`archived_at != null`) są niedostępne dla nowych operacji.
-- **type**: 
+- **type**:
   - `DEPOSIT`: Dodaje kwotę do salda celu
   - `WITHDRAW`: Odejmuje kwotę od salda celu (wymaga wystarczającego salda)
 - **amount_cents**: Przechowywanie w groszach zapewnia precyzję i unika problemów z zaokrąglaniem float
@@ -117,9 +125,7 @@ import { z } from "zod";
  * - client_request_id: Required, non-empty string for idempotency
  */
 export const CreateGoalEventSchema = z.object({
-  goal_id: z
-    .string({ required_error: "Goal ID is required" })
-    .uuid("Goal ID must be a valid UUID"),
+  goal_id: z.string({ required_error: "Goal ID is required" }).uuid("Goal ID must be a valid UUID"),
 
   type: z.enum(["DEPOSIT", "WITHDRAW"], {
     required_error: "Type is required",
@@ -171,6 +177,7 @@ export const CreateGoalEventSchema = z.object({
 **Struktura**: `GoalEventDetailDTO`
 
 **Pola odpowiedzi:**
+
 - `id`: UUID wygenerowany przez bazę danych dla nowego goal_event
 - `goal_id`: ID celu (echo z request)
 - `goal_name`: Nazwa celu (joined z tabeli goals)
@@ -195,7 +202,8 @@ export const CreateGoalEventSchema = z.object({
 }
 ```
 
-**Kiedy**: 
+**Kiedy**:
+
 - Brak wymaganego pola
 - Nieprawidłowy format UUID w goal_id
 - type nie jest "DEPOSIT" ani "WITHDRAW"
@@ -216,6 +224,7 @@ export const CreateGoalEventSchema = z.object({
 ```
 
 **Kiedy**:
+
 - Cel o podanym goal_id nie istnieje
 - Cel należy do innego użytkownika (RLS)
 - Cel jest zarchiwizowany (archived_at != null)
@@ -249,6 +258,7 @@ export const CreateGoalEventSchema = z.object({
 ```
 
 **Kiedy**:
+
 - Ten sam user_id + client_request_id już istnieje w goal_events (unique constraint)
 - Dla WITHDRAW: amount_cents > goal.current_balance_cents
 
@@ -266,6 +276,7 @@ export const CreateGoalEventSchema = z.object({
 ```
 
 **Kiedy**:
+
 - occurred_on > current_date (data w przyszłości)
 - Inne business rules naruszenia
 
@@ -348,22 +359,19 @@ if (goal.deleted_at) {
 }
 
 // STEP 2: Validate future date (business rule)
-const today = new Date().toISOString().split('T')[0];
+const today = new Date().toISOString().split("T")[0];
 if (command.occurred_on > today) {
   throw new ValidationError("Occurred date cannot be in the future");
 }
 
 // STEP 3: Call RPC function (handles transaction, lock, balance update)
-const { data: rpcResult, error: rpcError } = await supabase.rpc(
-  "add_goal_event",
-  {
-    p_goal_id: command.goal_id,
-    p_type: command.type,
-    p_amount_cents: command.amount_cents,
-    p_occurred_on: command.occurred_on,
-    p_client_request_id: command.client_request_id,
-  }
-);
+const { data: rpcResult, error: rpcError } = await supabase.rpc("add_goal_event", {
+  p_goal_id: command.goal_id,
+  p_type: command.type,
+  p_amount_cents: command.amount_cents,
+  p_occurred_on: command.occurred_on,
+  p_client_request_id: command.client_request_id,
+});
 
 // Handle RPC errors:
 // - Duplicate client_request_id (23505 unique_violation) → 409
@@ -373,7 +381,8 @@ const { data: rpcResult, error: rpcError } = await supabase.rpc(
 // STEP 4: Fetch created goal_event with joined goal_name
 const { data: goalEvent } = await supabase
   .from("goal_events")
-  .select(`
+  .select(
+    `
     id,
     goal_id,
     type,
@@ -381,7 +390,8 @@ const { data: goalEvent } = await supabase
     occurred_on,
     created_at,
     goals!inner(name)
-  `)
+  `
+  )
   .eq("id", rpcResult.goal_event_id)
   .single();
 
@@ -410,20 +420,24 @@ return dto;
 ### Interakcje z bazą danych:
 
 **Tabele odczytywane:**
+
 - `goals` - weryfikacja istnienia i statusu, SELECT ... FOR UPDATE w RPC
 - `goal_events` - odczyt utworzonego wydarzenia
 - `goal_types` - pośrednio przez FK w goals (walidacja w RLS)
 
 **Tabele modyfikowane:**
+
 - `goal_events` - INSERT nowego wydarzenia (przez RPC)
 - `goals` - UPDATE current_balance_cents (przez RPC)
 - `monthly_metrics` - UPDATE lub INSERT (przez trigger po goal_events INSERT)
 - `audit_log` - INSERT (przez trigger po goal_events INSERT)
 
 **Funkcje RPC:**
+
 - `add_goal_event()` - główna logika transakcyjna
 
 **Triggery aktywowane:**
+
 - Trigger na goal_events (AFTER INSERT) → audit_log
 - Trigger na goal_events (AFTER INSERT) → monthly_metrics recalculation
 
@@ -432,17 +446,22 @@ return dto;
 ### 6.1. Autentykacja i Autoryzacja
 
 **Obecny stan (development):**
+
 - Tymczasowo używany `DEFAULT_USER_ID` (jak w innych endpointach)
 - Auth będzie implementowany kompleksowo w przyszłej iteracji
 
 **Docelowy stan (production):**
+
 ```typescript
 // Verify user is authenticated
 if (!context.locals.user) {
-  return new Response(JSON.stringify({
-    error: "Unauthorized",
-    message: "Authentication required"
-  }), { status: 401 });
+  return new Response(
+    JSON.stringify({
+      error: "Unauthorized",
+      message: "Authentication required",
+    }),
+    { status: 401 }
+  );
 }
 
 const userId = context.locals.user.id;
@@ -451,15 +470,18 @@ const userId = context.locals.user.id;
 ### 6.2. Row-Level Security (RLS)
 
 **goals table:**
+
 - Polityka SELECT: `user_id = auth.uid() AND email_confirmed`
 - Zapewnia, że użytkownik widzi tylko swoje cele
 
 **goal_events table:**
+
 - Polityka SELECT: `user_id = auth.uid() AND email_confirmed`
 - **BRAK polityki INSERT dla klienta** - wstawianie TYLKO przez RPC function
 - Chroni przed bezpośrednim wstawianiem z pominięciem walidacji i logiki salda
 
 **Funkcja RPC add_goal_event():**
+
 - `SECURITY DEFINER` - wykonuje się z uprawnieniami właściciela funkcji
 - Wewnętrznie weryfikuje: `goal.user_id = auth.uid()`
 - Weryfikuje: `profiles.email_confirmed = true`
@@ -468,16 +490,19 @@ const userId = context.locals.user.id;
 ### 6.3. Walidacja danych wejściowych
 
 **Warstwa 1: Zod Schema (400 Bad Request)**
+
 - Validacja typu i formatu danych
 - Zapobiega SQL injection (UUID format)
 - Zapobiega type confusion attacks
 
 **Warstwa 2: Business Logic (422/409/404)**
+
 - Weryfikacja własności zasobu (goal należy do użytkownika)
 - Weryfikacja stanu zasobu (goal nie zarchiwizowany, nie usunięty)
 - Weryfikacja business rules (data, saldo)
 
 **Warstwa 3: Database constraints**
+
 - CHECK constraints: `amount_cents > 0`, `occurred_on <= current_date`
 - UNIQUE constraint: `(user_id, client_request_id)` - idempotencja
 - FK constraints: goal_id → goals(id), user_id → profiles(user_id)
@@ -485,16 +510,19 @@ const userId = context.locals.user.id;
 ### 6.4. Idempotencja i Race Conditions
 
 **Idempotencja:**
+
 - Unique constraint na `(user_id, client_request_id)` w `goal_events`
 - Ten sam request (ten sam client_request_id) nie zostanie wykonany dwukrotnie
 - Zwraca 409 Conflict z informacją o duplikacie
 
 **Race Conditions:**
+
 - `SELECT ... FOR UPDATE` w RPC function blokuje wiersz `goals`
 - Zapobiega równoczesnym modyfikacjom salda przez wiele requestów
 - Gwarantuje ACID properties transakcji
 
 **Insufficient Balance Race:**
+
 ```
 Request A: WITHDRAW 100 (balance: 150)
 Request B: WITHDRAW 100 (balance: 150)
@@ -530,6 +558,7 @@ WITH SELECT ... FOR UPDATE:
 ### 6.8. Rate Limiting
 
 **Uwaga**: Rate limiting nie jest implementowany na poziomie tego endpointu, ale zgodnie z tech-stack.md:
+
 - Rate limiting (3 requests / 30 min) dotyczy operacji verify/reset w Auth
 - Dla goal-events brak specjalnego rate limiting (chronione przez auth + RLS)
 - W przyszłości można dodać limit na poziomie API gateway lub middleware
@@ -542,29 +571,29 @@ WITH SELECT ... FOR UPDATE:
 try {
   // 1. Parse & Validate (Zod)
   const command = CreateGoalEventSchema.parse(body);
-  
+
   // 2. Business Logic (Service)
   const goalEvent = await createGoalEvent(supabase, userId, command);
-  
+
   // 3. Success
   return new Response(JSON.stringify(goalEvent), { status: 201 });
-  
+
 } catch (error) {
   // Error handling cascade
-  
+
   // Zod validation error → 400
   if (error instanceof z.ZodError) { ... }
-  
+
   // NotFoundError → 404
   if (error instanceof NotFoundError) { ... }
-  
+
   // Conflict errors → 409
   if (error instanceof ValidationError && error.code === "DUPLICATE_REQUEST") { ... }
   if (error instanceof ValidationError && error.code === "INSUFFICIENT_BALANCE") { ... }
-  
+
   // Business validation → 422
   if (error instanceof ValidationError) { ... }
-  
+
   // Unexpected errors → 500
   console.error("Unexpected error:", error);
   return { status: 500, error: "Internal Server Error" };
@@ -573,17 +602,17 @@ try {
 
 ### 7.2. Szczegółowe mapowanie błędów
 
-| Error Type | HTTP Status | Error Code | Przykład |
-|------------|-------------|------------|----------|
-| Zod validation failed | 400 | Bad Request | Brak wymaganego pola, nieprawidłowy format |
-| Goal not found | 404 | Not Found | goal_id nie istnieje lub należy do innego użytkownika |
-| Goal archived | 404 | Not Found | archived_at != null |
-| Goal soft-deleted | 404 | Not Found | deleted_at != null |
-| Duplicate client_request_id | 409 | Conflict | Unique constraint violation na (user_id, client_request_id) |
-| Insufficient balance | 409 | Conflict | WITHDRAW: amount > current_balance |
-| Future date | 422 | Unprocessable Entity | occurred_on > current_date |
-| Database error | 500 | Internal Server Error | Connection lost, timeout |
-| RPC function error | 500 | Internal Server Error | Unexpected error w funkcji PostgreSQL |
+| Error Type                  | HTTP Status | Error Code            | Przykład                                                    |
+| --------------------------- | ----------- | --------------------- | ----------------------------------------------------------- |
+| Zod validation failed       | 400         | Bad Request           | Brak wymaganego pola, nieprawidłowy format                  |
+| Goal not found              | 404         | Not Found             | goal_id nie istnieje lub należy do innego użytkownika       |
+| Goal archived               | 404         | Not Found             | archived_at != null                                         |
+| Goal soft-deleted           | 404         | Not Found             | deleted_at != null                                          |
+| Duplicate client_request_id | 409         | Conflict              | Unique constraint violation na (user_id, client_request_id) |
+| Insufficient balance        | 409         | Conflict              | WITHDRAW: amount > current_balance                          |
+| Future date                 | 422         | Unprocessable Entity  | occurred_on > current_date                                  |
+| Database error              | 500         | Internal Server Error | Connection lost, timeout                                    |
+| RPC function error          | 500         | Internal Server Error | Unexpected error w funkcji PostgreSQL                       |
 
 ### 7.3. Error Classes w Service Layer
 
@@ -633,7 +662,7 @@ if (rpcError) {
       { client_request_id: command.client_request_id }
     );
   }
-  
+
   // P0001: raise_exception (custom error z funkcji, np. insufficient balance)
   if (rpcError.code === "P0001" && rpcError.message.includes("Insufficient balance")) {
     throw new ValidationError(
@@ -645,14 +674,14 @@ if (rpcError) {
       }
     );
   }
-  
+
   // 23514: check_violation (CHECK constraint, np. occurred_on > current_date)
   if (rpcError.code === "23514") {
     throw new ValidationError("Date validation failed", undefined, {
       occurred_on: command.occurred_on,
     });
   }
-  
+
   // Unexpected database error → rethrow as generic error (500)
   throw new Error(`Database error: ${rpcError.message}`);
 }
@@ -664,10 +693,10 @@ Wszystkie błędy zwracają `ErrorResponseDTO`:
 
 ```typescript
 interface ErrorResponseDTO {
-  error: string;           // HTTP status name (e.g., "Bad Request", "Not Found")
-  message: string;         // Human-readable error message
+  error: string; // HTTP status name (e.g., "Bad Request", "Not Found")
+  message: string; // Human-readable error message
   details?: Record<string, string>; // Field-level details
-  retry_after_seconds?: number;     // For rate limiting (not used here)
+  retry_after_seconds?: number; // For rate limiting (not used here)
 }
 ```
 
@@ -739,14 +768,16 @@ console.log("RPC completed successfully, event ID:", rpcResult.goal_event_id);
 ### 8.1. Potencjalne wąskie gardła
 
 **1. Row Lock Duration (SELECT ... FOR UPDATE)**
+
 - **Problem**: Długo trzymany lock na wierszu `goals` blokuje inne operacje na tym celu
 - **Impact**: Jeśli RPC function jest wolna, inne requesty czekają
-- **Mitigation**: 
+- **Mitigation**:
   - RPC function musi być szybka (tylko niezbędne operacje wewnątrz transakcji)
   - Unikać długich zapytań wewnątrz RPC
   - Timeout dla lock (default: wait indefinitely - można skonfigurować `lock_timeout`)
 
 **2. Multiple Database Calls per Request**
+
 - **Problem**: Service wykonuje multiple queries:
   1. Pre-validation: SELECT goal
   2. RPC call (wewnątrz: SELECT FOR UPDATE, INSERT, UPDATE)
@@ -759,6 +790,7 @@ console.log("RPC completed successfully, event ID:", rpcResult.goal_event_id);
   - Rozważyć: Pre-validation może być opcjonalna (RPC i tak to sprawdzi)
 
 **3. Trigger Overhead (monthly_metrics recalculation)**
+
 - **Problem**: Po każdym INSERT goal_event trigger aktualizuje `monthly_metrics`
 - **Impact**: Wydłuża czas transakcji
 - **Mitigation**:
@@ -767,6 +799,7 @@ console.log("RPC completed successfully, event ID:", rpcResult.goal_event_id);
   - Rozważyć: async update monthly_metrics (queue/background job) - ale wtedy metryki nie będą immediate consistent
 
 **4. Concurrent Requests for Same Goal**
+
 - **Problem**: Wiele równoczesnych DEPOSIT/WITHDRAW na ten sam cel
 - **Impact**: Requesty czekają na lock, increased latency
 - **Mitigation**:
@@ -779,6 +812,7 @@ console.log("RPC completed successfully, event ID:", rpcResult.goal_event_id);
 **Optymalizacja 1: Reduce Database Round-trips**
 
 Obecny flow:
+
 ```
 1. SELECT goals (pre-validation)
 2. RPC add_goal_event
@@ -787,15 +821,17 @@ Obecny flow:
 ```
 
 Zoptymalizowany flow:
+
 ```
 1. RPC add_goal_event_optimized (returns full goal_event + balance)
 ```
 
 **Implementacja:**
+
 - Zmodyfikować RPC function, aby zwracała:
   ```sql
   RETURN QUERY
-  SELECT 
+  SELECT
     ge.id, ge.goal_id, ge.type, ge.amount_cents, ge.occurred_on, ge.created_at,
     g.name AS goal_name,
     g.current_balance_cents AS goal_balance_after_cents
@@ -820,22 +856,23 @@ Zoptymalizowany flow:
 **Optymalizacja 3: Indeksy**
 
 Zgodnie z db-plan.md, zapewnić indeksy:
+
 ```sql
 -- Idempotencja (unique)
-CREATE UNIQUE INDEX uniq_goal_events_request 
+CREATE UNIQUE INDEX uniq_goal_events_request
 ON goal_events(user_id, client_request_id);
 
 -- Agregacje dla monthly_metrics trigger
-CREATE INDEX idx_ge_user_month 
+CREATE INDEX idx_ge_user_month
 ON goal_events(user_id, month, type);
 
 -- Join goal_name
-CREATE INDEX idx_ge_goal 
+CREATE INDEX idx_ge_goal
 ON goal_events(goal_id);
 
 -- Pre-validation query (if kept)
-CREATE INDEX idx_goals_active 
-ON goals(user_id) 
+CREATE INDEX idx_goals_active
+ON goals(user_id)
 WHERE deleted_at IS NULL AND archived_at IS NULL;
 ```
 
@@ -854,6 +891,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 ### 8.3. Monitoring Metrics
 
 **Key Performance Indicators:**
+
 - **P50, P95, P99 latency** dla endpoint
 - **Lock wait time** dla SELECT ... FOR UPDATE
 - **RPC function execution time**
@@ -862,6 +900,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 - **Idempotent retry rate** (409 z duplicate client_request_id)
 
 **Alerting thresholds:**
+
 - P95 latency > 500ms → investigate
 - Lock wait time > 1s → concurrent load issue
 - Error rate 500 > 1% → database issues
@@ -870,15 +909,18 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 ### 8.4. Scalability Considerations
 
 **Current architecture (MVP):**
+
 - Supabase Free tier: wystarczająca dla MVP (do ~100 users)
 - No sharding, single database
 
 **Future scale concerns:**
+
 - Goals z dużą liczbą events (tysiące): query performance może spadać
 - Solution: Pagination dla GET /api/v1/goal-events (już w specyfikacji dla future)
 - Solution: Archive old events (np. > 1 year) do osobnej tabeli
 
 **Horizontal scalability:**
+
 - Stateless API → easy to scale (multiple Astro instances)
 - Database → Supabase handles (connection pooling, read replicas w paid plans)
 
@@ -889,7 +931,9 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 **Plik**: `/supabase/migrations/YYYYMMDDHHMMSS_create_add_goal_event_function.sql`
 
 **Zadania:**
+
 1. Stworzyć funkcję `add_goal_event()` z sygnaturą:
+
    ```sql
    CREATE OR REPLACE FUNCTION public.add_goal_event(
      p_goal_id uuid,
@@ -912,7 +956,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
      IF v_user_id IS NULL THEN
        RAISE EXCEPTION 'Unauthorized';
      END IF;
-     
+
      -- Lock goal row and validate ownership + status
      SELECT current_balance_cents INTO v_current_balance
      FROM goals
@@ -921,22 +965,22 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
        AND archived_at IS NULL
        AND deleted_at IS NULL
      FOR UPDATE;
-     
+
      IF NOT FOUND THEN
        RAISE EXCEPTION 'Goal not found or is archived';
      END IF;
-     
+
      -- Validate occurred_on <= current_date
      IF p_occurred_on > CURRENT_DATE THEN
        RAISE EXCEPTION 'Occurred date cannot be in the future';
      END IF;
-     
+
      -- Validate WITHDRAW balance
      IF p_type = 'WITHDRAW' AND p_amount_cents > v_current_balance THEN
-       RAISE EXCEPTION 'Insufficient balance for withdrawal. Current: %, Requested: %', 
+       RAISE EXCEPTION 'Insufficient balance for withdrawal. Current: %, Requested: %',
          v_current_balance, p_amount_cents;
      END IF;
-     
+
      -- Insert goal_event (idempotency via unique constraint)
      INSERT INTO goal_events (
        user_id, goal_id, type, amount_cents, occurred_on, client_request_id
@@ -944,61 +988,63 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
        v_user_id, p_goal_id, p_type, p_amount_cents, p_occurred_on, p_client_request_id
      )
      RETURNING id INTO v_goal_event_id;
-     
+
      -- Update goal balance
      UPDATE goals
-     SET 
-       current_balance_cents = current_balance_cents + 
+     SET
+       current_balance_cents = current_balance_cents +
          CASE WHEN p_type = 'DEPOSIT' THEN p_amount_cents ELSE -p_amount_cents END,
        updated_at = now(),
        updated_by = v_user_id
      WHERE id = p_goal_id;
-     
+
      RETURN v_goal_event_id;
    END;
    $$;
    ```
 
 2. Nadać uprawnienia:
+
    ```sql
    GRANT EXECUTE ON FUNCTION public.add_goal_event TO authenticated;
    ```
 
 3. Przetestować funkcję:
+
    ```sql
    -- Test DEPOSIT
    SELECT add_goal_event(
-     '<goal-uuid>', 
-     'DEPOSIT', 
-     10000, 
-     CURRENT_DATE, 
+     '<goal-uuid>',
+     'DEPOSIT',
+     10000,
+     CURRENT_DATE,
      'test-request-id-1'
    );
-   
+
    -- Test WITHDRAW (should succeed if balance sufficient)
    SELECT add_goal_event(
-     '<goal-uuid>', 
-     'WITHDRAW', 
-     5000, 
-     CURRENT_DATE, 
+     '<goal-uuid>',
+     'WITHDRAW',
+     5000,
+     CURRENT_DATE,
      'test-request-id-2'
    );
-   
+
    -- Test insufficient balance (should fail)
    SELECT add_goal_event(
-     '<goal-uuid>', 
-     'WITHDRAW', 
-     99999999, 
-     CURRENT_DATE, 
+     '<goal-uuid>',
+     'WITHDRAW',
+     99999999,
+     CURRENT_DATE,
      'test-request-id-3'
    );
-   
+
    -- Test idempotency (should fail with unique violation)
    SELECT add_goal_event(
-     '<goal-uuid>', 
-     'DEPOSIT', 
-     10000, 
-     CURRENT_DATE, 
+     '<goal-uuid>',
+     'DEPOSIT',
+     10000,
+     CURRENT_DATE,
      'test-request-id-1'
    );
    ```
@@ -1008,6 +1054,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 **Plik**: `/src/lib/schemas/goal-event.schema.ts`
 
 **Zadania:**
+
 1. Utworzyć nowy plik
 2. Zaimportować zod
 3. Zdefiniować `CreateGoalEventSchema` (patrz sekcja 3)
@@ -1020,17 +1067,19 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 **Plik**: `/src/lib/services/goal-event.service.ts`
 
 **Zadania:**
+
 1. Zdefiniować custom error classes:
    - `NotFoundError` (extends Error)
    - `ValidationError` (extends Error, z code i details)
 
 2. Zaimplementować funkcję `createGoalEvent`:
+
    ```typescript
    export async function createGoalEvent(
      supabase: SupabaseClient,
      userId: string,
      command: CreateGoalEventCommand
-   ): Promise<GoalEventDetailDTO>
+   ): Promise<GoalEventDetailDTO>;
    ```
 
 3. Implementacja flow (patrz sekcja 5 - "Przepływ danych"):
@@ -1055,7 +1104,9 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 **Plik**: `/src/pages/api/v1/goal-events/index.ts`
 
 **Zadania:**
+
 1. Zaimportować zależności:
+
    ```typescript
    import type { APIContext } from "astro";
    import { z } from "zod";
@@ -1066,6 +1117,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
    ```
 
 2. Disable prerendering:
+
    ```typescript
    export const prerender = false;
    ```
@@ -1078,32 +1130,32 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
      try {
        // 1. Parse request body
        const body = await context.request.json();
-       
+
        // 2. Validate with Zod
        const command = CreateGoalEventSchema.parse(body);
-       
+
        // 3. Call service (using DEFAULT_USER_ID for now)
        const goalEvent = await createGoalEvent(
-         supabaseClient, 
-         DEFAULT_USER_ID, 
+         supabaseClient,
+         DEFAULT_USER_ID,
          command
        );
-       
+
        // 4. Return 201 Created
        return new Response(JSON.stringify(goalEvent), {
          status: 201,
          headers: { "Content-Type": "application/json" },
        });
-       
+
      } catch (error) {
        // 5. Error handling (see section 7)
-       
+
        // Zod validation → 400
        if (error instanceof z.ZodError) { ... }
-       
+
        // NotFoundError → 404
        if (error instanceof NotFoundError) { ... }
-       
+
        // ValidationError with codes → 409 or 422
        if (error instanceof ValidationError) {
          if (error.code === "DUPLICATE_REQUEST" || error.code === "INSUFFICIENT_BALANCE") {
@@ -1112,7 +1164,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
            // 422 Unprocessable Entity
          }
        }
-       
+
        // Unexpected → 500
        console.error("Unexpected error:", error);
        // Return 500
@@ -1125,12 +1177,14 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 ### KROK 5: Testowanie Endpoint
 
 **Zadania:**
+
 1. Start Supabase lokalnie: `npx supabase start`
 2. Apply migrations (jeśli nowe): `npx supabase db push`
 3. Start dev server: `npm run dev`
 4. Test POST requests:
 
 **Test 1: Success - DEPOSIT**
+
 ```bash
 curl -X POST http://localhost:4321/api/v1/goal-events \
   -H "Content-Type: application/json" \
@@ -1142,9 +1196,11 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "client_request_id": "550e8400-e29b-41d4-a716-446655440001"
   }'
 ```
+
 Expected: 201 Created, GoalEventDetailDTO
 
 **Test 2: Success - WITHDRAW**
+
 ```bash
 curl -X POST http://localhost:4321/api/v1/goal-events \
   -H "Content-Type: application/json" \
@@ -1156,9 +1212,11 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "client_request_id": "550e8400-e29b-41d4-a716-446655440002"
   }'
 ```
+
 Expected: 201 Created
 
 **Test 3: 400 Bad Request - Invalid data**
+
 ```bash
 curl -X POST http://localhost:4321/api/v1/goal-events \
   -H "Content-Type: application/json" \
@@ -1169,9 +1227,11 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "occurred_on": "invalid-date"
   }'
 ```
+
 Expected: 400, details z Zod errors
 
 **Test 4: 404 Not Found - Goal nie istnieje**
+
 ```bash
 curl -X POST http://localhost:4321/api/v1/goal-events \
   -H "Content-Type: application/json" \
@@ -1183,9 +1243,11 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "client_request_id": "550e8400-e29b-41d4-a716-446655440003"
   }'
 ```
+
 Expected: 404
 
 **Test 5: 409 Conflict - Insufficient balance**
+
 ```bash
 # First, get current balance of goal (should be < 999999)
 curl -X POST http://localhost:4321/api/v1/goal-events \
@@ -1198,9 +1260,11 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "client_request_id": "550e8400-e29b-41d4-a716-446655440004"
   }'
 ```
+
 Expected: 409, message "Insufficient balance"
 
 **Test 6: 409 Conflict - Duplicate client_request_id**
+
 ```bash
 # Repeat Test 1 with same client_request_id
 curl -X POST http://localhost:4321/api/v1/goal-events \
@@ -1213,9 +1277,11 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "client_request_id": "550e8400-e29b-41d4-a716-446655440001"
   }'
 ```
+
 Expected: 409, message "already exists"
 
 **Test 7: 422 Unprocessable Entity - Future date**
+
 ```bash
 curl -X POST http://localhost:4321/api/v1/goal-events \
   -H "Content-Type: application/json" \
@@ -1227,31 +1293,37 @@ curl -X POST http://localhost:4321/api/v1/goal-events \
     "client_request_id": "550e8400-e29b-41d4-a716-446655440005"
   }'
 ```
+
 Expected: 422, message "future"
 
 ### KROK 6: Weryfikacja Side Effects
 
 **Zadania:**
+
 1. Sprawdzić, że goal.current_balance_cents został zaktualizowany:
+
    ```bash
    # GET goal details
    curl http://localhost:4321/api/v1/goals/<goal-uuid>
    ```
+
    Verify: `current_balance_cents` odpowiada sumie events
 
 2. Sprawdzić, że monthly_metrics został przeliczony:
+
    ```sql
    -- W Supabase SQL Editor
-   SELECT * FROM monthly_metrics 
-   WHERE user_id = '<user-uuid>' 
+   SELECT * FROM monthly_metrics
+   WHERE user_id = '<user-uuid>'
    AND month = '2025-01-01';
    ```
+
    Verify: `net_saved_cents` i `free_cash_flow_cents` odzwierciedlają nowy goal_event
 
 3. Sprawdzić audit_log:
    ```sql
-   SELECT * FROM audit_log 
-   WHERE entity_type = 'goal_event' 
+   SELECT * FROM audit_log
+   WHERE entity_type = 'goal_event'
    AND entity_id = '<goal-event-uuid>';
    ```
    Verify: Wpis z action='CREATE', after zawiera goal_event data
@@ -1259,6 +1331,7 @@ Expected: 422, message "future"
 ### KROK 7: Dokumentacja
 
 **Zadania:**
+
 1. Upewnić się, że specyfikacja w `/api-plan.md` jest aktualna
 2. Dodać przykłady użycia w README (opcjonalnie)
 3. Dokumentacja dla frontend team:
@@ -1270,6 +1343,7 @@ Expected: 422, message "future"
 ### KROK 8: Code Review Checklist
 
 Przed mergem, sprawdzić:
+
 - [ ] Funkcja RPC poprawnie obsługuje wszystkie edge cases
 - [ ] Zod schema waliduje wszystkie wymagane pola
 - [ ] Service layer mapuje wszystkie PostgreSQL error codes na odpowiednie HTTP statuses
@@ -1286,10 +1360,12 @@ Przed mergem, sprawdzić:
 ### KROK 9: Deployment (Future)
 
 **Development:**
+
 - Kod jest gotowy po mergniu do `master`
 - Supabase migrations auto-applied (jeśli skonfigurowane)
 
 **Production (gdy auth będzie gotowy):**
+
 - [ ] Replace `DEFAULT_USER_ID` z `context.locals.user.id`
 - [ ] Add auth check (401 Unauthorized jeśli brak user)
 - [ ] Update tests (dodać Authorization header)
@@ -1300,32 +1376,36 @@ Przed mergem, sprawdzić:
 ## 10. Podsumowanie
 
 Endpoint POST /api/v1/goal-events jest krytyczną operacją transakcyjną, która wymaga:
+
 - **Atomowości**: Wszystkie operacje (INSERT event, UPDATE balance, UPDATE metrics) w jednej transakcji
 - **Spójności**: SELECT ... FOR UPDATE zapobiega race conditions
 - **Idempotencji**: Unique constraint na (user_id, client_request_id)
 - **Audytowalności**: Automatyczne logowanie do audit_log
 
 Implementacja w 3 warstwach:
+
 1. **PostgreSQL RPC function** - core business logic, ACID guarantees
 2. **Service layer** - orchestration, error mapping, DTO construction
 3. **API endpoint** - validation, HTTP mapping, error responses
 
 Kluczowe decyzje architektoniczne:
+
 - **Użycie RPC zamiast bezpośredniego INSERT** - gwarantuje atomowość i enkapsuluje logikę salda
 - **Pre-validation w service** - early failure, lepsze error messages
 - **Szczegółowe mapowanie błędów** - różne HTTP statuses dla różnych scenariuszy (404, 409, 422)
 - **Custom error classes** - czytelniejszy kod, łatwiejszy error handling
 
 Performance considerations:
+
 - Multiple DB calls → możliwa optymalizacja (single RPC return)
 - Row lock duration → minimize transaction time
 - Concurrent requests → inevitable, monitor lock wait time
 
 Security:
+
 - RLS na goal_events (brak INSERT policy dla klienta)
 - RPC SECURITY DEFINER weryfikuje ownership
 - Idempotencja chroni przed duplikatami
 - Audit log dla forensics
 
 Ten plan zapewnia solidną podstawę do implementacji endpoint zgodnie z najlepszymi praktykami i wymaganiami PRD.
-

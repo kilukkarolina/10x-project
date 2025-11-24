@@ -5,6 +5,7 @@
 **Cel**: Pobranie listy celów oszczędnościowych użytkownika z możliwością włączenia celów zarchiwizowanych.
 
 **Funkcjonalność**:
+
 - Zwraca listę wszystkich aktywnych celów użytkownika (domyślnie)
 - Opcjonalnie może zawierać cele zarchiwizowane (gdy `include_archived=true`)
 - Każdy cel zawiera informacje o typie (join z `goal_types`), progresie realizacji oraz statusie priorytetowym
@@ -12,6 +13,7 @@
 - RLS (Row Level Security) zapewnia, że użytkownik widzi tylko swoje cele
 
 **Kontekst biznesowy**:
+
 - Endpoint używany głównie w widoku "Moje cele" w aplikacji
 - Użytkownicy zazwyczaj mają niewielką liczbę celów (5-20), więc paginacja nie jest wymagana
 - Cele priorytetowe powinny być wyróżnione w UI (flagą `is_priority`)
@@ -21,9 +23,11 @@
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `GET`
 
 ### Struktura URL
+
 ```
 /api/v1/goals
 ```
@@ -32,16 +36,18 @@
 
 #### Query Parameters
 
-| Parametr | Typ | Wymagany | Domyślna wartość | Opis |
-|----------|-----|----------|------------------|------|
-| `include_archived` | boolean | Nie | `false` | Określa czy zwracać cele zarchiwizowane (`archived_at IS NOT NULL`) |
+| Parametr           | Typ     | Wymagany | Domyślna wartość | Opis                                                                |
+| ------------------ | ------- | -------- | ---------------- | ------------------------------------------------------------------- |
+| `include_archived` | boolean | Nie      | `false`          | Określa czy zwracać cele zarchiwizowane (`archived_at IS NOT NULL`) |
 
 **Uwagi dotyczące parametrów**:
+
 - Query parametry są przekazywane jako stringi ("true"/"false"), wymagana konwersja do boolean
 - Akceptowalne wartości: `"true"`, `"false"`, `"1"`, `"0"`, `true`, `false`
 - Nieprawidłowe wartości powinny skutkować błędem 400
 
 #### Headers
+
 ```http
 Authorization: Bearer <jwt-token>
 Content-Type: application/json
@@ -50,6 +56,7 @@ Content-Type: application/json
 **Uwaga**: Autoryzacja jest obecnie wyłączona w MVP (używany jest `DEFAULT_USER_ID`). Będzie włączona w przyszłej iteracji.
 
 #### Request Body
+
 Brak (metoda GET nie przyjmuje body).
 
 ---
@@ -88,10 +95,7 @@ export interface GoalListResponseDTO {
 ```typescript
 export const ListGoalsQuerySchema = z.object({
   include_archived: z
-    .union([
-      z.boolean(),
-      z.string().transform((val) => val === "true" || val === "1")
-    ])
+    .union([z.boolean(), z.string().transform((val) => val === "true" || val === "1")])
     .optional()
     .default(false),
 });
@@ -106,11 +110,13 @@ export type ListGoalsQuery = z.infer<typeof ListGoalsQuerySchema>;
 ### Sukces: 200 OK
 
 **Headers**:
+
 ```http
 Content-Type: application/json
 ```
 
 **Body**:
+
 ```json
 {
   "data": [
@@ -145,6 +151,7 @@ Content-Type: application/json
 ```
 
 **Przypadki specjalne**:
+
 - Pusta tablica gdy użytkownik nie ma celów: `{ "data": [] }`
 - `progress_percentage` może przekroczyć 100% (gdy użytkownik odłożył więcej niż cel)
 - `archived_at` jest `null` dla aktywnych celów, ma wartość timestamp dla zarchiwizowanych
@@ -154,6 +161,7 @@ Content-Type: application/json
 Nieprawidłowe parametry query.
 
 **Body**:
+
 ```json
 {
   "error": "Bad Request",
@@ -165,6 +173,7 @@ Nieprawidłowe parametry query.
 ```
 
 **Przykłady sytuacji**:
+
 - `include_archived=maybe` (nieprawidłowa wartość)
 - `include_archived=yes` (nieakceptowana wartość)
 - Dodatkowe nieznane parametry (opcjonalnie można ignorować)
@@ -174,6 +183,7 @@ Nieprawidłowe parametry query.
 Użytkownik nie jest zalogowany lub token jest nieważny.
 
 **Body**:
+
 ```json
 {
   "error": "Unauthorized",
@@ -188,6 +198,7 @@ Użytkownik nie jest zalogowany lub token jest nieważny.
 Nieoczekiwany błąd po stronie serwera.
 
 **Body**:
+
 ```json
 {
   "error": "Internal Server Error",
@@ -196,6 +207,7 @@ Nieoczekiwany błąd po stronie serwera.
 ```
 
 **Przykłady sytuacji**:
+
 - Błąd połączenia z bazą danych
 - Błąd w query SQL
 - Nieoczekiwany format danych z bazy
@@ -325,20 +337,25 @@ Nieoczekiwany błąd po stronie serwera.
 ### 6.1 Uwierzytelnianie (Authentication)
 
 **Obecny stan (MVP)**:
+
 - Uwierzytelnianie jest **wyłączone**
 - Wszystkie żądania używają `DEFAULT_USER_ID` (hardcoded w `supabase.client.ts`)
 - Brak weryfikacji tokena JWT
 
 **Docelowa implementacja** (przyszła iteracja):
+
 ```typescript
 // Extract user from Supabase Auth
-const { data: { user }, error: authError } = await supabase.auth.getUser();
+const {
+  data: { user },
+  error: authError,
+} = await supabase.auth.getUser();
 
 if (authError || !user) {
   return new Response(
     JSON.stringify({
       error: "Unauthorized",
-      message: "Authentication required"
+      message: "Authentication required",
     }),
     { status: 401, headers: { "Content-Type": "application/json" } }
   );
@@ -350,31 +367,32 @@ const userId = user.id;
 ### 6.2 Autoryzacja (Authorization)
 
 **Row Level Security (RLS)**:
+
 - Polityka na tabeli `goals` zapewnia izolację danych użytkowników
 - Automatyczne filtrowanie: `WHERE user_id = auth.uid()`
 - Wymóg weryfikacji email: `EXISTS(SELECT 1 FROM profiles WHERE user_id = auth.uid() AND email_confirmed = true)`
 
 **Efekt**:
+
 - Użytkownik może zobaczyć **tylko swoje cele**
 - Nawet jeśli query byłby nieprawidłowy, RLS chroni przed dostępem do cudzych danych
 
 ### 6.3 Walidacja danych wejściowych
 
 **Query Parameters**:
+
 ```typescript
 // Zod schema z transformacją i walidacją
 const ListGoalsQuerySchema = z.object({
   include_archived: z
-    .union([
-      z.boolean(),
-      z.string().transform((val) => val === "true" || val === "1")
-    ])
+    .union([z.boolean(), z.string().transform((val) => val === "true" || val === "1")])
     .optional()
     .default(false),
 });
 ```
 
 **Ochrona przed**:
+
 - Injection attacks: Zod zapewnia type safety, Supabase używa prepared statements
 - Invalid types: String "maybe" zostanie odrzucony z błędem 400
 - Missing parameters: Domyślne wartości zapewnią poprawne działanie
@@ -382,25 +400,27 @@ const ListGoalsQuerySchema = z.object({
 ### 6.4 Soft-Delete
 
 **Filtrowanie usuniętych rekordów**:
+
 ```typescript
 .is("deleted_at", null) // Exclude soft-deleted goals
 ```
 
 **Ochrona**:
+
 - Użytkownik **nigdy** nie zobaczy celów oznaczonych jako usunięte
 - Nawet jeśli rekord fizycznie istnieje w bazie, jest ukryty
 - Zgodne z db-plan.md: soft-delete przez UPDATE deleted_at
 
 ### 6.5 Potencjalne zagrożenia i mitigacje
 
-| Zagrożenie | Mitigacja |
-|------------|-----------|
-| **SQL Injection** | Supabase używa prepared statements; Zod waliduje typy przed query |
-| **Unauthorized access** | RLS policies + auth.uid() enforcement |
-| **Data leakage** | RLS filtruje automatycznie; tylko user_id = auth.uid() |
-| **IDOR (Insecure Direct Object Reference)** | Brak parametru ID w URL; lista jest scope'owana do użytkownika |
-| **Mass assignment** | GET nie przyjmuje body; query params walidowane przez Zod |
-| **DoS (Denial of Service)** | Brak paginacji, ale użytkownicy mają niewiele celów (naturalny limit) |
+| Zagrożenie                                  | Mitigacja                                                             |
+| ------------------------------------------- | --------------------------------------------------------------------- |
+| **SQL Injection**                           | Supabase używa prepared statements; Zod waliduje typy przed query     |
+| **Unauthorized access**                     | RLS policies + auth.uid() enforcement                                 |
+| **Data leakage**                            | RLS filtruje automatycznie; tylko user_id = auth.uid()                |
+| **IDOR (Insecure Direct Object Reference)** | Brak parametru ID w URL; lista jest scope'owana do użytkownika        |
+| **Mass assignment**                         | GET nie przyjmuje body; query params walidowane przez Zod             |
+| **DoS (Denial of Service)**                 | Brak paginacji, ale użytkownicy mają niewiele celów (naturalny limit) |
 
 ---
 
@@ -408,14 +428,14 @@ const ListGoalsQuerySchema = z.object({
 
 ### 7.1 Mapa błędów
 
-| Kod | Error Code | Scenariusz | Response Message | Details |
-|-----|------------|-----------|------------------|---------|
-| 400 | `Bad Request` | Nieprawidłowy parametr `include_archived` | "Invalid query parameters" | `{ "include_archived": "Expected boolean, received..." }` |
-| 400 | `Bad Request` | Nieparsowalne query params | "Invalid query parameters" | Zod validation errors |
-| 401 | `Unauthorized` | Brak tokena JWT (future) | "Authentication required" | - |
-| 401 | `Unauthorized` | Nieważny/wygasły token (future) | "Invalid or expired token" | - |
-| 500 | `Internal Server Error` | Błąd bazy danych | "An unexpected error occurred. Please try again later." | - |
-| 500 | `Internal Server Error` | Nieoczekiwany błąd w service | "An unexpected error occurred. Please try again later." | - |
+| Kod | Error Code              | Scenariusz                                | Response Message                                        | Details                                                   |
+| --- | ----------------------- | ----------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| 400 | `Bad Request`           | Nieprawidłowy parametr `include_archived` | "Invalid query parameters"                              | `{ "include_archived": "Expected boolean, received..." }` |
+| 400 | `Bad Request`           | Nieparsowalne query params                | "Invalid query parameters"                              | Zod validation errors                                     |
+| 401 | `Unauthorized`          | Brak tokena JWT (future)                  | "Authentication required"                               | -                                                         |
+| 401 | `Unauthorized`          | Nieważny/wygasły token (future)           | "Invalid or expired token"                              | -                                                         |
+| 500 | `Internal Server Error` | Błąd bazy danych                          | "An unexpected error occurred. Please try again later." | -                                                         |
+| 500 | `Internal Server Error` | Nieoczekiwany błąd w service              | "An unexpected error occurred. Please try again later." | -                                                         |
 
 ### 7.2 Implementacja obsługi błędów
 
@@ -431,11 +451,7 @@ export async function GET(context: APIContext) {
     const validatedQuery = ListGoalsQuerySchema.parse(queryParams);
 
     // 2. Call service
-    const goals = await listGoals(
-      supabaseClient,
-      DEFAULT_USER_ID,
-      validatedQuery.include_archived
-    );
+    const goals = await listGoals(supabaseClient, DEFAULT_USER_ID, validatedQuery.include_archived);
 
     // 3. Return success response
     const response: GoalListResponseDTO = { data: goals };
@@ -443,7 +459,6 @@ export async function GET(context: APIContext) {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-
   } catch (error) {
     // Handle Zod validation errors (400)
     if (error instanceof z.ZodError) {
@@ -475,10 +490,12 @@ export async function GET(context: APIContext) {
 ### 7.3 Logowanie błędów
 
 **Console logging**:
+
 - Błędy 500 są logowane do console z pełnym stack trace
 - Błędy walidacji (400) nie są logowane (expected behavior)
 
 **Production considerations**:
+
 - W przyszłości: integracja z Sentry lub podobnym narzędziem
 - Nie logować wrażliwych danych (tokens, PII)
 - Logować request ID dla trace'owania
@@ -490,9 +507,10 @@ export async function GET(context: APIContext) {
 ### 8.1 Optymalizacje bazy danych
 
 **Indeksy wykorzystywane**:
+
 ```sql
 -- Główny indeks dla aktywnych celów (bez archiwum)
-CREATE INDEX idx_goals_active ON goals(user_id) 
+CREATE INDEX idx_goals_active ON goals(user_id)
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 
 -- Indeks dla wszystkich nie-usuniętych celów
@@ -500,6 +518,7 @@ CREATE INDEX idx_goals_user ON goals(user_id);
 ```
 
 **Query plan**:
+
 - Index scan na `idx_goals_active` dla queries z `include_archived=false`
 - Index scan na `idx_goals_user` + filter dla queries z `include_archived=true`
 - Nested loop join z `goal_types` (mała tabela, likely cached)
@@ -509,12 +528,14 @@ CREATE INDEX idx_goals_user ON goals(user_id);
 ### 8.2 Brak paginacji - uzasadnienie
 
 **Dlaczego nie paginujemy?**:
+
 1. Użytkownicy mają **niewielką liczbę celów** (typowo 5-20, max ~50)
 2. Payload jest mały: każdy GoalDTO to ~200-300 bytes → 20 celów ≈ 5KB
 3. UI wymaga całej listy do wyświetlenia (brak scrollowania/lazy loading)
 4. Prostszy kod i mniej błędów związanych z cursor pagination
 
 **Monitorowanie**:
+
 - Jeśli w przyszłości średnia liczba celów przekroczy 50, rozważyć dodanie paginacji
 - Śledzić metryki: p95/p99 response time dla tego endpointu
 
@@ -523,6 +544,7 @@ CREATE INDEX idx_goals_user ON goals(user_id);
 **Bieżąca implementacja**: Brak cachingu (fresh data on every request)
 
 **Przyszłe optymalizacje** (jeśli potrzebne):
+
 1. **HTTP caching**:
    ```typescript
    headers: {
@@ -540,6 +562,7 @@ CREATE INDEX idx_goals_user ON goals(user_id);
 **Potencjalny problem**: Fetching type_label dla każdego celu osobno
 
 **Rozwiązanie**: **Single query z JOIN**
+
 ```typescript
 .select(`
   id,
@@ -560,6 +583,7 @@ CREATE INDEX idx_goals_user ON goals(user_id);
 ### 8.5 Payload size
 
 **Szacunkowy rozmiar odpowiedzi**:
+
 - 1 GoalDTO: ~250 bytes (JSON)
 - 20 celów: ~5 KB
 - 50 celów: ~12.5 KB
@@ -569,6 +593,7 @@ CREATE INDEX idx_goals_user ON goals(user_id);
 ### 8.6 Bottlenecks i monitoring
 
 **Potencjalne wąskie gardła**:
+
 1. **Database connection pool**: Supabase Free tier ma limity połączeń
    - Mitigacja: Używanie connection pooling (supavisor)
 2. **RLS overhead**: Każdy query wykonuje RLS policy check
@@ -577,12 +602,14 @@ CREATE INDEX idx_goals_user ON goals(user_id);
    - Mitigacja: goal_types to mała tabela (< 20 rows), likely in memory
 
 **Metryki do monitorowania**:
+
 - Response time p50, p95, p99
 - Query execution time (Supabase dashboard)
 - Error rate 5xx
 - Request rate (QPM - queries per minute)
 
 **SLA Target** (z prd.md):
+
 - p50 response time: ≤ 200ms
 - p95 response time: ≤ 500ms
 - Availability: ≥ 99% (stabilność aplikacji)
@@ -606,13 +633,11 @@ export const ListGoalsQuerySchema = z.object({
   include_archived: z
     .union([
       z.boolean(),
-      z
-        .string()
-        .transform((val) => {
-          if (val === "true" || val === "1") return true;
-          if (val === "false" || val === "0") return false;
-          throw new Error(`Invalid boolean value: ${val}`);
-        }),
+      z.string().transform((val) => {
+        if (val === "true" || val === "1") return true;
+        if (val === "false" || val === "0") return false;
+        throw new Error(`Invalid boolean value: ${val}`);
+      }),
     ])
     .optional()
     .default(false),
@@ -621,7 +646,8 @@ export const ListGoalsQuerySchema = z.object({
 export type ListGoalsQuery = z.infer<typeof ListGoalsQuerySchema>;
 ```
 
-**Weryfikacja**: 
+**Weryfikacja**:
+
 - Schema akceptuje `true`, `false`, `"true"`, `"false"`, `"1"`, `"0"`, `null`, `undefined`
 - Domyślna wartość to `false`
 - Inne wartości rzucają ZodError
@@ -703,9 +729,7 @@ export async function listGoals(
 
     // Compute progress percentage
     const progressPercentage =
-      goal.target_amount_cents > 0
-        ? (goal.current_balance_cents / goal.target_amount_cents) * 100
-        : 0;
+      goal.target_amount_cents > 0 ? (goal.current_balance_cents / goal.target_amount_cents) * 100 : 0;
 
     const goalDTO: GoalDTO = {
       id: goal.id,
@@ -727,6 +751,7 @@ export async function listGoals(
 ```
 
 **Weryfikacja**:
+
 - Funkcja zwraca pustą tablicę jeśli użytkownik nie ma celów
 - Soft-deleted cele są zawsze filtrowane
 - Zarchiwizowane cele są filtrowane tylko gdy `includeArchived = false`
@@ -778,11 +803,7 @@ export async function GET(context: APIContext) {
 
     // Call service layer to list goals
     // Note: Using DEFAULT_USER_ID until auth is implemented
-    const goals = await listGoals(
-      supabaseClient,
-      DEFAULT_USER_ID,
-      validatedQuery.include_archived
-    );
+    const goals = await listGoals(supabaseClient, DEFAULT_USER_ID, validatedQuery.include_archived);
 
     // Return 200 OK with GoalListResponseDTO
     const response: GoalListResponseDTO = { data: goals };
@@ -819,6 +840,7 @@ export async function GET(context: APIContext) {
 ```
 
 **Weryfikacja**:
+
 - Handler poprawnie parsuje query params z URL
 - Zod validation działa dla różnych wartości `include_archived`
 - Błędy są obsługiwane zgodnie z mapą błędów
@@ -831,6 +853,7 @@ export async function GET(context: APIContext) {
 **Narzędzia**: curl, Postman, lub Thunder Client (VS Code)
 
 **Test 1: Lista aktywnych celów (domyślnie)**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals"
 ```
@@ -838,6 +861,7 @@ curl -X GET "http://localhost:4321/api/v1/goals"
 **Oczekiwany rezultat**: 200 OK, `{ "data": [...] }` (tylko aktywne cele)
 
 **Test 2: Lista wszystkich celów (włącznie z archiwum)**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals?include_archived=true"
 ```
@@ -845,6 +869,7 @@ curl -X GET "http://localhost:4321/api/v1/goals?include_archived=true"
 **Oczekiwany rezultat**: 200 OK, `{ "data": [...] }` (aktywne + zarchiwizowane)
 
 **Test 3: Nieprawidłowy parametr query**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/goals?include_archived=maybe"
 ```
@@ -852,6 +877,7 @@ curl -X GET "http://localhost:4321/api/v1/goals?include_archived=maybe"
 **Oczekiwany rezultat**: 400 Bad Request z details
 
 **Test 4: Pusta lista celów**
+
 ```bash
 # Usuń wszystkie cele dla DEFAULT_USER_ID w bazie
 curl -X GET "http://localhost:4321/api/v1/goals"
@@ -860,6 +886,7 @@ curl -X GET "http://localhost:4321/api/v1/goals"
 **Oczekiwany rezultat**: 200 OK, `{ "data": [] }`
 
 **Test 5: Cel z progress > 100%**
+
 ```bash
 # Utwórz cel z target=1000, current=1500
 curl -X GET "http://localhost:4321/api/v1/goals"
@@ -899,15 +926,18 @@ curl -X GET "http://localhost:4321/api/v1/goals"
 **Akcje**:
 
 1. **Sprawdź linter errors**:
+
    ```bash
    npm run lint
    ```
+
    Fix any issues (unused imports, missing semicolons, etc.)
 
 2. **Update .ai/api-plan.md** (jeśli potrzebne):
    - Endpoint jest już udokumentowany, ale sprawdź czy wszystko się zgadza
 
 3. **Commit changes**:
+
    ```bash
    git add .
    git commit -m "feat: implement GET /api/v1/goals endpoint
@@ -924,20 +954,21 @@ curl -X GET "http://localhost:4321/api/v1/goals"
 
 ### 10.1 Różnice między POST a GET w tym endpointcie
 
-| Aspekt | POST /api/v1/goals | GET /api/v1/goals |
-|--------|-------------------|-------------------|
-| Request body | Tak (CreateGoalCommand) | Nie |
-| Query params | Nie | Tak (include_archived) |
-| Response code | 201 Created | 200 OK |
-| Response data | Single GoalDTO | GoalListResponseDTO (array) |
+| Aspekt         | POST /api/v1/goals                 | GET /api/v1/goals             |
+| -------------- | ---------------------------------- | ----------------------------- |
+| Request body   | Tak (CreateGoalCommand)            | Nie                           |
+| Query params   | Nie                                | Tak (include_archived)        |
+| Response code  | 201 Created                        | 200 OK                        |
+| Response data  | Single GoalDTO                     | GoalListResponseDTO (array)   |
 | Business logic | Validation, priority check, insert | Query with filters, transform |
-| Error codes | 400, 409, 422, 500 | 400, 500 (401 future) |
+| Error codes    | 400, 409, 422, 500                 | 400, 500 (401 future)         |
 
 ### 10.2 Sortowanie wyników
 
 **Obecna implementacja**: `ORDER BY created_at DESC` (newest first)
 
 **Alternatywne strategie** (do rozważenia w przyszłości):
+
 1. **Priority first, then created_at**:
    ```typescript
    .order("is_priority", { ascending: false })
@@ -945,7 +976,7 @@ curl -X GET "http://localhost:4321/api/v1/goals"
    ```
 2. **By progress percentage** (requires sorting in application):
    ```typescript
-   goals.sort((a, b) => b.progress_percentage - a.progress_percentage)
+   goals.sort((a, b) => b.progress_percentage - a.progress_percentage);
    ```
 3. **Alphabetically by name**:
    ```typescript
@@ -981,6 +1012,7 @@ curl -X GET "http://localhost:4321/api/v1/goals"
 **Framework**: Vitest lub Playwright
 
 **Test cases**:
+
 ```typescript
 describe("GET /api/v1/goals", () => {
   it("should return empty array when user has no goals", async () => {
@@ -996,7 +1028,7 @@ describe("GET /api/v1/goals", () => {
     const response = await fetch("/api/v1/goals");
     const data = await response.json();
     expect(data.data).toHaveLength(2);
-    expect(data.data.every(g => g.archived_at === null)).toBe(true);
+    expect(data.data.every((g) => g.archived_at === null)).toBe(true);
   });
 
   it("should include archived goals when include_archived=true", async () => {
@@ -1031,6 +1063,7 @@ describe("GET /api/v1/goals", () => {
 Przed oznaczeniem endpointu jako "gotowy", sprawdź:
 
 ### Kod
+
 - [ ] Schema walidacji dodany do `goal.schema.ts`
 - [ ] Funkcja `listGoals` dodana do `goal.service.ts`
 - [ ] Handler GET dodany do `pages/api/v1/goals/index.ts`
@@ -1040,6 +1073,7 @@ Przed oznaczeniem endpointu jako "gotowy", sprawdź:
 - [ ] Consistent code style (zgodny z existing code)
 
 ### Funkcjonalność
+
 - [ ] Endpoint zwraca 200 OK dla valid requests
 - [ ] Pusta tablica dla użytkownika bez celów
 - [ ] `include_archived=false` filtruje zarchiwizowane cele
@@ -1049,18 +1083,21 @@ Przed oznaczeniem endpointu jako "gotowy", sprawdź:
 - [ ] Type label poprawnie joinowany z goal_types
 
 ### Obsługa błędów
+
 - [ ] 400 dla nieprawidłowych query params
 - [ ] 500 dla błędów bazy danych
 - [ ] Error format zgodny z ErrorResponseDTO
 - [ ] Console logging dla 500 errors
 
 ### Dokumentacja
+
 - [ ] JSDoc comments na funkcji service
 - [ ] JSDoc comments na handlerze route
 - [ ] Komentarze wyjaśniające złożoną logikę
 - [ ] Plan implementacji zapisany w `.ai/get-goals-implementation-plan.md`
 
 ### Testy manualne
+
 - [ ] Test: GET /api/v1/goals (default, active only)
 - [ ] Test: GET /api/v1/goals?include_archived=true
 - [ ] Test: GET /api/v1/goals?include_archived=false
@@ -1073,6 +1110,7 @@ Przed oznaczeniem endpointu jako "gotowy", sprawdź:
 ## 12. Kontakt i pytania
 
 W razie pytań lub wątpliwości podczas implementacji, skontaktuj się z:
+
 - **Tech Lead**: [Imię]
 - **Backend Team**: #backend-questions (Slack)
 - **Dokumentacja**: `.ai/api-plan.md`, `.ai/db-plan.md`
@@ -1082,4 +1120,3 @@ W razie pytań lub wątpliwości podczas implementacji, skontaktuj się z:
 **Dokument wygenerowany**: 2025-11-23  
 **Wersja**: 1.0  
 **Status**: Gotowy do implementacji
-

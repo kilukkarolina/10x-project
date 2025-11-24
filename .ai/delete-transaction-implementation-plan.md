@@ -5,6 +5,7 @@
 Endpoint DELETE /api/v1/transactions/:id wykonuje **soft-delete** transakcji należącej do uwierzytelnionego użytkownika. Operacja nie usuwa fizycznie rekordu z bazy danych, a jedynie ustawia pola `deleted_at` i `deleted_by`, co pozwala na późniejsze odzyskanie danych lub audyt. Po pomyślnym usunięciu endpoint zwraca kod statusu `204 No Content` bez zawartości w body odpowiedzi.
 
 **Kluczowe cechy:**
+
 - Soft-delete (nie hard-delete) - rekord pozostaje w bazie
 - Idempotentność - wielokrotne wywołanie na tej samej transakcji zwraca 404
 - Ownership validation - użytkownik może usunąć tylko swoje transakcje
@@ -16,29 +17,34 @@ Endpoint DELETE /api/v1/transactions/:id wykonuje **soft-delete** transakcji nal
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `DELETE`
 
 ### Struktura URL
+
 ```
 DELETE /api/v1/transactions/:id
 ```
 
 ### Path Parameters
 
-| Parametr | Typ | Wymagany | Opis | Walidacja |
-|----------|-----|----------|------|-----------|
-| `id` | string (UUID) | ✅ Tak | Identyfikator transakcji do usunięcia | Musi być prawidłowym UUID v4 |
+| Parametr | Typ           | Wymagany | Opis                                  | Walidacja                    |
+| -------- | ------------- | -------- | ------------------------------------- | ---------------------------- |
+| `id`     | string (UUID) | ✅ Tak   | Identyfikator transakcji do usunięcia | Musi być prawidłowym UUID v4 |
 
 ### Request Headers
+
 ```
 Authorization: Bearer <jwt-token>  // Będzie używane po implementacji auth
 Content-Type: application/json     // Opcjonalnie (DELETE nie ma body)
 ```
 
 ### Request Body
+
 **Brak** - endpoint DELETE nie przyjmuje żadnego body.
 
 ### Przykład żądania
+
 ```bash
 DELETE /api/v1/transactions/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -51,17 +57,19 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ### Typy DTO (z `src/types.ts`)
 
 #### ErrorResponseDTO
+
 ```typescript
 export interface ErrorResponseDTO {
-  error: string;              // Krótki identyfikator błędu (np. "Not Found")
-  message: string;            // Czytelny opis błędu dla użytkownika
-  details?: Record<string, string>;  // Opcjonalne szczegóły błędu walidacji
+  error: string; // Krótki identyfikator błędu (np. "Not Found")
+  message: string; // Czytelny opis błędu dla użytkownika
+  details?: Record<string, string>; // Opcjonalne szczegóły błędu walidacji
 }
 ```
 
 ### Schema walidacji (do stworzenia w `src/lib/schemas/transaction.schema.ts`)
 
 #### DeleteTransactionParamsSchema
+
 ```typescript
 /**
  * Zod schema for DELETE /api/v1/transactions/:id path parameters
@@ -105,9 +113,11 @@ export async function deleteTransaction(
 ### Success Response
 
 #### 204 No Content
+
 Transakcja została pomyślnie usunięta (soft-delete).
 
 **Headers:**
+
 ```
 HTTP/1.1 204 No Content
 Content-Length: 0
@@ -122,9 +132,11 @@ Content-Length: 0
 ### Error Responses
 
 #### 400 Bad Request
+
 Nieprawidłowy format UUID w path parameter.
 
 **Body:**
+
 ```json
 {
   "error": "Bad Request",
@@ -136,15 +148,18 @@ Nieprawidłowy format UUID w path parameter.
 ```
 
 **Przykładowe przyczyny:**
+
 - `id` nie jest prawidłowym UUID (np. `"123"`, `"abc-def-ghi"`)
 - `id` jest pusty lub null
 
 ---
 
 #### 404 Not Found
+
 Transakcja nie istnieje, jest już usunięta lub należy do innego użytkownika.
 
 **Body:**
+
 ```json
 {
   "error": "Not Found",
@@ -153,6 +168,7 @@ Transakcja nie istnieje, jest już usunięta lub należy do innego użytkownika.
 ```
 
 **Przykładowe przyczyny:**
+
 - Transakcja o podanym UUID nie istnieje w bazie
 - Transakcja została już wcześniej usunięta (`deleted_at IS NOT NULL`)
 - Transakcja należy do innego użytkownika (ownership check failed)
@@ -162,9 +178,11 @@ Transakcja nie istnieje, jest już usunięta lub należy do innego użytkownika.
 ---
 
 #### 401 Unauthorized (future - gdy auth będzie włączony)
+
 Brak lub nieprawidłowy token JWT.
 
 **Body:**
+
 ```json
 {
   "error": "Unauthorized",
@@ -175,9 +193,11 @@ Brak lub nieprawidłowy token JWT.
 ---
 
 #### 500 Internal Server Error
+
 Nieoczekiwany błąd serwera (np. błąd połączenia z bazą danych).
 
 **Body:**
+
 ```json
 {
   "error": "Internal Server Error",
@@ -278,14 +298,15 @@ Nieoczekiwany błąd serwera (np. błąd połączenia z bazą danych).
 ### Interakcje z bazą danych
 
 #### Query soft-delete (w service layer)
+
 ```sql
 UPDATE transactions
-SET 
+SET
   deleted_at = now(),
   deleted_by = $1,     -- userId
   updated_at = now(),
   updated_by = $1      -- userId
-WHERE 
+WHERE
   id = $2              -- transactionId
   AND user_id = $1     -- userId (ownership check)
   AND deleted_at IS NULL  -- nie usuwaj już usuniętych
@@ -297,15 +318,16 @@ RETURNING id;
 #### Wpływ na monthly_metrics (przez trigger)
 
 Po wykonaniu soft-delete, trigger automatycznie aktualizuje `monthly_metrics`:
+
 ```sql
 -- Przykładowy trigger logic (uproszczony)
 UPDATE monthly_metrics
-SET 
+SET
   expenses_cents = expenses_cents - [deleted_transaction.amount_cents],  -- jeśli EXPENSE
   income_cents = income_cents - [deleted_transaction.amount_cents],      -- jeśli INCOME
   free_cash_flow_cents = income_cents - expenses_cents - net_saved_cents,
   refreshed_at = now()
-WHERE 
+WHERE
   user_id = [deleted_transaction.user_id]
   AND month = date_trunc('month', [deleted_transaction.occurred_on]);
 ```
@@ -317,10 +339,12 @@ WHERE
 ### 6.1 Autentykacja i autoryzacja
 
 #### Obecnie (MVP)
+
 - **Temporary workaround:** Używamy `DEFAULT_USER_ID` zdefiniowanego w `supabase.client.ts`
 - **Uwaga:** To rozwiązanie tymczasowe tylko dla fazy rozwoju, **NIE DEPLOYOWAĆ NA PRODUKCJĘ**
 
 #### Docelowo (po implementacji auth)
+
 - **Autentykacja:** JWT token z Supabase Auth w header `Authorization: Bearer <token>`
 - **Middleware:** `src/middleware/index.ts` waliduje token i ustawia `context.locals.user`
 - **Service layer:** Pobiera `userId` z `context.locals.user.id` zamiast `DEFAULT_USER_ID`
@@ -329,13 +353,16 @@ WHERE
 // Docelowy kod w DELETE handler
 const userId = context.locals.user?.id;
 if (!userId) {
-  return new Response(JSON.stringify({
-    error: "Unauthorized",
-    message: "Authentication required"
-  }), {
-    status: 401,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      error: "Unauthorized",
+      message: "Authentication required",
+    }),
+    {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 ```
 
@@ -344,15 +371,16 @@ if (!userId) {
 #### Polityka RLS dla transactions (już skonfigurowana w db-plan.md)
 
 **UPDATE Policy:**
+
 ```sql
-CREATE POLICY transactions_update_policy 
-ON transactions 
-FOR UPDATE 
+CREATE POLICY transactions_update_policy
+ON transactions
+FOR UPDATE
 USING (
-  user_id = auth.uid() 
+  user_id = auth.uid()
   AND EXISTS (
-    SELECT 1 FROM profiles p 
-    WHERE p.user_id = auth.uid() 
+    SELECT 1 FROM profiles p
+    WHERE p.user_id = auth.uid()
     AND p.email_confirmed = true
   )
 )
@@ -362,6 +390,7 @@ WITH CHECK (
 ```
 
 **Efekt:**
+
 - Użytkownik może modyfikować (w tym soft-delete) tylko swoje transakcje
 - Wymaga potwierdzonego emaila (`email_confirmed = true`)
 - Blokuje zmianę `user_id` na innego użytkownika
@@ -369,6 +398,7 @@ WITH CHECK (
 ### 6.3 Ownership validation
 
 #### W service layer (explicit check)
+
 ```typescript
 // Fragment deleteTransaction function
 const { data, error } = await supabase
@@ -380,13 +410,14 @@ const { data, error } = await supabase
     updated_by: userId,
   })
   .eq("id", transactionId)
-  .eq("user_id", userId)        // ✅ Explicit ownership check
-  .is("deleted_at", null)       // ✅ Zapobiega double-delete
+  .eq("user_id", userId) // ✅ Explicit ownership check
+  .is("deleted_at", null) // ✅ Zapobiega double-delete
   .select("id")
   .single();
 ```
 
 **Dlaczego explicit check mimo RLS?**
+
 - **Defense in depth:** Podwójna warstwa bezpieczeństwa
 - **Lepsze error messages:** Możemy rozróżnić 404 (not found) od 403 (forbidden)
 - **Testowanie:** Łatwiejsze unit testy bez pełnej konfiguracji RLS
@@ -394,6 +425,7 @@ const { data, error } = await supabase
 ### 6.4 Information disclosure prevention
 
 #### Ogólny komunikat błędu
+
 ```json
 {
   "error": "Not Found",
@@ -402,6 +434,7 @@ const { data, error } = await supabase
 ```
 
 **Dlaczego nie szczegółowy komunikat?**
+
 - ❌ NIE: "Transaction exists but belongs to another user" → ujawnia istnienie transakcji
 - ❌ NIE: "Transaction was already deleted" → ujawnia historię operacji
 - ✅ TAK: Ogólny komunikat dla wszystkich przypadków 404
@@ -409,12 +442,14 @@ const { data, error } = await supabase
 ### 6.5 Idempotency
 
 #### Wielokrotne wywołanie DELETE
+
 ```
 DELETE /api/v1/transactions/:id  (1st time) → 204 No Content ✅
 DELETE /api/v1/transactions/:id  (2nd time) → 404 Not Found  ✅
 ```
 
 **Implementacja:**
+
 - Query zawiera `WHERE deleted_at IS NULL`
 - Jeśli transakcja jest już usunięta, query nie zaktualizuje żadnego wiersza
 - Service zwraca `false` → API zwraca 404
@@ -424,6 +459,7 @@ DELETE /api/v1/transactions/:id  (2nd time) → 404 Not Found  ✅
 ### 6.6 SQL Injection prevention
 
 #### Parametryzowane zapytania
+
 ```typescript
 // ✅ Bezpieczne - Supabase automatycznie parametryzuje
 .eq("id", transactionId)
@@ -434,6 +470,7 @@ DELETE /api/v1/transactions/:id  (2nd time) → 404 Not Found  ✅
 ```
 
 **Ochrona:**
+
 - Supabase automatycznie używa prepared statements
 - Zod waliduje format UUID przed wysłaniem do bazy
 - Baza danych ma typ `uuid` - dodatkowa walidacja na poziomie DB
@@ -444,15 +481,15 @@ DELETE /api/v1/transactions/:id  (2nd time) → 404 Not Found  ✅
 
 ### Tabela scenariuszy błędów
 
-| Scenariusz | Kod | Error | Message | Details | Logi serwera |
-|-----------|-----|-------|---------|---------|--------------|
-| **Nieprawidłowy UUID** | 400 | "Bad Request" | "Invalid transaction ID format" | `{ id: "Transaction ID must be a valid UUID" }` | ❌ Nie (expected error) |
-| **Transakcja nie istnieje** | 404 | "Not Found" | "Transaction not found or has been deleted" | - | ❌ Nie (expected error) |
-| **Już usunięta** | 404 | "Not Found" | "Transaction not found or has been deleted" | - | ❌ Nie (expected error) |
-| **Nie należy do usera** | 404 | "Not Found" | "Transaction not found or has been deleted" | - | ❌ Nie (expected error) |
-| **Błąd połączenia DB** | 500 | "Internal Server Error" | "An unexpected error occurred. Please try again later." | - | ✅ Tak (console.error) |
-| **Timeout DB** | 500 | "Internal Server Error" | "An unexpected error occurred. Please try again later." | - | ✅ Tak (console.error) |
-| **RLS violation** | 500 | "Internal Server Error" | "An unexpected error occurred. Please try again later." | - | ✅ Tak (console.error) |
+| Scenariusz                  | Kod | Error                   | Message                                                 | Details                                         | Logi serwera            |
+| --------------------------- | --- | ----------------------- | ------------------------------------------------------- | ----------------------------------------------- | ----------------------- |
+| **Nieprawidłowy UUID**      | 400 | "Bad Request"           | "Invalid transaction ID format"                         | `{ id: "Transaction ID must be a valid UUID" }` | ❌ Nie (expected error) |
+| **Transakcja nie istnieje** | 404 | "Not Found"             | "Transaction not found or has been deleted"             | -                                               | ❌ Nie (expected error) |
+| **Już usunięta**            | 404 | "Not Found"             | "Transaction not found or has been deleted"             | -                                               | ❌ Nie (expected error) |
+| **Nie należy do usera**     | 404 | "Not Found"             | "Transaction not found or has been deleted"             | -                                               | ❌ Nie (expected error) |
+| **Błąd połączenia DB**      | 500 | "Internal Server Error" | "An unexpected error occurred. Please try again later." | -                                               | ✅ Tak (console.error)  |
+| **Timeout DB**              | 500 | "Internal Server Error" | "An unexpected error occurred. Please try again later." | -                                               | ✅ Tak (console.error)  |
+| **RLS violation**           | 500 | "Internal Server Error" | "An unexpected error occurred. Please try again later." | -                                               | ✅ Tak (console.error)  |
 
 ### Implementacja error handling w API route
 
@@ -484,7 +521,6 @@ export async function DELETE(context: APIContext) {
     return new Response(null, {
       status: 204,
     });
-
   } catch (error) {
     // Handle Zod validation errors (400 Bad Request)
     if (error instanceof z.ZodError) {
@@ -533,11 +569,14 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
 ### 8.1 Optymalizacja zapytań
 
 #### Single UPDATE query
+
 ```typescript
 // ✅ Efektywne - jedna operacja UPDATE
 const { data } = await supabase
   .from("transactions")
-  .update({ /* ... */ })
+  .update({
+    /* ... */
+  })
   .eq("id", transactionId)
   .eq("user_id", userId)
   .is("deleted_at", null)
@@ -550,6 +589,7 @@ const { data } = await supabase
 ```
 
 **Zalety:**
+
 - Jeden roundtrip do bazy danych
 - Atomiczność - operacja albo się uda całkowicie, albo nie
 - Mniej obciążenia sieci i bazy
@@ -557,11 +597,13 @@ const { data } = await supabase
 #### Użycie indeksów
 
 **Indeksy z db-plan.md wykorzystywane w query:**
+
 - `transactions_pkey(id)` - PRIMARY KEY lookup (bardzo szybki)
 - `idx_tx_user(user_id)` - FK index (używany w WHERE user_id = ...)
 - `idx_tx_keyset(user_id, occurred_on desc, id desc) WHERE deleted_at IS NULL` - composite index dla filtrowania
 
 **Query plan (uproszczony):**
+
 ```
 Index Scan using transactions_pkey on transactions
   Filter: (user_id = $1 AND deleted_at IS NULL)
@@ -571,6 +613,7 @@ Index Scan using transactions_pkey on transactions
 ### 8.2 Triggery i ich wpływ
 
 #### Audit Log Trigger
+
 ```sql
 -- Trigger wykonuje INSERT do audit_log
 -- Koszt: ~5-10ms dodatkowego czasu
@@ -579,11 +622,13 @@ VALUES (...);
 ```
 
 **Optymalizacja:**
+
 - Trigger używa `AFTER UPDATE` - nie blokuje głównej operacji
 - Insert do audit_log jest prosty (brak JOIN-ów)
 - Indeks `idx_al_owner_time` przyspiesza późniejsze odczyty logu
 
 #### Monthly Metrics Trigger
+
 ```sql
 -- Trigger aktualizuje agregaty w monthly_metrics
 -- Koszt: ~10-20ms (UPDATE z WHERE user_id + month)
@@ -593,11 +638,13 @@ WHERE user_id = OLD.user_id AND month = date_trunc('month', OLD.occurred_on);
 ```
 
 **Optymalizacja:**
+
 - Composite primary key `(user_id, month)` daje szybki lookup
 - Agregaty są już precomputed - brak konieczności SUM() po całej tabeli
 - W przypadku braku rekordu w monthly_metrics, trigger może go stworzyć (upsert)
 
 **Całkowity czas DELETE operation:**
+
 - UPDATE transaction: ~5ms
 - Audit log trigger: ~5-10ms
 - Monthly metrics trigger: ~10-20ms
@@ -608,13 +655,15 @@ WHERE user_id = OLD.user_id AND month = date_trunc('month', OLD.occurred_on);
 #### Dlaczego soft-delete?
 
 **Zalety:**
+
 - ✅ Możliwość odzyskania danych (customer support)
 - ✅ Audit trail - widzimy historię zmian
 - ✅ Zgodność z GDPR "right to be forgotten" (możemy później hard-delete po 30 dniach)
 - ✅ Bezpieczne dla relacji (nie psuje FK constraints)
 
 **Wady i mitigacje:**
-- ❌ Wolniejsze query przez `WHERE deleted_at IS NULL` 
+
+- ❌ Wolniejsze query przez `WHERE deleted_at IS NULL`
   - ✅ Mitigacja: Partial index `WHERE deleted_at IS NULL`
 - ❌ Większe zużycie storage
   - ✅ Mitigacja: Okresowy job czyszczący stare soft-deleted records (np. po 90 dniach)
@@ -625,12 +674,13 @@ WHERE user_id = OLD.user_id AND month = date_trunc('month', OLD.occurred_on);
 
 ```sql
 -- Index tylko dla aktywnych transakcji (db-plan.md)
-CREATE INDEX idx_tx_keyset 
-ON transactions (user_id, occurred_on DESC, id DESC) 
+CREATE INDEX idx_tx_keyset
+ON transactions (user_id, occurred_on DESC, id DESC)
 WHERE deleted_at IS NULL;
 ```
 
 **Efekt:**
+
 - Index jest mniejszy (nie zawiera usuniętych transakcji)
 - Query na aktywnych transakcjach są szybsze
 - Soft-deleted records nie spowalniają głównych operacji
@@ -640,6 +690,7 @@ WHERE deleted_at IS NULL;
 #### Ochrona przed abuse
 
 **Scenariusz ataku:**
+
 ```
 DELETE /api/v1/transactions/:id1  (repeat 1000x/sec)
 DELETE /api/v1/transactions/:id2
@@ -647,6 +698,7 @@ DELETE /api/v1/transactions/:id2
 ```
 
 **Mitigacje:**
+
 1. **Edge Function rate limiter** (Supabase Edge Functions mają built-in rate limiting)
 2. **Tabela `rate_limits`** w bazie (db-plan.md) - do limitu 3/30min dla verify/reset (nie dla DELETE)
 3. **Application-level throttling** - middleware w Astro może ograniczać requests per user
@@ -658,15 +710,16 @@ DELETE /api/v1/transactions/:id2
 
 #### Kluczowe metryki do śledzenia:
 
-| Metryka | Cel | Alert threshold |
-|---------|-----|-----------------|
-| Response time (p95) | < 100ms | > 200ms |
-| Error rate 5xx | < 0.1% | > 1% |
-| Error rate 4xx | < 5% | > 20% |
-| Delete operations/user/day | ~5-10 | > 50 (possible abuse) |
-| Soft-deleted records growth | Linear | Exponential (cleanup job failed) |
+| Metryka                     | Cel     | Alert threshold                  |
+| --------------------------- | ------- | -------------------------------- |
+| Response time (p95)         | < 100ms | > 200ms                          |
+| Error rate 5xx              | < 0.1%  | > 1%                             |
+| Error rate 4xx              | < 5%    | > 20%                            |
+| Delete operations/user/day  | ~5-10   | > 50 (possible abuse)            |
+| Soft-deleted records growth | Linear  | Exponential (cleanup job failed) |
 
 #### Implementacja (future):
+
 - **Logging:** `console.error` dla 500 errors
 - **APM:** Supabase ma built-in monitoring dashboard
 - **Custom metrics:** Edge Function może wysyłać metryki do zewnętrznego service (np. PostHog)
@@ -697,10 +750,12 @@ export type DeleteTransactionParams = z.infer<typeof DeleteTransactionParamsSche
 ```
 
 **Uwagi:**
+
 - Schema jest identyczna jak `GetTransactionByIdParamsSchema` - można rozważyć alias lub reuse
 - Export zarówno schema jak i type dla TypeScript type safety
 
 **Test:**
+
 ```typescript
 // Valid UUID
 DeleteTransactionParamsSchema.parse({ id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }); // ✅
@@ -758,9 +813,9 @@ export async function deleteTransaction(
       updated_by: userId,
     })
     .eq("id", transactionId)
-    .eq("user_id", userId)        // Ownership check
-    .is("deleted_at", null)       // Prevent double-delete
-    .select("id")                 // Return only id to check if row was updated
+    .eq("user_id", userId) // Ownership check
+    .is("deleted_at", null) // Prevent double-delete
+    .select("id") // Return only id to check if row was updated
     .single();
 
   // Step 2: Handle database errors
@@ -787,12 +842,14 @@ export async function deleteTransaction(
 ```
 
 **Uwagi implementacyjne:**
+
 - Używamy `.single()` aby otrzymać tylko jeden rekord (lub null jeśli nie znaleziono)
 - `.select("id")` - zwracamy tylko id aby zminimalizować transfer danych
 - `.is("deleted_at", null)` - kluczowe dla idempotencji (zapobiega double-delete)
 - Error code `PGRST116` oznacza "no rows found" - zwracamy `false` zamiast rzucać błąd
 
 **Testy jednostkowe (opcjonalnie):**
+
 ```typescript
 // Test 1: Successful delete
 const result1 = await deleteTransaction(supabase, "user-123", "tx-456");
@@ -826,14 +883,14 @@ import {
   GetTransactionByIdParamsSchema,
   UpdateTransactionParamsSchema,
   UpdateTransactionSchema,
-  DeleteTransactionParamsSchema,  // ← NEW
+  DeleteTransactionParamsSchema, // ← NEW
 } from "@/lib/schemas/transaction.schema";
 
-import { 
-  getTransactionById, 
-  updateTransaction, 
+import {
+  getTransactionById,
+  updateTransaction,
   ValidationError,
-  deleteTransaction,  // ← NEW
+  deleteTransaction, // ← NEW
 } from "@/lib/services/transaction.service";
 
 // ... existing GET and PATCH functions ...
@@ -890,7 +947,6 @@ export async function DELETE(context: APIContext) {
       status: 204,
       // No Content-Type header needed for 204
     });
-
   } catch (error) {
     // Handle Zod validation errors (400 Bad Request)
     if (error instanceof z.ZodError) {
@@ -921,6 +977,7 @@ export async function DELETE(context: APIContext) {
 ```
 
 **Uwagi implementacyjne:**
+
 - Funkcja `DELETE` jest dodawana do tego samego pliku co GET i PATCH
 - Używamy `return new Response(null, { status: 204 })` dla pustej odpowiedzi 204
 - Error handling jest spójny z innymi endpointami (GET, PATCH)
@@ -935,11 +992,12 @@ export async function DELETE(context: APIContext) {
 #### 4.1 Sprawdzenie polityki UPDATE dla transactions
 
 **SQL query do weryfikacji:**
+
 ```sql
 -- Sprawdź czy polityka UPDATE istnieje
-SELECT 
+SELECT
   schemaname,
-  tablename, 
+  tablename,
   policyname,
   permissive,
   roles,
@@ -951,20 +1009,22 @@ WHERE tablename = 'transactions' AND cmd = 'UPDATE';
 ```
 
 **Oczekiwany wynik:**
+
 - Polityka powinna istnieć
 - `qual` (USING clause) powinno zawierać: `user_id = auth.uid() AND email_confirmed check`
 - `with_check` powinno zapobiegać zmianie user_id
 
 **Jeśli polityka nie istnieje, stwórz ją (zgodnie z db-plan.md):**
+
 ```sql
-CREATE POLICY transactions_update_policy 
-ON transactions 
-FOR UPDATE 
+CREATE POLICY transactions_update_policy
+ON transactions
+FOR UPDATE
 USING (
-  user_id = auth.uid() 
+  user_id = auth.uid()
   AND EXISTS (
-    SELECT 1 FROM profiles p 
-    WHERE p.user_id = auth.uid() 
+    SELECT 1 FROM profiles p
+    WHERE p.user_id = auth.uid()
     AND p.email_confirmed = true
   )
 )
@@ -976,9 +1036,10 @@ WITH CHECK (
 #### 4.2 Sprawdzenie triggera audit_log
 
 **SQL query do weryfikacji:**
+
 ```sql
 -- Sprawdź czy trigger audit_log istnieje
-SELECT 
+SELECT
   trigger_name,
   event_manipulation,
   event_object_table,
@@ -989,18 +1050,21 @@ WHERE event_object_table = 'transactions'
 ```
 
 **Oczekiwany wynik:**
+
 - Trigger powinien być typu `AFTER UPDATE`
 - Powinien wywoływać funkcję zapisującą do `audit_log`
 
 **Jeśli trigger nie istnieje, zapoznaj się z plikiem migracji:**
+
 - `supabase/migrations/20251109120300_create_functions_and_triggers.sql`
 
 #### 4.3 Sprawdzenie triggera monthly_metrics
 
 **SQL query do weryfikacji:**
+
 ```sql
 -- Sprawdź czy trigger monthly_metrics istnieje
-SELECT 
+SELECT
   trigger_name,
   event_manipulation,
   event_object_table,
@@ -1011,10 +1075,12 @@ WHERE event_object_table = 'transactions'
 ```
 
 **Oczekiwany wynik:**
+
 - Trigger powinien być typu `AFTER UPDATE`
 - Powinien aktualizować `monthly_metrics` gdy `deleted_at` się zmienia
 
 **Test triggera:**
+
 ```sql
 -- 1. Stwórz testową transakcję
 INSERT INTO transactions (user_id, type, category_code, amount_cents, occurred_on, client_request_id)
@@ -1025,7 +1091,7 @@ SELECT * FROM monthly_metrics WHERE user_id = 'user-id' AND month = '2025-01-01'
 -- expenses_cents powinno zawierać 10000
 
 -- 3. Soft-delete transakcji
-UPDATE transactions 
+UPDATE transactions
 SET deleted_at = now(), deleted_by = 'user-id'
 WHERE client_request_id = 'test-request-1';
 
@@ -1050,7 +1116,7 @@ export {
   GetTransactionByIdParamsSchema,
   UpdateTransactionSchema,
   UpdateTransactionParamsSchema,
-  DeleteTransactionParamsSchema,  // ← Verify this is exported
+  DeleteTransactionParamsSchema, // ← Verify this is exported
 };
 ```
 
@@ -1154,7 +1220,7 @@ WHERE client_request_id = 'test-delete-001';
 
 ```sql
 -- Sprawdź czy soft-delete został zalogowany
-SELECT 
+SELECT
   entity_type,
   entity_id,
   action,
@@ -1200,6 +1266,7 @@ npm run lint:fix
 ```
 
 **Sprawdź:**
+
 - ✅ Używanie podwójnych cudzysłowów `"` (nie pojedynczych `'`)
 - ✅ Średniki na końcu instrukcji
 - ✅ Brak console.log (tylko console.error dla błędów)
@@ -1207,12 +1274,13 @@ npm run lint:fix
 - ✅ Type annotations dla wszystkich parametrów
 
 **Przykład z pliku [id].ts:**
+
 ```typescript
 // ✅ Good
 import { z } from "zod";
 
 // ❌ Bad
-import { z } from 'zod'  // single quotes, missing semicolon
+import { z } from "zod"; // single quotes, missing semicolon
 ```
 
 ---
@@ -1300,21 +1368,26 @@ Closes #[ISSUE_NUMBER]"
 Jeśli endpoint DELETE powoduje problemy na produkcji:
 
 1. **Szybkie wyłączenie endpoint:**
+
    ```typescript
    // W pliku [id].ts, na początku DELETE function:
    export async function DELETE(context: APIContext) {
      // TEMPORARY DISABLE
-     return new Response(JSON.stringify({
-       error: "Service Unavailable",
-       message: "This endpoint is temporarily disabled"
-     }), {
-       status: 503,
-       headers: { "Content-Type": "application/json" },
-     });
+     return new Response(
+       JSON.stringify({
+         error: "Service Unavailable",
+         message: "This endpoint is temporarily disabled",
+       }),
+       {
+         status: 503,
+         headers: { "Content-Type": "application/json" },
+       }
+     );
    }
    ```
 
 2. **Revert commitu:**
+
    ```bash
    git revert <commit-hash>
    git push origin master
@@ -1334,19 +1407,23 @@ Jeśli endpoint DELETE powoduje problemy na produkcji:
 **Obecnie:** Używamy `DEFAULT_USER_ID`
 
 **Docelowo:**
+
 ```typescript
 export async function DELETE(context: APIContext) {
   // Get user from auth middleware
   const userId = context.locals.user?.id;
-  
+
   if (!userId) {
-    return new Response(JSON.stringify({
-      error: "Unauthorized",
-      message: "Authentication required"
-    }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Unauthorized",
+        message: "Authentication required",
+      }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   // ... rest of logic
@@ -1372,6 +1449,7 @@ WHERE deleted_at < NOW() - INTERVAL '90 days';
 **Endpoint:** `POST /api/v1/transactions/bulk-delete`
 
 **Request body:**
+
 ```json
 {
   "transaction_ids": ["id1", "id2", "id3"]
@@ -1379,6 +1457,7 @@ WHERE deleted_at < NOW() - INTERVAL '90 days';
 ```
 
 **Response:**
+
 ```json
 {
   "deleted_count": 3,
@@ -1391,6 +1470,7 @@ WHERE deleted_at < NOW() - INTERVAL '90 days';
 **Endpoint:** `POST /api/v1/transactions/:id/restore`
 
 **Logika:**
+
 ```typescript
 UPDATE transactions
 SET deleted_at = NULL, deleted_by = NULL
@@ -1402,12 +1482,14 @@ WHERE id = :id AND user_id = :userId AND deleted_at IS NOT NULL;
 ### 10.5 Monitoring i alerting
 
 **Metryki do śledzenia:**
+
 - Delete operations per user per day (detect abuse)
 - Soft-deleted records growth rate (ensure cleanup job works)
 - DELETE endpoint error rate (5xx errors)
 - DELETE endpoint p95 response time
 
 **Narzędzia:**
+
 - Supabase built-in monitoring
 - PostHog (analytics)
 - Sentry (error tracking)
@@ -1419,40 +1501,47 @@ WHERE id = :id AND user_id = :userId AND deleted_at IS NOT NULL;
 Endpoint DELETE /api/v1/transactions/:id wykonuje **soft-delete** transakcji z następującymi kluczowymi cechami:
 
 ✅ **Bezpieczeństwo:**
+
 - RLS policies egzekwują ownership
 - Explicit check w service layer
 - Information disclosure prevention (ogólne error messages)
 
 ✅ **Wydajność:**
+
 - Single UPDATE query (brak N+1)
 - Wykorzystanie indeksów (PK + user_id)
 - Partial index dla deleted_at IS NULL
 
 ✅ **Idempotencja:**
+
 - Wielokrotne DELETE zwraca 404
 - WHERE deleted_at IS NULL zapobiega double-delete
 
 ✅ **Audit trail:**
+
 - Trigger automatycznie loguje do audit_log
 - Soft-delete pozwala na data recovery
 
 ✅ **Agregaty:**
+
 - Trigger automatycznie aktualizuje monthly_metrics
 - Free cash flow pozostaje spójny
 
 ✅ **Spójność API:**
+
 - Kody statusu zgodne ze standardem REST (204, 400, 404, 500)
 - Error response format spójny z innymi endpointami
 - Double quotes i semicolons zgodnie z project rules
 
 **Następne kroki:**
+
 1. Zaimplementuj kod zgodnie z krokami 1-3
 2. Przetestuj lokalnie (kroki 6-7)
 3. Code review (krok 8)
 4. Commit i deploy (krok 9)
 
 **Pytania do rozważenia przed implementacją:**
+
 1. Czy chcemy osobną schema `DeleteTransactionParamsSchema` czy reuse `GetTransactionByIdParamsSchema`?
 2. Czy chcemy dodać endpoint `/restore` już teraz czy w późniejszej iteracji?
 3. Czy cleanup job (hard-delete po 90 dniach) powinien być częścią tego PR czy osobnego?
-

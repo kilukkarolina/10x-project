@@ -16,6 +16,7 @@ npx supabase migration up
 ```
 
 **Ważne migracje dla testów**:
+
 - `20251109120100_create_business_tables.sql` - tworzy tabelę transaction_categories
 - `20251109120500_seed_test_user.sql` - dodaje test usera do profiles
 - `20251111090000_disable_rls_for_development.sql` - wyłącza RLS tymczasowo
@@ -29,11 +30,13 @@ PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
-✅ **Informacja**: 
+✅ **Informacja**:
+
 - Prefix `PUBLIC_` oznacza, że zmienne są dostępne zarówno na serwerze jak i kliencie
 - RLS jest tymczasowo wyłączony dla development, więc wystarczy anon key
 
 ⚠️ **Przypomnienie**: Przed production trzeba będzie:
+
 - Włączyć ponownie RLS (migracja do stworzenia)
 - Zaimplementować pełen auth middleware
 - Przełączyć na autentykowane requesty
@@ -57,10 +60,12 @@ GROUP BY kind;
 ```
 
 **Oczekiwany wynik**:
+
 - ✅ Kategorie INCOME: minimum 1 aktywna kategoria (np. SALARY)
 - ✅ Kategorie EXPENSE: minimum kilka aktywnych kategorii (np. GROCERIES, TRANSPORT)
 
 **Jeśli brak danych testowych, dodaj:**
+
 ```sql
 INSERT INTO transaction_categories (code, kind, label_pl, is_active) VALUES
   ('SALARY', 'INCOME', 'Wynagrodzenie', true),
@@ -108,12 +113,14 @@ Server powinien być dostępny pod `http://localhost:3004`
 ### Test 1: ✅ Sukces - Lista wszystkich kategorii
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -158,6 +165,7 @@ curl -X GET "http://localhost:3004/api/v1/categories" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 200 OK
 - ✅ Wszystkie kategorie gdzie `is_active = true`
 - ✅ Sortowanie alfabetyczne po `label_pl` (rosnąco)
@@ -169,12 +177,14 @@ curl -X GET "http://localhost:3004/api/v1/categories" \
 ### Test 2: ✅ Sukces - Filtrowanie po EXPENSE
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories?kind=EXPENSE" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -207,6 +217,7 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=EXPENSE" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 200 OK
 - ✅ Tylko kategorie gdzie `kind = "EXPENSE"`
 - ✅ Sortowanie alfabetyczne po `label_pl`
@@ -217,12 +228,14 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=EXPENSE" \
 ### Test 3: ✅ Sukces - Filtrowanie po INCOME
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories?kind=INCOME" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -243,6 +256,7 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=INCOME" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 200 OK
 - ✅ Tylko kategorie gdzie `kind = "INCOME"`
 - ✅ Sortowanie alfabetyczne po `label_pl`
@@ -253,12 +267,14 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=INCOME" \
 ### Test 4: ❌ Błąd 400 - Nieprawidłowa wartość kind
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories?kind=INVALID" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "validation_error",
@@ -270,6 +286,7 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=INVALID" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 400 Bad Request
 - ✅ Komunikat błędu walidacji
 - ✅ Pole `details` zawiera szczegóły błędu dla `kind`
@@ -279,12 +296,14 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=INVALID" \
 ### Test 5: ❌ Błąd 400 - Nieprawidłowy typ kind (liczba)
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories?kind=123" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "validation_error",
@@ -296,6 +315,7 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=123" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 400 Bad Request
 - ✅ Walidacja typu parametru działa
 
@@ -304,11 +324,13 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=123" \
 ### Test 6: ❌ Błąd 401 - Brak autoryzacji
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories"
 ```
 
 **Oczekiwana odpowiedź:** `401 Unauthorized`
+
 ```json
 {
   "error": "unauthorized",
@@ -317,6 +339,7 @@ curl -X GET "http://localhost:3004/api/v1/categories"
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 401 Unauthorized
 - ✅ Endpoint wymaga autoryzacji
 - ✅ Brak headera `Authorization` = błąd 401
@@ -326,12 +349,14 @@ curl -X GET "http://localhost:3004/api/v1/categories"
 ### Test 7: ❌ Błąd 401 - Nieprawidłowy token
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories" \
   -H "Authorization: Bearer invalid_token_here"
 ```
 
 **Oczekiwana odpowiedź:** `401 Unauthorized`
+
 ```json
 {
   "error": "unauthorized",
@@ -340,6 +365,7 @@ curl -X GET "http://localhost:3004/api/v1/categories" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 401 Unauthorized
 - ✅ Walidacja tokenu JWT działa
 
@@ -348,12 +374,14 @@ curl -X GET "http://localhost:3004/api/v1/categories" \
 ### Test 8: ✅ Edge case - Parametr kind (lowercase)
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories?kind=expense" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "validation_error",
@@ -365,6 +393,7 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=expense" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 400 Bad Request
 - ✅ Walidacja case-sensitive działa (wymaga wielkich liter)
 
@@ -373,18 +402,21 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=expense" \
 ### Test 9: ✅ Edge case - Pusta lista (wszystkie kategorie nieaktywne)
 
 **Przygotowanie:**
+
 ```sql
 -- Tymczasowo dezaktywuj wszystkie kategorie
 UPDATE transaction_categories SET is_active = false;
 ```
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": []
@@ -392,11 +424,13 @@ curl -X GET "http://localhost:3004/api/v1/categories" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 200 OK (nie błąd!)
 - ✅ Pusta tablica `data`
 - ✅ To prawidłowy stan, nie error case
 
 **Cleanup:**
+
 ```sql
 -- Przywróć aktywne kategorie
 UPDATE transaction_categories SET is_active = true;
@@ -407,18 +441,21 @@ UPDATE transaction_categories SET is_active = true;
 ### Test 10: ✅ Edge case - Filtr kind bez wyników
 
 **Przygotowanie:**
+
 ```sql
 -- Tymczasowo dezaktywuj tylko INCOME
 UPDATE transaction_categories SET is_active = false WHERE kind = 'INCOME';
 ```
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories?kind=INCOME" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": []
@@ -426,11 +463,13 @@ curl -X GET "http://localhost:3004/api/v1/categories?kind=INCOME" \
 ```
 
 **Weryfikacja:**
+
 - ✅ Status: 200 OK
 - ✅ Pusta tablica dla INCOME (wszystkie nieaktywne)
 - ✅ To prawidłowy stan
 
 **Cleanup:**
+
 ```sql
 -- Przywróć aktywne INCOME
 UPDATE transaction_categories SET is_active = true WHERE kind = 'INCOME';
@@ -441,6 +480,7 @@ UPDATE transaction_categories SET is_active = true WHERE kind = 'INCOME';
 ### Test 11: ✅ Weryfikacja Cache-Control header
 
 **Request:**
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
@@ -448,6 +488,7 @@ curl -X GET "http://localhost:3004/api/v1/categories" \
 ```
 
 **Weryfikacja w odpowiedzi:**
+
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -456,6 +497,7 @@ Cache-Control: public, max-age=3600
 ```
 
 **Weryfikacja:**
+
 - ✅ Header `Cache-Control` obecny
 - ✅ Wartość: `public, max-age=3600` (1 godzina)
 - ✅ Odpowiedź może być cachowana przez klienta
@@ -474,7 +516,7 @@ WHERE is_active = true
 ORDER BY label_pl;
 
 -- 2. Sprawdź podział po typach
-SELECT 
+SELECT
   kind,
   COUNT(*) as active_count,
   COUNT(*) FILTER (WHERE is_active = false) as inactive_count
@@ -494,6 +536,7 @@ ORDER BY label_pl;
 ```
 
 **Oczekiwane wyniki:**
+
 - ✅ Minimum 2-3 kategorie INCOME (aktywne)
 - ✅ Minimum 4-5 kategorii EXPENSE (aktywne)
 - ✅ Sortowanie alfabetyczne działa poprawnie
@@ -504,25 +547,30 @@ ORDER BY label_pl;
 ## Checklist testów
 
 ### Testy podstawowe:
+
 - [ ] Test 1: Lista wszystkich kategorii (200 OK)
 - [ ] Test 2: Filtr `kind=EXPENSE` (200 OK)
 - [ ] Test 3: Filtr `kind=INCOME` (200 OK)
 - [ ] Test 11: Weryfikacja Cache-Control header
 
 ### Testy walidacji:
+
 - [ ] Test 4: Nieprawidłowa wartość kind (400)
 - [ ] Test 5: Kind jako liczba (400)
 - [ ] Test 8: Kind lowercase (400)
 
 ### Testy autoryzacji:
+
 - [ ] Test 6: Brak tokenu (401)
 - [ ] Test 7: Nieprawidłowy token (401)
 
 ### Testy edge cases:
+
 - [ ] Test 9: Pusta lista - wszystkie nieaktywne (200 OK)
 - [ ] Test 10: Filtr bez wyników (200 OK)
 
 ### Weryfikacja w bazie:
+
 - [ ] Sprawdzenie aktywnych kategorii
 - [ ] Sprawdzenie podziału INCOME/EXPENSE
 - [ ] Weryfikacja sortowania alfabetycznego
@@ -537,11 +585,13 @@ ORDER BY label_pl;
 **Diagnostyka**: Sprawdź console.error w terminalu gdzie działa dev server.
 
 **Częste przyczyny**:
+
 1. Brak połączenia z Supabase - sprawdź `PUBLIC_SUPABASE_URL` i `PUBLIC_SUPABASE_ANON_KEY`
 2. Błędne dane w `.env` - upewnij się, że nie ma spacji wokół wartości
 3. Dev server wymaga restartu po zmianie `.env`
 
 **Rozwiązanie**:
+
 ```bash
 # Zatrzymaj dev server (Ctrl+C)
 # Sprawdź .env
@@ -556,6 +606,7 @@ npm run dev
 ### Problem: Pusta lista kategorii (200 OK z data: [])
 
 **Diagnostyka**:
+
 ```sql
 -- Sprawdź czy kategorie istnieją w bazie
 SELECT * FROM transaction_categories;
@@ -567,11 +618,13 @@ SELECT * FROM transaction_categories WHERE is_active = true;
 **Rozwiązanie**: Kategorie nie zostały załadowane lub są nieaktywne.
 
 1. Uruchom migracje:
+
 ```bash
 npx supabase db reset
 ```
 
 2. Jeśli nadal brak danych, dodaj manualnie:
+
 ```sql
 INSERT INTO transaction_categories (code, kind, label_pl, is_active) VALUES
   ('SALARY', 'INCOME', 'Wynagrodzenie', true),
@@ -586,6 +639,7 @@ INSERT INTO transaction_categories (code, kind, label_pl, is_active) VALUES
 ### Problem: 401 Unauthorized mimo prawidłowego tokenu
 
 **Diagnostyka**:
+
 ```bash
 # Sprawdź czy token jest prawidłowy
 echo $SUPABASE_ANON_KEY
@@ -599,19 +653,25 @@ echo $SUPABASE_ANON_KEY
 **Rozwiązanie**:
 
 1. Sprawdź czy middleware jest poprawnie skonfigurowany:
+
 ```typescript
 // src/middleware/index.ts
 export const onRequest = sequence(/* ... */);
 ```
 
 2. Sprawdź czy token nie wygasł:
+
 - Anon key nie wygasa (publiczny)
 - User token wygasa (wymaga refresh)
 
 3. Sprawdź konfigurację Supabase:
+
 ```typescript
 // Upewnij się że locals.supabase istnieje
-const { data: { user }, error } = await locals.supabase.auth.getUser();
+const {
+  data: { user },
+  error,
+} = await locals.supabase.auth.getUser();
 ```
 
 ---
@@ -619,11 +679,12 @@ const { data: { user }, error } = await locals.supabase.auth.getUser();
 ### Problem: RLS blokuje dostęp (pomimo wyłączonego RLS)
 
 **Diagnostyka**:
+
 ```sql
 -- Sprawdź status RLS dla tabeli
-SELECT tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public' 
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
   AND tablename = 'transaction_categories';
 ```
 
@@ -632,18 +693,21 @@ WHERE schemaname = 'public'
 **Rozwiązanie**:
 
 1. Jeśli `rowsecurity = true`, wyłącz RLS:
+
 ```sql
 ALTER TABLE transaction_categories DISABLE ROW LEVEL SECURITY;
 ```
 
 2. Lub uruchom migrację:
+
 ```bash
 npx supabase migration up
 ```
 
 3. Sprawdź czy polityka SELECT istnieje:
+
 ```sql
-SELECT * FROM pg_policies 
+SELECT * FROM pg_policies
 WHERE tablename = 'transaction_categories';
 ```
 
@@ -652,6 +716,7 @@ WHERE tablename = 'transaction_categories';
 ### Problem: Sortowanie nie działa alfabetycznie
 
 **Diagnostyka**:
+
 ```sql
 -- Sprawdź aktualne sortowanie
 SELECT label_pl
@@ -663,6 +728,7 @@ ORDER BY label_pl;
 **Weryfikacja**: Czy kolejność jest alfabetyczna (polskie znaki)?
 
 **Rozwiązanie**: PostgreSQL powinno domyślnie sortować poprawnie. Jeśli nie:
+
 ```sql
 -- Sprawdź collation
 SHOW LC_COLLATE;
@@ -676,15 +742,17 @@ ORDER BY label_pl COLLATE "pl_PL";
 ### Problem: Cache-Control header nie jest zwracany
 
 **Diagnostyka**: Sprawdź response headers w curl z flagą `-i`:
+
 ```bash
 curl -X GET "http://localhost:3004/api/v1/categories" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   -i | grep -i cache
 ```
 
-**Rozwiązanie**: 
+**Rozwiązanie**:
 
 1. Sprawdź route handler czy header jest ustawiony:
+
 ```typescript
 return new Response(JSON.stringify(response), {
   status: 200,
@@ -702,6 +770,7 @@ return new Response(JSON.stringify(response), {
 ## Metryki sukcesu
 
 ### Funkcjonalność:
+
 - [ ] Wszystkie testy podstawowe przechodzą (200 OK)
 - [ ] Filtrowanie po `kind` działa poprawnie
 - [ ] Sortowanie alfabetyczne działa
@@ -709,16 +778,19 @@ return new Response(JSON.stringify(response), {
 - [ ] Autoryzacja jest wymuszana
 
 ### Wydajność:
+
 - [ ] Czas odpowiedzi < 100ms (średnio)
 - [ ] Czas odpowiedzi < 50ms dla większości requestów
 - [ ] Brak timeoutów
 
 ### Bezpieczeństwo:
+
 - [ ] Endpoint wymaga autoryzacji (401 bez tokenu)
 - [ ] Walidacja parametrów działa (400 dla błędnych wartości)
 - [ ] Brak SQL injection (parametryzowane zapytania)
 
 ### Cache:
+
 - [ ] Cache-Control header obecny
 - [ ] Wartość: `public, max-age=3600`
 
@@ -781,6 +853,7 @@ curl -s -X GET "http://localhost:3004/api/v1/categories" | jq
 ## Podsumowanie
 
 Endpoint `GET /api/v1/categories` to prosty read-only endpoint, który:
+
 - ✅ Zwraca aktywne kategorie transakcji
 - ✅ Obsługuje opcjonalne filtrowanie po `kind`
 - ✅ Wymaga autoryzacji JWT
@@ -788,4 +861,3 @@ Endpoint `GET /api/v1/categories` to prosty read-only endpoint, który:
 - ✅ Zwraca dane posortowane alfabetycznie
 
 **Estimated testing time: 30-45 minut** (wszystkie testy + weryfikacja w bazie)
-

@@ -58,8 +58,8 @@ Jeśli nie masz ID, sprawdź w bazie:
 
 ```sql
 -- W Supabase Studio → SQL Editor
-SELECT id, type, category_code, amount_cents, occurred_on, note 
-FROM transactions 
+SELECT id, type, category_code, amount_cents, occurred_on, note
+FROM transactions
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND deleted_at IS NULL
 ORDER BY created_at DESC
@@ -81,6 +81,7 @@ export INCOME_TX_ID="def12345-6789-0abc-1234-567890abcdef"
 ### Test 1: ✅ Sukces - Aktualizacja pojedynczego pola (note)
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -90,6 +91,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "id": "abc12345-6789-0def-1234-567890abcdef",
@@ -105,6 +107,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Weryfikacja:**
+
 - ✅ Pole `note` zostało zmienione
 - ✅ `updated_at` jest nowszy niż `created_at`
 - ✅ Inne pola pozostały bez zmian
@@ -115,6 +118,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 2: ✅ Sukces - Aktualizacja wielu pól jednocześnie
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -126,6 +130,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "id": "abc12345-6789-0def-1234-567890abcdef",
@@ -141,6 +146,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Weryfikacja:**
+
 - ✅ `category_code` zmieniony z GROCERIES → RESTAURANTS
 - ✅ `category_label` zmieniony z "Zakupy spożywcze" → "Restauracje"
 - ✅ `amount_cents` zmieniony z 15750 → 18000
@@ -153,6 +159,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 3: ✅ Sukces - Zmiana miesiąca (backdate_warning)
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -162,6 +169,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "id": "abc12345-6789-0def-1234-567890abcdef",
@@ -178,14 +186,16 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Weryfikacja:**
+
 - ✅ `occurred_on` zmieniony z 2025-11-10 → 2025-10-25
 - ✅ **Pole `backdate_warning: true` jest obecne** (zmiana z listopada na październik)
 - ✅ Trigger w bazie przeliczył `monthly_metrics` dla obu miesięcy
 
 **Sprawdź w bazie:**
+
 ```sql
 -- Sprawdź monthly_metrics dla października i listopada
-SELECT month, expenses_cents, income_cents 
+SELECT month, expenses_cents, income_cents
 FROM monthly_metrics
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND month IN ('2025-10-01', '2025-11-01')
@@ -197,6 +207,7 @@ ORDER BY month DESC;
 ### Test 4: ✅ Sukces - Zmiana daty w tym samym miesiącu (brak backdate_warning)
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -206,6 +217,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "id": "abc12345-6789-0def-1234-567890abcdef",
@@ -221,6 +233,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Weryfikacja:**
+
 - ✅ `occurred_on` zmieniony z 2025-10-25 → 2025-10-15
 - ✅ **Brak pola `backdate_warning`** (wciąż ten sam miesiąc - październik)
 
@@ -229,6 +242,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 5: ✅ Sukces - Ustawienie note na null (usunięcie notatki)
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -238,6 +252,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "id": "abc12345-6789-0def-1234-567890abcdef",
@@ -253,6 +268,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Weryfikacja:**
+
 - ✅ `note` zmieniony na `null`
 
 ---
@@ -260,6 +276,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 6: ❌ Błąd 400 - Nieprawidłowy UUID
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/invalid-uuid \
   -H "Content-Type: application/json" \
@@ -269,6 +286,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/invalid-uuid \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -284,6 +302,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/invalid-uuid \
 ### Test 7: ❌ Błąd 400 - Pusty request body
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -291,6 +310,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -308,6 +328,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 8: ❌ Błąd 400 - Nieprawidłowe wartości pól
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -318,6 +339,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -334,6 +356,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 9: ❌ Błąd 400 - Data w przyszłości
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -343,6 +366,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -358,6 +382,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 10: ❌ Błąd 400 - Notatka zbyt długa
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -367,6 +392,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -382,6 +408,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 11: ❌ Błąd 404 - Transakcja nie istnieje
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/550e8400-e29b-41d4-a716-446655440000 \
   -H "Content-Type: application/json" \
@@ -391,6 +418,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/550e8400-e29b-41d4-a716-
 ```
 
 **Oczekiwana odpowiedź:** `404 Not Found`
+
 ```json
 {
   "error": "Not Found",
@@ -399,6 +427,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/550e8400-e29b-41d4-a716-
 ```
 
 **Uwaga:** Ten sam komunikat zwracany jest gdy:
+
 - Transakcja nie istnieje w bazie
 - Transakcja należy do innego użytkownika (RLS)
 - Transakcja jest soft-deleted (`deleted_at IS NOT NULL`)
@@ -408,6 +437,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/550e8400-e29b-41d4-a716-
 ### Test 12: ❌ Błąd 422 - Nieistniejąca kategoria
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -417,6 +447,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `422 Unprocessable Entity`
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -432,6 +463,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ### Test 13: ❌ Błąd 422 - Niezgodność typu kategorii
 
 **Request:** (Próba zmiany kategorii EXPENSE na kategorię INCOME)
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -441,6 +473,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `422 Unprocessable Entity`
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -451,7 +484,8 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 }
 ```
 
-**Wyjaśnienie:** 
+**Wyjaśnienie:**
+
 - Transakcja EXPENSE nie może mieć kategorii INCOME
 - Nie można zmienić typu transakcji - trzeba usunąć i utworzyć nową
 
@@ -463,12 +497,13 @@ Najpierw oznacz kategorię jako nieaktywną w bazie:
 
 ```sql
 -- W Supabase Studio → SQL Editor
-UPDATE transaction_categories 
-SET is_active = false 
+UPDATE transaction_categories
+SET is_active = false
 WHERE code = 'HEALTH';
 ```
 
 **Request:**
+
 ```bash
 curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
   -H "Content-Type: application/json" \
@@ -478,6 +513,7 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Oczekiwana odpowiedź:** `422 Unprocessable Entity`
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -489,9 +525,10 @@ curl -X PATCH http://localhost:3004/api/v1/transactions/$EXPENSE_TX_ID \
 ```
 
 **Przywróć kategorię po teście:**
+
 ```sql
-UPDATE transaction_categories 
-SET is_active = true 
+UPDATE transaction_categories
+SET is_active = true
 WHERE code = 'HEALTH';
 ```
 
@@ -503,7 +540,7 @@ WHERE code = 'HEALTH';
 
 ```sql
 -- Sprawdź szczegóły transakcji
-SELECT 
+SELECT
   t.id,
   t.type,
   t.category_code,
@@ -525,7 +562,7 @@ WHERE t.id = 'TU_WSTAW_ID'
 
 ```sql
 -- Sprawdź ostatnią zmianę w audit_log
-SELECT 
+SELECT
   entity_type,
   entity_id,
   action,
@@ -540,6 +577,7 @@ LIMIT 1;
 ```
 
 **Oczekiwany wynik:**
+
 - `action = 'UPDATE'`
 - `before` zawiera stare wartości (JSON)
 - `after` zawiera nowe wartości (JSON)
@@ -548,7 +586,7 @@ LIMIT 1;
 
 ```sql
 -- Sprawdź metryki dla starego i nowego miesiąca
-SELECT 
+SELECT
   month,
   income_cents,
   expenses_cents,
@@ -561,6 +599,7 @@ ORDER BY month DESC;
 ```
 
 **Oczekiwane zmiany (po Teście 3):**
+
 - Październik: `expenses_cents` wzrósł o 18000
 - Listopad: `expenses_cents` zmniejszył się o 18000
 
@@ -569,6 +608,7 @@ ORDER BY month DESC;
 ## Checklist testów
 
 ### Happy path (sukcesy)
+
 - [ ] Test 1: Aktualizacja pojedynczego pola (note) - **200 OK**
 - [ ] Test 2: Aktualizacja wielu pól jednocześnie - **200 OK**
 - [ ] Test 3: Zmiana miesiąca (backdate_warning) - **200 OK**
@@ -576,6 +616,7 @@ ORDER BY month DESC;
 - [ ] Test 5: Ustawienie note na null - **200 OK**
 
 ### Error cases - 400 Bad Request (walidacja Zod)
+
 - [ ] Test 6: Nieprawidłowy UUID - **400**
 - [ ] Test 7: Pusty request body - **400**
 - [ ] Test 8: Nieprawidłowe wartości pól - **400**
@@ -583,14 +624,17 @@ ORDER BY month DESC;
 - [ ] Test 10: Notatka zbyt długa - **400**
 
 ### Error cases - 404 Not Found
+
 - [ ] Test 11: Transakcja nie istnieje - **404**
 
 ### Error cases - 422 Unprocessable Entity (walidacja biznesowa)
+
 - [ ] Test 12: Nieistniejąca kategoria - **422**
 - [ ] Test 13: Niezgodność typu kategorii - **422**
 - [ ] Test 14: Nieaktywna kategoria - **422**
 
 ### Weryfikacja w bazie
+
 - [ ] Sprawdź zaktualizowaną transakcję w tabeli `transactions`
 - [ ] Sprawdź wpis w `audit_log` (action = UPDATE)
 - [ ] Sprawdź `monthly_metrics` po zmianie miesiąca
@@ -604,11 +648,13 @@ ORDER BY month DESC;
 **Diagnostyka:** Sprawdź console.error w terminalu gdzie działa dev server.
 
 **Częste przyczyny:**
+
 1. Brak połączenia z Supabase
 2. Błąd w logice serwisu (np. trigger w bazie)
 3. Złe dane w zmiennych środowiskowych
 
 **Rozwiązanie:**
+
 ```bash
 # Restart dev server
 npm run dev
@@ -622,18 +668,21 @@ npx supabase status
 ### Problem: "Transaction not found" dla istniejącej transakcji
 
 **Przyczyny:**
+
 1. Transakcja należy do innego użytkownika (RLS/user_id check)
 2. Transakcja jest soft-deleted (`deleted_at IS NOT NULL`)
 3. Nieprawidłowe ID w zmiennej środowiskowej
 
 **Sprawdź w bazie:**
+
 ```sql
-SELECT id, user_id, deleted_at 
-FROM transactions 
+SELECT id, user_id, deleted_at
+FROM transactions
 WHERE id = 'TU_WSTAW_ID';
 ```
 
 **Rozwiązanie:**
+
 - Upewnij się, że `user_id = '4eef0567-df09-4a61-9219-631def0eb53e'`
 - Upewnij się, że `deleted_at IS NULL`
 
@@ -644,6 +693,7 @@ WHERE id = 'TU_WSTAW_ID';
 **Przyczyna:** Logika w serwisie porównuje tylko YYYY-MM część daty.
 
 **Sprawdź:**
+
 ```bash
 # Echo dla weryfikacji
 echo "Stara data: 2025-11-10 (2025-11)"
@@ -652,6 +702,7 @@ echo "Miesiące się różnią? TAK → backdate_warning: true"
 ```
 
 Jeśli backdate_warning nie pojawia się:
+
 1. Sprawdź czy rzeczywiście zmienił się miesiąc (nie tylko dzień)
 2. Sprawdź logi w konsoli dev server
 
@@ -660,14 +711,16 @@ Jeśli backdate_warning nie pojawia się:
 ### Problem: monthly_metrics się nie aktualizuje
 
 **Diagnostyka:**
+
 ```sql
 -- Sprawdź czy trigger istnieje
-SELECT tgname, tgrelid::regclass 
-FROM pg_trigger 
+SELECT tgname, tgrelid::regclass
+FROM pg_trigger
 WHERE tgname LIKE '%monthly_metrics%';
 ```
 
 **Rozwiązanie:** Trigger nie został utworzony. Zresetuj migracje:
+
 ```bash
 npx supabase db reset
 ```
@@ -679,17 +732,20 @@ npx supabase db reset
 **Przyczyna:** Walidacja `category.kind !== existing.type` nie zadziałała.
 
 **Sprawdź dane kategorii:**
+
 ```sql
-SELECT code, kind, is_active 
+SELECT code, kind, is_active
 FROM transaction_categories
 WHERE code IN ('SALARY', 'GROCERIES');
 ```
 
 **Oczekiwane:**
+
 - SALARY: kind = 'INCOME'
 - GROCERIES: kind = 'EXPENSE'
 
 Jeśli dane są złe, zresetuj migracje:
+
 ```bash
 npx supabase db reset
 ```
@@ -702,7 +758,7 @@ npx supabase db reset
 
 ```sql
 -- Usuń wszystkie transakcje testowe
-DELETE FROM transactions 
+DELETE FROM transactions
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 
 -- Zresetuj monthly_metrics
@@ -717,7 +773,7 @@ WHERE owner_user_id = '4eef0567-df09-4a61-9219-631def0eb53e';
 ### Skrypt do sprawdzenia wszystkich transakcji
 
 ```sql
-SELECT 
+SELECT
   t.id,
   t.type,
   t.category_code,
@@ -748,7 +804,7 @@ ORDER BY t.occurred_on DESC, t.created_at DESC;
 **Powodzenia w testowaniu! 🚀**
 
 Jeśli napotkasz problemy nie opisane w tym przewodniku, sprawdź:
+
 - Console.error w terminalu dev server
 - Logi Supabase w Dashboard → Logs
 - Plan implementacji w `.ai/patch-transaction-implementation-plan.md`
-

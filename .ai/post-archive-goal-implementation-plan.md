@@ -5,6 +5,7 @@
 Endpoint umożliwia soft archiwizację celu finansowego użytkownika. Archiwizacja polega na ustawieniu pola `archived_at` na aktualny timestamp, co powoduje ukrycie celu w domyślnych listach (chyba że użytkownik wyraźnie zażąda wyświetlenia zarchiwizowanych celów).
 
 **Kluczowe założenia biznesowe:**
+
 - Archiwizacja jest nieodwracalna operacją (brak endpointu do cofnięcia archiwizacji w MVP)
 - Zarchiwizowane cele nadal zachowują historię zdarzeń (goal_events)
 - Dane historyczne pozostają niezmienione i dostępne w raportach
@@ -12,6 +13,7 @@ Endpoint umożliwia soft archiwizację celu finansowego użytkownika. Archiwizac
 - Cel już zarchiwizowany nie może być ponownie zarchiwizowany
 
 **Kontekst w systemie:**
+
 - Archiwizacja jest alternatywą dla soft-delete (deleted_at)
 - Zarchiwizowane cele można nadal przeglądać z flagą `include_archived=true`
 - Operacja powinna być zarejestrowana w audit_log przez trigger
@@ -21,32 +23,40 @@ Endpoint umożliwia soft archiwizację celu finansowego użytkownika. Archiwizac
 ## 2. Szczegóły żądania
 
 ### HTTP Method
+
 `POST`
 
 ### Struktura URL
+
 ```
 POST /api/v1/goals/:id/archive
 ```
 
 ### Path Parameters
-| Parameter | Type   | Required | Description                | Validation       |
-|-----------|--------|----------|----------------------------|------------------|
-| `id`      | string | Yes      | UUID identyfikator celu    | UUID format      |
+
+| Parameter | Type   | Required | Description             | Validation  |
+| --------- | ------ | -------- | ----------------------- | ----------- |
+| `id`      | string | Yes      | UUID identyfikator celu | UUID format |
 
 ### Query Parameters
+
 Brak
 
 ### Request Headers
+
 ```
 Content-Type: application/json
 Authorization: Bearer <jwt-token>
 ```
-*Uwaga: Autoryzacja jest tymczasowo wyłączona w MVP. Endpoint używa DEFAULT_USER_ID.*
+
+_Uwaga: Autoryzacja jest tymczasowo wyłączona w MVP. Endpoint używa DEFAULT_USER_ID._
 
 ### Request Body
+
 Brak (endpoint nie przyjmuje request body)
 
 ### Przykład żądania
+
 ```bash
 POST /api/v1/goals/550e8400-e29b-41d4-a716-446655440000/archive
 Authorization: Bearer <jwt-token>
@@ -59,6 +69,7 @@ Authorization: Bearer <jwt-token>
 ### DTO Types (już zdefiniowane w src/types.ts)
 
 #### ArchiveGoalResponseDTO
+
 ```typescript
 export interface ArchiveGoalResponseDTO extends Pick<GoalEntity, "id" | "name" | "archived_at"> {
   message: string;
@@ -66,12 +77,14 @@ export interface ArchiveGoalResponseDTO extends Pick<GoalEntity, "id" | "name" |
 ```
 
 **Struktura:**
+
 - `id` (string): UUID celu
 - `name` (string): Nazwa celu
 - `archived_at` (string): Timestamp archiwizacji w formacie ISO 8601 UTC
 - `message` (string): Komunikat potwierdzający archiwizację
 
 #### ErrorResponseDTO
+
 ```typescript
 export interface ErrorResponseDTO {
   error: string;
@@ -84,6 +97,7 @@ export interface ErrorResponseDTO {
 ### Validation Schemas (do utworzenia w src/lib/schemas/goal.schema.ts)
 
 #### ArchiveGoalParamsSchema
+
 ```typescript
 export const ArchiveGoalParamsSchema = z.object({
   id: z.string().uuid("Invalid goal ID format"),
@@ -91,6 +105,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ```
 
 **Walidacja:**
+
 - `id`: wymagane, musi być prawidłowym UUID
 
 ---
@@ -102,6 +117,7 @@ export const ArchiveGoalParamsSchema = z.object({
 **Status Code:** `200 OK`
 
 **Response Body:**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -116,6 +132,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ### Error Responses
 
 #### 400 Bad Request - Invalid UUID Format
+
 ```json
 {
   "error": "Bad Request",
@@ -131,6 +148,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ---
 
 #### 404 Not Found - Goal Does Not Exist
+
 ```json
 {
   "error": "Not Found",
@@ -139,6 +157,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ```
 
 **Przyczyny:**
+
 - Cel o podanym ID nie istnieje
 - Cel należy do innego użytkownika (RLS)
 - Cel jest soft-deleted (deleted_at IS NOT NULL)
@@ -146,6 +165,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ---
 
 #### 409 Conflict - Cannot Archive Priority Goal
+
 ```json
 {
   "error": "Conflict",
@@ -161,6 +181,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ---
 
 #### 422 Unprocessable Entity - Goal Already Archived
+
 ```json
 {
   "error": "Unprocessable Entity",
@@ -176,6 +197,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ---
 
 #### 500 Internal Server Error
+
 ```json
 {
   "error": "Internal Server Error",
@@ -190,6 +212,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ## 5. Przepływ danych
 
 ### Diagram przepływu
+
 ```
 [Client Request]
       |
@@ -230,15 +253,18 @@ export const ArchiveGoalParamsSchema = z.object({
 ### Szczegółowy opis kroków
 
 #### Krok 1: Walidacja Path Parameter
+
 - Pobierz `id` z `context.params.id`
 - Waliduj za pomocą `ArchiveGoalParamsSchema.safeParse()`
 - Jeśli walidacja nie powiedzie się → zwróć 400 Bad Request
 
 #### Krok 2: Wywołanie warstwy serwisowej
+
 - Wywołaj `archiveGoal(supabaseClient, DEFAULT_USER_ID, goalId)`
 - Przekaż zwalidowany UUID i user ID
 
 #### Krok 3: Weryfikacja istnienia i ownership
+
 - Wykonaj SELECT na tabeli `goals`:
   ```sql
   SELECT id, name, archived_at, is_priority
@@ -251,12 +277,15 @@ export const ArchiveGoalParamsSchema = z.object({
 - Jeśli brak wyniku → zwróć null (endpoint zwróci 404)
 
 #### Krok 4: Sprawdzenie czy już zarchiwizowany
+
 - Jeśli `archived_at IS NOT NULL` → rzuć ValidationError (422)
 
 #### Krok 5: Sprawdzenie czy cel jest priority
+
 - Jeśli `is_priority = true` → rzuć ValidationError z kodem 409 Conflict
 
 #### Krok 6: Aktualizacja celu
+
 - Wykonaj UPDATE:
   ```sql
   UPDATE goals
@@ -268,6 +297,7 @@ export const ArchiveGoalParamsSchema = z.object({
   ```
 
 #### Krok 7: Automatyczne logowanie (trigger)
+
 - Trigger na UPDATE tabeli `goals` automatycznie zapisze zmianę w `audit_log`:
   - `entity_type`: 'goal'
   - `entity_id`: goal_id
@@ -276,6 +306,7 @@ export const ArchiveGoalParamsSchema = z.object({
   - `after`: `{"archived_at": "2025-01-16T10:00:00Z"}`
 
 #### Krok 8: Zwrócenie odpowiedzi
+
 - Skonstruuj `ArchiveGoalResponseDTO`:
   ```typescript
   {
@@ -294,11 +325,13 @@ export const ArchiveGoalParamsSchema = z.object({
 ### 6.1 Uwierzytelnianie i autoryzacja
 
 **Uwierzytelnianie:**
+
 - W MVP: Tymczasowo wyłączone, używany jest `DEFAULT_USER_ID`
 - Docelowo: JWT token w nagłówku `Authorization: Bearer <token>`
 - Supabase Auth zarządza sesją i generuje tokeny
 
 **Autoryzacja:**
+
 - Row Level Security (RLS) na tabeli `goals` zapewnia, że:
   - Użytkownik może aktualizować tylko własne cele
   - Filtry `user_id = auth.uid()` są wymuszane na poziomie bazy
@@ -307,6 +340,7 @@ export const ArchiveGoalParamsSchema = z.object({
 ### 6.2 Walidacja danych wejściowych
 
 **Path Parameter Validation:**
+
 - UUID format zapobiega SQL injection
 - Zod schema `z.string().uuid()` odrzuca nieprawidłowe formaty
 - Przykłady odrzuconych wartości:
@@ -315,6 +349,7 @@ export const ArchiveGoalParamsSchema = z.object({
   - `"' OR '1'='1"` → 400 Bad Request
 
 **Ownership Verification:**
+
 - Każde zapytanie zawiera `user_id` w WHERE clause
 - RLS podwójnie weryfikuje dostęp
 - Niemożność archiwizacji cudzych celów nawet przy próbie obejścia walidacji
@@ -322,15 +357,18 @@ export const ArchiveGoalParamsSchema = z.object({
 ### 6.3 Ochrona przed nadużyciami
 
 **Rate Limiting:**
+
 - Nie wymagane dla tego endpointu (niskopriorytowa operacja)
 - Możliwe dodanie w przyszłości jeśli będą nadużycia
 
 **Idempotencja:**
+
 - Endpoint NIE jest idempotentny (drugie wywołanie zwraca 422)
 - Klient powinien obsłużyć 422 jako "już wykonano"
 - Brak potrzeby `client_request_id` (operacja raz na cel)
 
 **CSRF Protection:**
+
 - Supabase Auth obsługuje CSRF tokeny
 - SameSite=Lax dla session cookies
 
@@ -342,22 +380,23 @@ export const ArchiveGoalParamsSchema = z.object({
 
 #### Błędy walidacji (4xx)
 
-| Status Code | Error Code            | Scenariusz                              | Handling                          |
-|-------------|-----------------------|-----------------------------------------|-----------------------------------|
-| 400         | Bad Request           | Nieprawidłowy UUID w path parameter     | Walidacja Zod, formatZodErrors()  |
-| 404         | Not Found             | Cel nie istnieje / nie należy do usera  | Check null result from service    |
-| 409         | Conflict              | Cel jest priority                       | ValidationError w service         |
-| 422         | Unprocessable Entity  | Cel już zarchiwizowany                  | ValidationError w service         |
+| Status Code | Error Code           | Scenariusz                             | Handling                         |
+| ----------- | -------------------- | -------------------------------------- | -------------------------------- |
+| 400         | Bad Request          | Nieprawidłowy UUID w path parameter    | Walidacja Zod, formatZodErrors() |
+| 404         | Not Found            | Cel nie istnieje / nie należy do usera | Check null result from service   |
+| 409         | Conflict             | Cel jest priority                      | ValidationError w service        |
+| 422         | Unprocessable Entity | Cel już zarchiwizowany                 | ValidationError w service        |
 
 #### Błędy serwera (5xx)
 
-| Status Code | Error Code            | Scenariusz                              | Handling                          |
-|-------------|-----------------------|-----------------------------------------|-----------------------------------|
-| 500         | Internal Server Error | Nieoczekiwany błąd DB lub serwera       | try-catch w endpoint, console.error |
+| Status Code | Error Code            | Scenariusz                        | Handling                            |
+| ----------- | --------------------- | --------------------------------- | ----------------------------------- |
+| 500         | Internal Server Error | Nieoczekiwany błąd DB lub serwera | try-catch w endpoint, console.error |
 
 ### 7.2 Szczegółowa obsługa błędów
 
 #### ValidationError Class
+
 Service używa istniejącej klasy `ValidationError` do reprezentowania błędów biznesowych:
 
 ```typescript
@@ -373,6 +412,7 @@ export class ValidationError extends Error {
 ```
 
 #### Mapowanie ValidationError na status codes w endpoint
+
 ```typescript
 catch (error) {
   if (error instanceof ValidationError) {
@@ -380,7 +420,7 @@ catch (error) {
     const isConflict = error.message.toLowerCase().includes("priority");
     const statusCode = isConflict ? 409 : 422;
     const errorCode = isConflict ? "Conflict" : "Unprocessable Entity";
-    
+
     const errorResponse: ErrorResponseDTO = {
       error: errorCode,
       message: error.message,
@@ -391,7 +431,7 @@ catch (error) {
       headers: { "Content-Type": "application/json" },
     });
   }
-  
+
   // ... handle 500 errors
 }
 ```
@@ -399,16 +439,19 @@ catch (error) {
 ### 7.3 Logging strategia
 
 **Console logging:**
+
 - Wszystkie nieoczekiwane błędy (500) logowane do console.error
 - Format: `console.error("Unexpected error in POST /api/v1/goals/:id/archive:", error)`
 - Zawiera pełny stack trace dla debugging
 
 **Audit log (automatyczny):**
+
 - Trigger na UPDATE goals zapisuje do audit_log
 - Retencja 30 dni
 - Zawiera before/after state
 
 **Nie logujemy:**
+
 - Błędów walidacji (400, 422) - to oczekiwane błędy użytkownika
 - 404 Not Found - to nie jest błąd, tylko brak zasobu
 - 409 Conflict - to reguła biznesowa, nie błąd
@@ -420,17 +463,20 @@ catch (error) {
 ### 8.1 Optymalizacje zapytań
 
 **Single query pattern:**
+
 - Operacja wymaga tylko 2 zapytań do bazy:
   1. SELECT (weryfikacja i pobranie danych)
   2. UPDATE (archiwizacja)
 - Brak potrzeby transakcji (operacja atomowa)
 
 **Indeksy wykorzystywane:**
+
 - `goals_pkey(id)` - primary key lookup (O(log n))
 - `idx_goals_user(user_id)` - weryfikacja ownership
 - Partial index `idx_goals_active(user_id) where deleted_at is null and archived_at is null` - nie używany po archiwizacji
 
 **Oczekiwana wydajność:**
+
 - p50 latency: < 50ms (single row update)
 - p95 latency: < 100ms
 - p99 latency: < 200ms
@@ -438,6 +484,7 @@ catch (error) {
 ### 8.2 Brak cache
 
 **Uzasadnienie:**
+
 - Archiwizacja to rzadka operacja (raz na cel)
 - Nie ma potrzeby cache'owania
 - Natychmiastowe odzwierciedlenie zmiany w bazie jest priorytetem
@@ -445,11 +492,13 @@ catch (error) {
 ### 8.3 Nie blokujemy innych operacji
 
 **Concurrent operations:**
+
 - UPDATE z WHERE clause nie blokuje całej tabeli
 - Row-level lock tylko na archiwizowanym celu
 - Inne użytkownicy mogą normalnie pracować ze swoimi celami
 
 **Trigger overhead:**
+
 - Trigger zapisujący do audit_log dodaje ~5-10ms
 - Akceptowalne dla rzadkiej operacji
 - Nie wymaga optymalizacji w MVP
@@ -457,11 +506,13 @@ catch (error) {
 ### 8.4 Monitoring i alerty
 
 **Metryki do monitorowania:**
+
 - Response time (p50, p95, p99)
 - Error rate (4xx vs 5xx)
 - Archive operations per day (business metric)
 
 **Alerty:**
+
 - p95 latency > 200ms
 - Error rate > 5%
 - Spike w operacjach archiwizacji (możliwe nadużycie)
@@ -487,6 +538,7 @@ export const ArchiveGoalParamsSchema = z.object({
 **Lokalizacja:** Na końcu pliku `src/lib/schemas/goal.schema.ts`, po `UpdateGoalSchema`
 
 **Test walidacji:**
+
 - Prawidłowe: `"550e8400-e29b-41d4-a716-446655440000"` → pass
 - Nieprawidłowe: `"abc"`, `"123"`, `null` → fail with error message
 
@@ -497,6 +549,7 @@ export const ArchiveGoalParamsSchema = z.object({
 **2.1 Dodaj funkcję `archiveGoal()` do `src/lib/services/goal.service.ts`**
 
 **Sygnatura funkcji:**
+
 ```typescript
 /**
  * Archives a goal for the authenticated user (soft archive)
@@ -528,6 +581,7 @@ export async function archiveGoal(
 **Szczegóły implementacji:**
 
 **Krok 1: Fetch i weryfikacja**
+
 ```typescript
 const { data: existingGoal, error: fetchError } = await supabase
   .from("goals")
@@ -547,6 +601,7 @@ if (!existingGoal) {
 ```
 
 **Krok 2: Walidacja już zarchiwizowany**
+
 ```typescript
 if (existingGoal.archived_at !== null) {
   throw new ValidationError("Goal is already archived", {
@@ -556,18 +611,17 @@ if (existingGoal.archived_at !== null) {
 ```
 
 **Krok 3: Walidacja priority**
+
 ```typescript
 if (existingGoal.is_priority) {
-  throw new ValidationError(
-    "Cannot archive priority goal. Please unset priority flag first.",
-    {
-      is_priority: "true",
-    }
-  );
+  throw new ValidationError("Cannot archive priority goal. Please unset priority flag first.", {
+    is_priority: "true",
+  });
 }
 ```
 
 **Krok 4: UPDATE archiwizacja**
+
 ```typescript
 const { data: archivedGoal, error: updateError } = await supabase
   .from("goals")
@@ -590,6 +644,7 @@ if (!archivedGoal) {
 ```
 
 **Krok 5: Return response DTO**
+
 ```typescript
 const response: ArchiveGoalResponseDTO = {
   id: archivedGoal.id,
@@ -732,7 +787,7 @@ import {
 import {
   // ... existing imports
   archiveGoal,
-  ValidationError
+  ValidationError,
 } from "@/lib/services/goal.service";
 ```
 
@@ -743,6 +798,7 @@ import {
 **4.1 Testy pozytywne (success path)**
 
 **Test 1: Archiwizacja standardowego celu**
+
 ```bash
 # Przygotowanie: Utwórz cel testowy (non-priority)
 POST /api/v1/goals
@@ -777,6 +833,7 @@ GET /api/v1/goals?include_archived=true
 **4.2 Testy negatywne (error paths)**
 
 **Test 2: Nieprawidłowy UUID**
+
 ```bash
 POST /api/v1/goals/invalid-uuid/archive
 
@@ -791,6 +848,7 @@ POST /api/v1/goals/invalid-uuid/archive
 ```
 
 **Test 3: Nieistniejący cel**
+
 ```bash
 POST /api/v1/goals/550e8400-e29b-41d4-a716-446655440000/archive
 
@@ -802,6 +860,7 @@ POST /api/v1/goals/550e8400-e29b-41d4-a716-446655440000/archive
 ```
 
 **Test 4: Próba archiwizacji priority goal**
+
 ```bash
 # Przygotowanie: Utwórz cel priority
 POST /api/v1/goals
@@ -836,6 +895,7 @@ POST /api/v1/goals/{priority_goal_id}/archive
 ```
 
 **Test 5: Próba ponownej archiwizacji**
+
 ```bash
 # Przygotowanie: Zarchiwizuj cel (użyj celu z Test 1)
 POST /api/v1/goals/{goal_id}/archive
@@ -857,6 +917,7 @@ POST /api/v1/goals/{goal_id}/archive
 **4.3 Testy integracyjne (audit log)**
 
 **Test 6: Weryfikacja zapisu w audit_log**
+
 ```bash
 # Przygotowanie: Zarchiwizuj cel
 POST /api/v1/goals/{goal_id}/archive
@@ -874,6 +935,7 @@ GET /api/v1/audit-log
 ```
 
 **Test 7: Weryfikacja zachowania goal_events**
+
 ```bash
 # Przygotowanie: Utwórz cel i dodaj zdarzenia
 POST /api/v1/goals
@@ -921,6 +983,7 @@ GET /api/v1/goals/{goal_id}?include_archived=true
 ### Faza 5: Sprawdzenie linter i formatowanie
 
 **5.1 Uruchom linter**
+
 ```bash
 npm run lint
 ```
@@ -928,11 +991,13 @@ npm run lint
 **Oczekiwany rezultat:** Brak błędów i ostrzeżeń
 
 **Typowe problemy:**
+
 - Brak średnika na końcu linii → dodaj średnik
 - Single quotes zamiast double quotes → zamień na double quotes
 - Unused imports → usuń nieużywane importy
 
 **5.2 Fix automatyczny (jeśli dostępny)**
+
 ```bash
 npm run lint:fix
 ```
@@ -966,6 +1031,7 @@ npm run lint:fix
 ### Faza 7: Git commit
 
 **Commit message (format konwencjonalny):**
+
 ```
 feat(api): implement POST /api/v1/goals/:id/archive endpoint
 
@@ -979,11 +1045,13 @@ feat(api): implement POST /api/v1/goals/:id/archive endpoint
 ```
 
 **Pliki zmienione:**
+
 - `src/lib/services/goal.service.ts` (nowa funkcja)
 - `src/lib/schemas/goal.schema.ts` (nowa schema)
 - `src/pages/api/v1/goals/[id].ts` (nowy handler POST)
 
 **Commit command:**
+
 ```bash
 git add src/lib/services/goal.service.ts
 git add src/lib/schemas/goal.schema.ts
@@ -1071,4 +1139,3 @@ git commit -m "feat(api): implement POST /api/v1/goals/:id/archive endpoint"
 **Wersja:** 1.0  
 **Data utworzenia:** 2025-11-23  
 **Status:** Gotowy do implementacji
-

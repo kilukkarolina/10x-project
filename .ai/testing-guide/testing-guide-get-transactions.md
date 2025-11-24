@@ -3,6 +3,7 @@
 ## Przegląd endpointa
 
 Endpoint **GET /api/v1/transactions** służy do pobierania listy transakcji użytkownika z możliwością:
+
 - Filtrowania po miesiącu, typie transakcji i kategorii
 - Wyszukiwania pełnotekstowego w notatkach
 - Cursor-based pagination (keyset) dla wydajnego przeglądania
@@ -18,10 +19,10 @@ Endpoint wymaga istniejących transakcji do przetestowania. Możesz użyć POST 
 
 ```sql
 -- Sprawdź istniejące transakcje test usera
-SELECT 
-  id, type, category_code, amount_cents, occurred_on, 
+SELECT
+  id, type, category_code, amount_cents, occurred_on,
   note, created_at
-FROM transactions 
+FROM transactions
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND deleted_at IS NULL
 ORDER BY occurred_on DESC, id DESC;
@@ -106,11 +107,13 @@ Server dostępny pod: `http://localhost:3004`
 ### Test 1: ✅ Podstawowe pobieranie - wszystkie transakcje
 
 **Request:**
+
 ```bash
 curl -s http://localhost:3004/api/v1/transactions | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -128,18 +131,19 @@ curl -s http://localhost:3004/api/v1/transactions | jq .
     // ... więcej transakcji
   ],
   "pagination": {
-    "next_cursor": null,  // lub string jeśli jest więcej niż 50 transakcji
+    "next_cursor": null, // lub string jeśli jest więcej niż 50 transakcji
     "has_more": false,
     "limit": 50
   },
   "meta": {
-    "total_amount_cents": 540450,  // suma wszystkich amount_cents na stronie
-    "count": 5  // liczba transakcji na stronie
+    "total_amount_cents": 540450, // suma wszystkich amount_cents na stronie
+    "count": 5 // liczba transakcji na stronie
   }
 }
 ```
 
 **Weryfikacja:**
+
 - ✅ `data` to tablica transakcji
 - ✅ Sortowanie DESC po `occurred_on`, potem `id`
 - ✅ Każda transakcja ma `category_label` (JOIN z transaction_categories)
@@ -151,11 +155,13 @@ curl -s http://localhost:3004/api/v1/transactions | jq .
 ### Test 2: ✅ Filtrowanie po typie - tylko wydatki (EXPENSE)
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -170,6 +176,7 @@ curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 # Sprawdź że wszystkie transakcje to EXPENSE
 curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE" | jq '[.data[].type] | unique'
@@ -181,11 +188,13 @@ curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE" | jq '[.data[].
 ### Test 3: ✅ Filtrowanie po typie - tylko przychody (INCOME)
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=INCOME" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=INCOME" | jq '{count: .meta.count, types: [.data[].type] | unique}'
 # Oczekiwany wynik: {"count": 1, "types": ["INCOME"]}
@@ -196,11 +205,13 @@ curl -s "http://localhost:3004/api/v1/transactions?type=INCOME" | jq '{count: .m
 ### Test 4: ✅ Filtrowanie po typie - wszystkie (ALL, domyślnie)
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=ALL" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 # Powinno zwrócić zarówno INCOME jak i EXPENSE
 curl -s "http://localhost:3004/api/v1/transactions?type=ALL" | jq '[.data[].type] | unique | sort'
@@ -212,12 +223,14 @@ curl -s "http://localhost:3004/api/v1/transactions?type=ALL" | jq '[.data[].type
 ### Test 5: ✅ Filtrowanie po miesiącu
 
 **Request:**
+
 ```bash
 # Transakcje z listopada 2025
 curl -s "http://localhost:3004/api/v1/transactions?month=2025-11" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -232,6 +245,7 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2025-11" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 # Sprawdź daty transakcji
 curl -s "http://localhost:3004/api/v1/transactions?month=2025-11" | jq '[.data[].occurred_on] | unique'
@@ -239,6 +253,7 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2025-11" | jq '[.data[]
 ```
 
 **Test z innym miesiącem:**
+
 ```bash
 # Transakcje z października 2025
 curl -s "http://localhost:3004/api/v1/transactions?month=2025-10" | jq '{count: .meta.count, dates: [.data[].occurred_on] | unique}'
@@ -249,11 +264,13 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2025-10" | jq '{count: 
 ### Test 6: ✅ Filtrowanie po kategorii
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?category=GROCERIES" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -268,6 +285,7 @@ curl -s "http://localhost:3004/api/v1/transactions?category=GROCERIES" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?category=GROCERIES" | jq '{count: .meta.count, categories: [.data[].category_code] | unique}'
 # Oczekiwany wynik: {"count": 2, "categories": ["GROCERIES"]}
@@ -278,12 +296,14 @@ curl -s "http://localhost:3004/api/v1/transactions?category=GROCERIES" | jq '{co
 ### Test 7: ✅ Wyszukiwanie pełnotekstowe w notatkach
 
 **Request:**
+
 ```bash
 # Wyszukaj transakcje z "Biedronce" w notatce
 curl -s "http://localhost:3004/api/v1/transactions?search=Biedronce" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -302,6 +322,7 @@ curl -s "http://localhost:3004/api/v1/transactions?search=Biedronce" | jq .
 ```
 
 **Inne przykłady wyszukiwania:**
+
 ```bash
 # Case-insensitive search
 curl -s "http://localhost:3004/api/v1/transactions?search=zakupy" | jq '.meta.count'
@@ -315,30 +336,33 @@ curl -s "http://localhost:3004/api/v1/transactions?search=kino" | jq '.data[0].n
 ### Test 8: ✅ Paginacja - limit
 
 **Request:**
+
 ```bash
 # Pobierz tylko 2 transakcje na stronę
 curl -s "http://localhost:3004/api/v1/transactions?limit=2" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
     // Dokładnie 2 transakcje
   ],
   "pagination": {
-    "next_cursor": "MjAyNS0xMS0wOF9hYmNkZWYxMjM=",  // base64-encoded
+    "next_cursor": "MjAyNS0xMS0wOF9hYmNkZWYxMjM=", // base64-encoded
     "has_more": true,
     "limit": 2
   },
   "meta": {
-    "total_amount_cents": 20250,  // suma tylko tych 2 transakcji
+    "total_amount_cents": 20250, // suma tylko tych 2 transakcji
     "count": 2
   }
 }
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?limit=2" | jq '{count: .meta.count, has_more: .pagination.has_more, next_cursor_present: (.pagination.next_cursor != null)}'
 # Oczekiwany wynik: {"count": 2, "has_more": true, "next_cursor_present": true}
@@ -349,6 +373,7 @@ curl -s "http://localhost:3004/api/v1/transactions?limit=2" | jq '{count: .meta.
 ### Test 9: ✅ Paginacja - cursor (kolejna strona)
 
 **Request:**
+
 ```bash
 # Krok 1: Pobierz pierwszą stronę i zapisz cursor
 CURSOR=$(curl -s "http://localhost:3004/api/v1/transactions?limit=2" | jq -r '.pagination.next_cursor')
@@ -359,6 +384,7 @@ curl -s "http://localhost:3004/api/v1/transactions?cursor=$CURSOR&limit=2" | jq 
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
@@ -377,6 +403,7 @@ curl -s "http://localhost:3004/api/v1/transactions?cursor=$CURSOR&limit=2" | jq 
 ```
 
 **Weryfikacja paginacji:**
+
 ```bash
 # Pobierz ID z pierwszej strony
 FIRST_IDS=$(curl -s "http://localhost:3004/api/v1/transactions?limit=2" | jq '[.data[].id]')
@@ -395,19 +422,21 @@ echo "Second page IDs: $SECOND_IDS"
 ### Test 10: ✅ Paginacja - ostatnia strona
 
 **Request:**
+
 ```bash
 # Ustaw limit większy niż liczba transakcji
 curl -s "http://localhost:3004/api/v1/transactions?limit=100" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [
     // Wszystkie transakcje (np. 5)
   ],
   "pagination": {
-    "next_cursor": null,  // brak kolejnej strony
+    "next_cursor": null, // brak kolejnej strony
     "has_more": false,
     "limit": 100
   },
@@ -419,6 +448,7 @@ curl -s "http://localhost:3004/api/v1/transactions?limit=100" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?limit=100" | jq '{has_more: .pagination.has_more, next_cursor: .pagination.next_cursor}'
 # Oczekiwany wynik: {"has_more": false, "next_cursor": null}
@@ -429,11 +459,13 @@ curl -s "http://localhost:3004/api/v1/transactions?limit=100" | jq '{has_more: .
 ### Test 11: ✅ Kombinacja filtrów - type + month
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE&month=2025-11" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE&month=2025-11" | jq '{count: .meta.count, types: [.data[].type] | unique, months: [.data[].occurred_on | split("-")[0:2] | join("-")] | unique}'
 # Powinno zwrócić tylko EXPENSE z listopada 2025
@@ -444,11 +476,13 @@ curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE&month=2025-11" |
 ### Test 12: ✅ Kombinacja filtrów - type + category + limit
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE&category=GROCERIES&limit=5" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE&category=GROCERIES&limit=5" | jq '{count: .meta.count, total: .meta.total_amount_cents, types: [.data[].type] | unique, categories: [.data[].category_code] | unique}'
 ```
@@ -458,6 +492,7 @@ curl -s "http://localhost:3004/api/v1/transactions?type=EXPENSE&category=GROCERI
 ### Test 13: ✅ Kombinacja filtrów - month + search
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?month=2025-11&search=zakupy" | jq .
 ```
@@ -467,12 +502,14 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2025-11&search=zakupy" 
 ### Test 14: ❌ Błąd 400 - Nieprawidłowy format miesiąca
 
 **Request:**
+
 ```bash
 # Brak zera wiodącego (powinno być YYYY-MM)
 curl -s "http://localhost:3004/api/v1/transactions?month=2025-1" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -484,6 +521,7 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2025-1" | jq .
 ```
 
 **Inne nieprawidłowe formaty:**
+
 ```bash
 # Nieprawidłowy format
 curl -s "http://localhost:3004/api/v1/transactions?month=11-2025" | jq .
@@ -497,12 +535,14 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2025" | jq .
 ### Test 15: ❌ Błąd 400 - Limit poza zakresem
 
 **Request:**
+
 ```bash
 # Limit > 100 (maksimum)
 curl -s "http://localhost:3004/api/v1/transactions?limit=150" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -514,12 +554,14 @@ curl -s "http://localhost:3004/api/v1/transactions?limit=150" | jq .
 ```
 
 **Test z limitem = 0:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?limit=0" | jq .
 # Oczekiwana odpowiedź: 400 - "Number must be greater than or equal to 1"
 ```
 
 **Test z limitem ujemnym:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?limit=-5" | jq .
 # Oczekiwana odpowiedź: 400
@@ -530,12 +572,14 @@ curl -s "http://localhost:3004/api/v1/transactions?limit=-5" | jq .
 ### Test 16: ❌ Błąd 400 - Nieprawidłowy cursor
 
 **Request:**
+
 ```bash
 # Cursor nie w formacie base64
 curl -s "http://localhost:3004/api/v1/transactions?cursor=invalid123" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -547,6 +591,7 @@ curl -s "http://localhost:3004/api/v1/transactions?cursor=invalid123" | jq .
 ```
 
 **Inne nieprawidłowe cursory:**
+
 ```bash
 # Base64 ale nieprawidłowa struktura wewnątrz
 curl -s "http://localhost:3004/api/v1/transactions?cursor=$(echo -n "invalid_structure" | base64)" | jq .
@@ -563,11 +608,13 @@ curl -s "http://localhost:3004/api/v1/transactions?cursor=$(echo -n "2025-11-10_
 ### Test 17: ❌ Błąd 400 - Nieprawidłowy typ transakcji
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?type=INVALID" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `400 Bad Request`
+
 ```json
 {
   "error": "Bad Request",
@@ -583,12 +630,14 @@ curl -s "http://localhost:3004/api/v1/transactions?type=INVALID" | jq .
 ### Test 18: ✅ Edge case - Pusta lista (brak transakcji dla filtrów)
 
 **Request:**
+
 ```bash
 # Miesiąc bez transakcji
 curl -s "http://localhost:3004/api/v1/transactions?month=2020-01" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [],
@@ -609,11 +658,13 @@ curl -s "http://localhost:3004/api/v1/transactions?month=2020-01" | jq .
 ### Test 19: ✅ Edge case - Limit = 1
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?limit=1" | jq .
 ```
 
 **Weryfikacja:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?limit=1" | jq '{count: .meta.count, has_more: .pagination.has_more}'
 # Oczekiwany wynik: {"count": 1, "has_more": true} (jeśli są więcej transakcji)
@@ -624,11 +675,13 @@ curl -s "http://localhost:3004/api/v1/transactions?limit=1" | jq '{count: .meta.
 ### Test 20: ✅ Edge case - Wyszukiwanie bez wyników
 
 **Request:**
+
 ```bash
 curl -s "http://localhost:3004/api/v1/transactions?search=nonexistenttext12345" | jq .
 ```
 
 **Oczekiwana odpowiedź:** `200 OK`
+
 ```json
 {
   "data": [],
@@ -652,22 +705,22 @@ Po testach, sprawdź dane bezpośrednio w bazie:
 
 ```sql
 -- Sprawdź wszystkie transakcje test usera
-SELECT 
-  id, 
-  type, 
-  category_code, 
-  amount_cents, 
-  occurred_on, 
+SELECT
+  id,
+  type,
+  category_code,
+  amount_cents,
+  occurred_on,
   LEFT(note, 30) as note_preview,
   month,
   created_at
-FROM transactions 
+FROM transactions
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND deleted_at IS NULL
 ORDER BY occurred_on DESC, id DESC;
 
 -- Sprawdź agregację per miesiąc
-SELECT 
+SELECT
   month,
   COUNT(*) as transaction_count,
   SUM(CASE WHEN type = 'INCOME' THEN amount_cents ELSE 0 END) as total_income,
@@ -679,7 +732,7 @@ GROUP BY month
 ORDER BY month DESC;
 
 -- Sprawdź agregację per kategoria
-SELECT 
+SELECT
   category_code,
   COUNT(*) as count,
   SUM(amount_cents) as total_cents
@@ -714,8 +767,8 @@ W Supabase SQL Editor:
 ```sql
 -- Test 1: Query bez filtrów (powinien użyć idx_tx_keyset)
 EXPLAIN ANALYZE
-SELECT 
-  t.id, t.type, t.category_code, t.amount_cents, 
+SELECT
+  t.id, t.type, t.category_code, t.amount_cents,
   t.occurred_on, t.note, t.created_at, t.updated_at,
   tc.label_pl
 FROM transactions t
@@ -729,8 +782,8 @@ LIMIT 50;
 
 -- Test 2: Query z filtrem miesiąca (powinien użyć idx_tx_user_month)
 EXPLAIN ANALYZE
-SELECT 
-  t.id, t.type, t.category_code, t.amount_cents, 
+SELECT
+  t.id, t.type, t.category_code, t.amount_cents,
   t.occurred_on, t.note, t.created_at, t.updated_at,
   tc.label_pl
 FROM transactions t
@@ -749,6 +802,7 @@ LIMIT 50;
 ## Checklist testów
 
 ### Podstawowe funkcjonalności
+
 - [ ] Test 1: Podstawowe pobieranie (200)
 - [ ] Test 2: Filtr type=EXPENSE (200)
 - [ ] Test 3: Filtr type=INCOME (200)
@@ -758,32 +812,38 @@ LIMIT 50;
 - [ ] Test 7: Wyszukiwanie (search) (200)
 
 ### Paginacja
+
 - [ ] Test 8: Limit (200)
 - [ ] Test 9: Cursor - następna strona (200)
 - [ ] Test 10: Ostatnia strona (has_more=false) (200)
 
 ### Kombinacje filtrów
+
 - [ ] Test 11: type + month (200)
 - [ ] Test 12: type + category + limit (200)
 - [ ] Test 13: month + search (200)
 
 ### Błędy walidacji
+
 - [ ] Test 14: Nieprawidłowy format month (400)
 - [ ] Test 15: Limit poza zakresem (400)
 - [ ] Test 16: Nieprawidłowy cursor (400)
 - [ ] Test 17: Nieprawidłowy type (400)
 
 ### Edge cases
+
 - [ ] Test 18: Pusta lista wyników (200)
 - [ ] Test 19: Limit = 1 (200)
 - [ ] Test 20: Wyszukiwanie bez wyników (200)
 
 ### Weryfikacja w bazie
+
 - [ ] Sprawdzenie danych w transactions
 - [ ] Weryfikacja agregacji per miesiąc
 - [ ] Weryfikacja agregacji per kategoria
 
 ### Wydajność (opcjonalne)
+
 - [ ] Test wydajności paginacji
 - [ ] Sprawdzenie planu wykonania (EXPLAIN ANALYZE)
 - [ ] Weryfikacja użycia indeksów
@@ -887,7 +947,7 @@ for filter in "${filters[@]}"; do
     echo "Filter: $filter"
     url="http://localhost:3004/api/v1/transactions?$filter"
   fi
-  
+
   curl -s "$url" | jq '{count: .meta.count, total: .meta.total_amount_cents, has_more: .pagination.has_more}'
 done
 
@@ -904,8 +964,9 @@ echo "=== Koniec testów ==="
 **Przyczyna**: Brak danych testowych w bazie.
 
 **Rozwiązanie**: Uruchom skrypt z Kroku 2 (dodaj testowe dane) lub sprawdź w bazie:
+
 ```sql
-SELECT COUNT(*) FROM transactions 
+SELECT COUNT(*) FROM transactions
 WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
   AND deleted_at IS NULL;
 ```
@@ -915,11 +976,13 @@ WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 **Diagnostyka**: Sprawdź terminal z dev serverem - błąd powinien być wylogowany.
 
 **Częste przyczyny**:
+
 1. Brak połączenia z Supabase
 2. RLS włączony (powinien być wyłączony w dev)
 3. Brak tabeli transaction_categories
 
 **Rozwiązanie**:
+
 ```bash
 # Reset bazy i migracji
 npx supabase db reset
@@ -930,6 +993,7 @@ npx supabase db reset
 **Przyczyna**: Brak danych w tabeli transaction_categories lub błąd w JOIN.
 
 **Rozwiązanie**:
+
 ```sql
 -- Sprawdź czy kategorie istnieją
 SELECT * FROM transaction_categories;
@@ -941,6 +1005,7 @@ SELECT * FROM transaction_categories;
 ### Problem: Cursor nie działa (400 Invalid cursor format)
 
 **Diagnostyka**:
+
 ```bash
 # Sprawdź format cursora
 CURSOR=$(curl -s "http://localhost:3004/api/v1/transactions?limit=2" | jq -r '.pagination.next_cursor')
@@ -955,6 +1020,7 @@ echo "Decoded: $(echo $CURSOR | base64 -d)"
 **Diagnostyka**: Sprawdź plan wykonania w Supabase (EXPLAIN ANALYZE)
 
 **Rozwiązanie**:
+
 1. Upewnij się, że indeksy zostały utworzone
 2. Sprawdź czy PostgreSQL używa właściwych indeksów
 3. Rozważ dodanie partial indexes dla częstych filtrów
@@ -989,4 +1055,3 @@ curl -s "http://localhost:3004/api/v1/transactions" | jq -C . | less -R
 # Zapisz do pliku
 curl -s "http://localhost:3004/api/v1/transactions" | jq . > transactions.json
 ```
-

@@ -5,6 +5,7 @@
 **Cel**: Pobranie listy wszystkich aktywnych typów celów oszczędnościowych dostępnych w systemie.
 
 **Funkcjonalność**:
+
 - Zwraca globalny słownik typów celów (np. "Samochód", "Wakacje", "Fundusz awaryjny")
 - Filtruje tylko aktywne typy (`is_active = true`)
 - Sortuje alfabetycznie według polskiej etykiety (`label_pl`)
@@ -12,12 +13,14 @@
 - Odpowiedź jest cache'owana przez 1 godzinę dla wydajności
 
 **Kontekst biznesowy**:
+
 - Endpoint używany przy tworzeniu nowego celu przez użytkownika (lista wyboru typu celu)
 - Używany również w filtrach i kategoryzacji celów w UI
 - Słownik jest zarządzany centralnie (tylko przez service role), klienci mają dostęp tylko do odczytu
 - Typy celów są stosunkowo statyczne (rzadko dodawane/modyfikowane), więc agresywne cache'owanie jest bezpieczne
 
 **RLS (Row Level Security)**:
+
 - Tabela `goal_types` ma włączony RLS
 - Polityki pozwalają na publiczny odczyt zarówno dla zalogowanych, jak i niezalogowanych użytkowników
 - Zapisy/modyfikacje tylko przez service role (nie dostępne przez API)
@@ -27,9 +30,11 @@
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `GET`
 
 ### Struktura URL
+
 ```
 /api/v1/goal-types
 ```
@@ -37,21 +42,25 @@
 ### Parametry
 
 #### Query Parameters
+
 Brak - endpoint nie przyjmuje żadnych parametrów filtrujących.
 
 **Uwaga**: W przyszłości można rozważyć dodanie parametru `include_inactive=true` dla celów administracyjnych, ale nie jest to wymagane w MVP.
 
 #### Headers
+
 ```http
 Content-Type: application/json
 ```
 
-**Uwaga dotycząca autentykacji**: 
+**Uwaga dotycząca autentykacji**:
+
 - Authorization header jest opcjonalny - endpoint działa zarówno dla zalogowanych, jak i niezalogowanych użytkowników
 - RLS pozwala na publiczny odczyt tabeli `goal_types`
 - Nie ma potrzeby weryfikacji użytkownika (publiczny słownik)
 
 #### Request Body
+
 Brak (metoda GET nie przyjmuje body).
 
 ---
@@ -61,16 +70,19 @@ Brak (metoda GET nie przyjmuje body).
 ### DTOs (już zdefiniowane w `src/types.ts`)
 
 **GoalTypeDTO** - pojedynczy typ celu w odpowiedzi:
+
 ```typescript
 export type GoalTypeDTO = Pick<GoalTypeEntity, "code" | "label_pl" | "is_active">;
 ```
 
 Struktura:
+
 - `code` (string) - unikalny kod typu celu, np. "AUTO", "VACATION"
 - `label_pl` (string) - polska etykieta do wyświetlenia w UI, np. "Samochód", "Wakacje"
 - `is_active` (boolean) - flaga aktywności (zawsze `true` w odpowiedzi, bo filtrujemy po aktywnych)
 
 **GoalTypeListResponseDTO** - odpowiedź endpointa:
+
 ```typescript
 export interface GoalTypeListResponseDTO {
   data: GoalTypeDTO[];
@@ -78,6 +90,7 @@ export interface GoalTypeListResponseDTO {
 ```
 
 **ErrorResponseDTO** - standardowa struktura błędu:
+
 ```typescript
 export interface ErrorResponseDTO {
   error: string;
@@ -87,10 +100,13 @@ export interface ErrorResponseDTO {
 ```
 
 ### Command Modele
+
 Nie wymagane - endpoint tylko do odczytu, nie przyjmuje danych wejściowych do walidacji.
 
 ### Schema walidacji (opcjonalnie)
+
 Dla spójności z innymi endpointami można stworzyć pusty schemat:
+
 ```typescript
 // src/lib/schemas/goal-type.schema.ts
 export const getGoalTypesQuerySchema = z.object({});
@@ -147,6 +163,7 @@ Jednak ze względu na brak parametrów, schema nie jest konieczna.
 ```
 
 **Uwagi**:
+
 - Lista jest sortowana alfabetycznie według `label_pl`
 - Pole `is_active` zawsze ma wartość `true` (filtrujemy po aktywnych)
 - Pusta lista `[]` jest prawidłową odpowiedzią (gdy nie ma aktywnych typów)
@@ -161,6 +178,7 @@ Jednak ze względu na brak parametrów, schema nie jest konieczna.
 ```
 
 **Przypadki użycia**:
+
 - Błąd połączenia z bazą danych
 - Timeout zapytania
 - Nieoczekiwany wyjątek w kodzie
@@ -194,18 +212,20 @@ Response (cached)
    - Brak parametrów do walidacji
 
 2. **Wywołanie serwisu**
+
    ```typescript
    const goalTypes = await getActiveGoalTypes(locals.supabase);
    ```
 
 3. **Zapytanie do bazy danych**
+
    ```sql
    SELECT code, label_pl, is_active
    FROM goal_types
    WHERE is_active = true
    ORDER BY label_pl ASC;
    ```
-   
+
    Użyty indeks: `idx_gt_active` (partial index na `code WHERE is_active = true`)
 
 4. **Weryfikacja RLS**
@@ -231,35 +251,42 @@ Response (cached)
 ## 6. Względy bezpieczeństwa
 
 ### Autentykacja
+
 - **Nie wymagana** - endpoint dostępny publicznie
 - Authorization header jest opcjonalny i nie jest sprawdzany
 - Rationale: słownik typów celów nie zawiera danych wrażliwych ani użytkownika-specyficznych
 
 ### Autoryzacja
+
 - **Poziom RLS**: Supabase RLS pozwala na publiczny odczyt przez polityki:
   - `anon_users_can_read_goal_types` dla niezalogowanych
   - `authenticated_users_can_read_goal_types` dla zalogowanych
 - **Poziom aplikacji**: brak dodatkowych sprawdzeń
 
 ### Walidacja danych wejściowych
+
 - Brak parametrów do walidacji
 - URL jest weryfikowany przez Astro routing
 
 ### SQL Injection
+
 - **Zabezpieczenie**: Używamy Supabase client z parametryzowanymi query
 - Zapytanie nie przyjmuje danych od użytkownika, więc ryzyko jest zerowe
 
 ### Rate Limiting
+
 - **MVP**: Brak implementacji rate limitingu
 - **Mitigacja DoS**: Cache-Control header (public, max-age=3600) redukuje obciążenie bazy danych
 - **Przyszłość**: Można rozważyć rate limiting na poziomie CDN/proxy (np. Cloudflare)
 
 ### Bezpieczeństwo danych
+
 - **Ekspozycja danych**: Tylko pola publiczne (`code`, `label_pl`, `is_active`)
 - **Ukryte pola**: `created_at`, `updated_at` nie są zwracane (nie są potrzebne w UI)
 - **Wrażliwe dane**: Brak - słownik jest publiczny
 
 ### Content Security Policy
+
 - Response type: `application/json` - brak ryzyka XSS
 - Brak HTML/JavaScript w odpowiedzi
 
@@ -270,11 +297,14 @@ Response (cached)
 ### Scenariusze błędów
 
 #### 1. Sukces - 200 OK
+
 **Warunki**:
+
 - Zapytanie do bazy danych się powiodło
 - Lista może być pusta (prawidłowy przypadek)
 
 **Odpowiedź**:
+
 ```json
 {
   "data": [...]
@@ -282,17 +312,21 @@ Response (cached)
 ```
 
 #### 2. Błąd bazy danych - 500 Internal Server Error
+
 **Warunki**:
+
 - Błąd połączenia z Supabase
 - Timeout zapytania
 - Błąd SQL (np. tabela nie istnieje)
 
 **Logowanie**:
+
 ```typescript
 console.error("[GET /api/v1/goal-types] Database error:", error);
 ```
 
 **Odpowiedź**:
+
 ```json
 {
   "error": "internal_error",
@@ -301,17 +335,21 @@ console.error("[GET /api/v1/goal-types] Database error:", error);
 ```
 
 #### 3. Nieoczekiwany wyjątek - 500 Internal Server Error
+
 **Warunki**:
+
 - Wyjątek JavaScript w kodzie
 - Błąd parsowania odpowiedzi
 - Inne nieprzewidziane błędy
 
 **Logowanie**:
+
 ```typescript
 console.error("[GET /api/v1/goal-types] Unexpected error:", error);
 ```
 
 **Odpowiedź**:
+
 ```json
 {
   "error": "internal_error",
@@ -328,6 +366,7 @@ console.error("[GET /api/v1/goal-types] Unexpected error:", error);
 ### Retry Strategy (Client-side)
 
 Endpoint jest idempotentny i bezpieczny do ponowienia:
+
 - Klient może bezpiecznie powtórzyć żądanie w przypadku błędu 500
 - Zalecane: exponential backoff (1s, 2s, 4s)
 - Cache po stronie klienta po sukcesie
@@ -371,11 +410,13 @@ Endpoint jest idempotentny i bezpieczny do ponowienia:
 ### Monitoring wydajności
 
 **Metryki do śledzenia**:
+
 - Czas odpowiedzi (target: <100ms z cache, <500ms bez cache)
 - Częstotliwość żądań (cache hit ratio)
 - Błędy 500 (target: <0.1%)
 
 **Potencjalne wąskie gardła**:
+
 - Połączenie z Supabase (mitigacja: cache)
 - Cold start Astro endpoint (mitigacja: keep-alive, pre-warming)
 
@@ -395,20 +436,19 @@ Endpoint jest idempotentny i bezpieczny do ponowienia:
 **Lokalizacja**: `src/lib/services/goal-type.service.ts`
 
 **Zawartość**:
+
 ```typescript
 import type { SupabaseClient } from "@/db/supabase.client";
 import type { GoalTypeDTO } from "@/types";
 
 /**
  * Get all active goal types
- * 
+ *
  * @param supabase - Supabase client from context.locals
  * @returns List of active goal types sorted by label_pl
  * @throws Error if database query fails
  */
-export async function getActiveGoalTypes(
-  supabase: SupabaseClient
-): Promise<GoalTypeDTO[]> {
+export async function getActiveGoalTypes(supabase: SupabaseClient): Promise<GoalTypeDTO[]> {
   // Build query for active goal types only
   const query = supabase
     .from("goal_types")
@@ -431,6 +471,7 @@ export async function getActiveGoalTypes(
 ```
 
 **Testy jednostkowe** (opcjonalnie, poza zakresem MVP):
+
 - Test sukcesu: zwraca listę posortowanych typów
 - Test pustej listy: gdy brak aktywnych typów
 - Test błędu bazy: throw Error z odpowiednim message
@@ -442,6 +483,7 @@ export async function getActiveGoalTypes(
 **Lokalizacja**: `src/pages/api/v1/goal-types/index.ts`
 
 **Zawartość**:
+
 ```typescript
 import type { APIRoute } from "astro";
 import { getActiveGoalTypes } from "@/lib/services/goal-type.service";
@@ -453,7 +495,7 @@ export const prerender = false;
 /**
  * GET /api/v1/goal-types
  * List all active goal types
- * 
+ *
  * Public endpoint - no authentication required
  * Response is cached for 1 hour
  */
@@ -492,6 +534,7 @@ export const GET: APIRoute = async ({ locals }) => {
 ```
 
 **Uwagi implementacyjne**:
+
 - Brak walidacji parametrów (nie są wymagane)
 - Brak sprawdzania autentykacji (publiczny endpoint)
 - Minimalna logika - delegacja do serwisu
@@ -502,11 +545,13 @@ export const GET: APIRoute = async ({ locals }) => {
 ### Krok 3: Weryfikacja typów TypeScript
 
 **Sprawdzenie**:
+
 1. Typy `GoalTypeDTO` i `GoalTypeListResponseDTO` już istnieją w `src/types.ts`
 2. Import `SupabaseClient` z `@/db/supabase.client.ts`
 3. Kompatybilność z typami generowanymi przez Supabase
 
 **Testy kompilacji**:
+
 ```bash
 npm run build
 # lub
@@ -514,6 +559,7 @@ npm run check
 ```
 
 Upewnić się, że:
+
 - Brak błędów TypeScript
 - Typy są poprawnie inferowane
 - IDE pokazuje poprawne autocomplete
@@ -523,11 +569,13 @@ Upewnić się, że:
 ### Krok 4: Testy manualne
 
 **Test 1: Podstawowe wywołanie**
+
 ```bash
 curl -X GET http://localhost:4321/api/v1/goal-types
 ```
 
 Oczekiwana odpowiedź:
+
 ```json
 {
   "data": [
@@ -539,19 +587,23 @@ Oczekiwana odpowiedź:
 ```
 
 **Test 2: Sprawdzenie cache'owania**
+
 ```bash
 curl -X GET http://localhost:4321/api/v1/goal-types -I
 ```
 
 Oczekiwany header:
+
 ```
 Cache-Control: public, max-age=3600
 ```
 
 **Test 3: Sprawdzenie sortowania**
+
 - Zweryfikować, że lista jest posortowana alfabetycznie po `label_pl`
 
 **Test 4: Wywołanie z tokenem (opcjonalnie)**
+
 ```bash
 curl -X GET http://localhost:4321/api/v1/goal-types \
   -H "Authorization: Bearer <token>"
@@ -564,6 +616,7 @@ Powinno działać tak samo jak bez tokena.
 ### Krok 5: Weryfikacja RLS w Supabase
 
 **Sprawdzenie polityk**:
+
 1. Zalogować się do Supabase Dashboard
 2. Sprawdzić tabele > `goal_types` > RLS
 3. Zweryfikować aktywne polityki:
@@ -571,6 +624,7 @@ Powinno działać tak samo jak bez tokena.
    - `authenticated_users_can_read_goal_types` (SELECT dla roli authenticated)
 
 **Test RLS w SQL Editor**:
+
 ```sql
 -- Test jako anon
 SET ROLE anon;
@@ -588,23 +642,25 @@ SELECT * FROM goal_types WHERE is_active = true;
 ### Krok 6: Dokumentacja i komentarze
 
 **Aktualizacja dokumentacji**:
+
 1. Zweryfikować, że endpoint jest udokumentowany w `.ai/api-plan.md`
 2. Dodać komentarze JSDoc do funkcji serwisu
 3. Dodać komentarze do endpointa API
 
 **Przykład JSDoc**:
+
 ```typescript
 /**
  * Get all active goal types
- * 
+ *
  * Returns a list of goal types that users can choose from when creating
  * a new savings goal. Only active types (is_active = true) are returned,
  * sorted alphabetically by Polish label.
- * 
+ *
  * @param supabase - Supabase client from context.locals
  * @returns Promise with array of goal type DTOs
  * @throws Error if database query fails
- * 
+ *
  * @example
  * const types = await getActiveGoalTypes(locals.supabase);
  * // Returns: [{ code: "AUTO", label_pl: "Samochód", is_active: true }, ...]
@@ -616,12 +672,14 @@ SELECT * FROM goal_types WHERE is_active = true;
 ### Krok 7: Integracja z frontendem (poza zakresem tego planu)
 
 **Endpoint gotowy do użycia**:
+
 - URL: `GET /api/v1/goal-types`
 - Użycie w React componencie formularza tworzenia celu
 - Fetch przy montowaniu komponentu
 - Cache po stronie klienta (React Query, SWR, lub podobne)
 
 **Przykład użycia** (dla informacji):
+
 ```typescript
 // React component
 const { data } = useFetch<GoalTypeListResponseDTO>('/api/v1/goal-types');
@@ -642,6 +700,7 @@ const goalTypes = data?.data || [];
 ### Krok 8: Deployment i monitoring
 
 **Pre-deployment checklist**:
+
 - [ ] Kod przeszedł review
 - [ ] Testy manualne wykonane lokalnie
 - [ ] TypeScript kompiluje się bez błędów
@@ -649,12 +708,14 @@ const goalTypes = data?.data || [];
 - [ ] Cache-Control header jest ustawiony
 
 **Post-deployment monitoring**:
+
 - Sprawdzić logi na serwerze produkcyjnym
 - Zweryfikować response time (powinien być <100ms z cache)
 - Monitorować błędy 500 (powinny być bliskie zeru)
 - Sprawdzić metryki cache hit ratio
 
 **Rollback plan**:
+
 - W przypadku problemów: usunąć endpoint (delete file)
 - Endpoint nie modyfikuje danych, więc rollback jest bezpieczny
 - Brak migracji bazy danych do cofnięcia
@@ -693,10 +754,12 @@ const goalTypes = data?.data || [];
 ## 11. Referencje
 
 ### Pliki do utworzenia
+
 1. `src/lib/services/goal-type.service.ts` - serwis pobierania typów celów
 2. `src/pages/api/v1/goal-types/index.ts` - endpoint API
 
 ### Pliki do referencji (istniejące)
+
 1. `src/types.ts` - typy DTO (GoalTypeDTO, GoalTypeListResponseDTO)
 2. `src/pages/api/v1/categories/index.ts` - podobny wzorzec implementacji
 3. `src/lib/services/transaction-category.service.ts` - podobna logika serwisu
@@ -704,10 +767,10 @@ const goalTypes = data?.data || [];
 5. `.ai/api-plan.md` - specyfikacja API
 
 ### Migracje bazy danych (istniejące, brak zmian)
+
 1. `supabase/migrations/20251109120000_create_base_schema.sql` - tabela goal_types
 2. `supabase/migrations/20251109120400_create_rls_policies.sql` - polityki RLS dla goal_types
 
 ---
 
 **Koniec planu implementacji**
-

@@ -5,6 +5,7 @@
 **Cel**: Utworzenie nowej transakcji (przychodu lub wydatku) dla zalogowanego i zweryfikowanego użytkownika.
 
 **Kluczowe funkcjonalności**:
+
 - Tworzenie transakcji typu INCOME lub EXPENSE
 - Walidacja zgodności kategorii z typem transakcji
 - Idempotencja operacji poprzez `client_request_id`
@@ -12,6 +13,7 @@
 - Trigger w bazie danych automatycznie aktualizuje `monthly_metrics`
 
 **Zależności**:
+
 - Tabela `transactions` z RLS
 - Tabela `transaction_categories` (słownik globalny)
 - Trigger na `monthly_metrics` (automatyczny update)
@@ -22,14 +24,17 @@
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `POST`
 
 ### Struktura URL
+
 ```
 /api/v1/transactions
 ```
 
 ### Headers
+
 ```
 Content-Type: application/json
 Authorization: Bearer <supabase-session-token>
@@ -51,6 +56,7 @@ Authorization: Bearer <supabase-session-token>
 ```
 
 **Przykład**:
+
 ```json
 {
   "type": "EXPENSE",
@@ -65,6 +71,7 @@ Authorization: Bearer <supabase-session-token>
 ### Parametry
 
 **Wymagane:**
+
 - `type`: Typ transakcji - musi być `INCOME` lub `EXPENSE`
 - `category_code`: Kod kategorii z tabeli `transaction_categories`
 - `amount_cents`: Kwota w groszach (liczba całkowita > 0)
@@ -72,6 +79,7 @@ Authorization: Bearer <supabase-session-token>
 - `client_request_id`: Unikalny identyfikator żądania (UUID v4/v7) dla idempotencji
 
 **Opcjonalne:**
+
 - `note`: Notatka użytkownika (max 500 znaków, bez znaków kontrolnych)
 
 ---
@@ -79,6 +87,7 @@ Authorization: Bearer <supabase-session-token>
 ## 3. Wykorzystywane typy
 
 ### Input Types
+
 ```typescript
 // src/types.ts - już zdefiniowany
 interface CreateTransactionCommand {
@@ -92,23 +101,25 @@ interface CreateTransactionCommand {
 ```
 
 ### Output Types
+
 ```typescript
 // src/types.ts - już zdefiniowany
 interface TransactionDTO {
   id: string;
   type: "INCOME" | "EXPENSE";
   category_code: string;
-  category_label: string;              // Joined z transaction_categories
+  category_label: string; // Joined z transaction_categories
   amount_cents: number;
   occurred_on: string;
   note: string | null;
   created_at: string;
   updated_at: string;
-  backdate_warning?: boolean;          // Opcjonalne, gdy zmieniono miesiąc
+  backdate_warning?: boolean; // Opcjonalne, gdy zmieniono miesiąc
 }
 ```
 
 ### Error Types
+
 ```typescript
 // src/types.ts - już zdefiniowany
 interface ErrorResponseDTO {
@@ -146,6 +157,7 @@ interface ErrorResponseDTO {
 ### Error Responses
 
 #### 400 Bad Request
+
 Błędny format JSON lub brak wymaganych pól (walidacja Zod).
 
 ```json
@@ -160,6 +172,7 @@ Błędny format JSON lub brak wymaganych pól (walidacja Zod).
 ```
 
 #### 401 Unauthorized
+
 Brak sesji użytkownika lub email nie zweryfikowany.
 
 ```json
@@ -170,6 +183,7 @@ Brak sesji użytkownika lub email nie zweryfikowany.
 ```
 
 #### 409 Conflict
+
 Duplikat `client_request_id` (idempotencja).
 
 ```json
@@ -182,6 +196,7 @@ Duplikat `client_request_id` (idempotencja).
 **Uwaga**: W przypadku 409, można rozważyć zwrócenie istniejącej transakcji w body (idempotencja).
 
 #### 422 Unprocessable Entity
+
 Błędy walidacji biznesowej.
 
 ```json
@@ -195,11 +210,13 @@ Błędy walidacji biznesowej.
 ```
 
 Inne przykłady 422:
+
 - Data w przyszłości: `"Transaction date cannot be in the future"`
 - Nieistniejąca kategoria: `"Category code does not exist or is inactive"`
 - Nieprawidłowa notatka: `"Note contains control characters"`
 
 #### 500 Internal Server Error
+
 Niespodziewany błąd bazy danych lub serwera.
 
 ```json
@@ -214,6 +231,7 @@ Niespodziewany błąd bazy danych lub serwera.
 ## 5. Przepływ danych
 
 ### Architektura
+
 ```
 Client Request
     ↓
@@ -255,7 +273,7 @@ Database Trigger → Update monthly_metrics
    - **Krok 2**: Insert do `transactions`:
      ```sql
      INSERT INTO transactions (
-       user_id, type, category_code, amount_cents, 
+       user_id, type, category_code, amount_cents,
        occurred_on, note, client_request_id,
        created_by, updated_by
      ) VALUES (...)
@@ -281,12 +299,14 @@ Database Trigger → Update monthly_metrics
 ### Interakcje z bazą danych
 
 **Tabele**:
+
 - `transactions` (INSERT + SELECT)
 - `transaction_categories` (SELECT dla walidacji)
 - `monthly_metrics` (UPDATE przez trigger)
 - `audit_log` (INSERT przez trigger na transactions)
 
 **Indeksy wykorzystywane**:
+
 - `uniq_transactions_request(user_id, client_request_id)` - idempotencja
 - `idx_tx_user(user_id)` - RLS i query
 - `transaction_categories_pkey(code)` - lookup kategorii
@@ -305,10 +325,10 @@ Database Trigger → Update monthly_metrics
    - Polityka INSERT na `transactions`:
      ```sql
      WITH CHECK (
-       user_id = auth.uid() 
+       user_id = auth.uid()
        AND EXISTS (
-         SELECT 1 FROM profiles 
-         WHERE user_id = auth.uid() 
+         SELECT 1 FROM profiles
+         WHERE user_id = auth.uid()
          AND email_confirmed = true
        )
      )
@@ -323,22 +343,25 @@ Database Trigger → Update monthly_metrics
 ### Walidacja danych
 
 1. **Zod Schema** (format i typy):
+
    ```typescript
    const CreateTransactionSchema = z.object({
      type: z.enum(["INCOME", "EXPENSE"]),
      category_code: z.string().min(1),
      amount_cents: z.number().int().positive(),
-     occurred_on: z.string()
+     occurred_on: z
+       .string()
        .regex(/^\d{4}-\d{2}-\d{2}$/)
-       .refine(date => new Date(date) <= new Date(), {
-         message: "Transaction date cannot be in the future"
+       .refine((date) => new Date(date) <= new Date(), {
+         message: "Transaction date cannot be in the future",
        }),
-     note: z.string()
+     note: z
+       .string()
        .max(500)
        .regex(/^[^\x00-\x1F\x7F]*$/, "Note cannot contain control characters")
        .nullable()
        .optional(),
-     client_request_id: z.string().uuid()
+     client_request_id: z.string().uuid(),
    });
    ```
 
@@ -381,73 +404,87 @@ Database Trigger → Update monthly_metrics
 
 ### Kategorie błędów
 
-| Kod | Scenariusz | Message | Details |
-|-----|-----------|---------|---------|
-| **400** | Błędny JSON | "Invalid request body" | Zod validation errors |
-| **401** | Brak sesji | "User not authenticated or email not verified" | - |
-| **409** | Duplikat client_request_id | "Transaction with this client_request_id already exists" | - |
-| **422** | Data w przyszłości | "Transaction date cannot be in the future" | `{"occurred_on": "..."}` |
-| **422** | Nieistniejąca kategoria | "Category code does not exist or is inactive" | `{"category_code": "..."}` |
-| **422** | Niezgodność type/kind | "Category X is not valid for Y transactions" | `{"category_code": "..."}` |
-| **500** | Błąd bazy | "An unexpected error occurred" | - (log szczegóły server-side) |
+| Kod     | Scenariusz                 | Message                                                  | Details                       |
+| ------- | -------------------------- | -------------------------------------------------------- | ----------------------------- |
+| **400** | Błędny JSON                | "Invalid request body"                                   | Zod validation errors         |
+| **401** | Brak sesji                 | "User not authenticated or email not verified"           | -                             |
+| **409** | Duplikat client_request_id | "Transaction with this client_request_id already exists" | -                             |
+| **422** | Data w przyszłości         | "Transaction date cannot be in the future"               | `{"occurred_on": "..."}`      |
+| **422** | Nieistniejąca kategoria    | "Category code does not exist or is inactive"            | `{"category_code": "..."}`    |
+| **422** | Niezgodność type/kind      | "Category X is not valid for Y transactions"             | `{"category_code": "..."}`    |
+| **500** | Błąd bazy                  | "An unexpected error occurred"                           | - (log szczegóły server-side) |
 
 ### Implementacja obsługi błędów
 
 **W endpoint handler**:
+
 ```typescript
 try {
   // Zod validation
   const command = CreateTransactionSchema.parse(body);
-  
+
   // Service call
   const transaction = await TransactionService.createTransaction(
     context.locals.supabase,
     context.locals.user.id,
     command
   );
-  
+
   return new Response(JSON.stringify(transaction), {
     status: 201,
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
-  
 } catch (error) {
   if (error instanceof z.ZodError) {
     // 400 Bad Request
-    return new Response(JSON.stringify({
-      error: "Bad Request",
-      message: "Invalid request body",
-      details: formatZodErrors(error)
-    }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: "Bad Request",
+        message: "Invalid request body",
+        details: formatZodErrors(error),
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
   }
-  
+
   if (error instanceof ValidationError) {
     // 422 Unprocessable Entity
-    return new Response(JSON.stringify({
-      error: "Unprocessable Entity",
-      message: error.message,
-      details: error.details
-    }), { status: 422, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: "Unprocessable Entity",
+        message: error.message,
+        details: error.details,
+      }),
+      { status: 422, headers: { "Content-Type": "application/json" } }
+    );
   }
-  
-  if (error.code === "23505") { // Unique constraint violation
+
+  if (error.code === "23505") {
+    // Unique constraint violation
     // 409 Conflict
-    return new Response(JSON.stringify({
-      error: "Conflict",
-      message: "Transaction with this client_request_id already exists"
-    }), { status: 409, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: "Conflict",
+        message: "Transaction with this client_request_id already exists",
+      }),
+      { status: 409, headers: { "Content-Type": "application/json" } }
+    );
   }
-  
+
   // 500 Internal Server Error
   console.error("Unexpected error:", error);
-  return new Response(JSON.stringify({
-    error: "Internal Server Error",
-    message: "An unexpected error occurred. Please try again later."
-  }), { status: 500, headers: { "Content-Type": "application/json" } });
+  return new Response(
+    JSON.stringify({
+      error: "Internal Server Error",
+      message: "An unexpected error occurred. Please try again later.",
+    }),
+    { status: 500, headers: { "Content-Type": "application/json" } }
+  );
 }
 ```
 
 **W service layer**:
+
 - Rzuć custom `ValidationError` dla błędów biznesowych
 - Pozwól Supabase errors propagować dla 500
 - Dla 409 (duplikat): można opcjonalnie fetch istniejącą transakcję i zwrócić
@@ -455,11 +492,13 @@ try {
 ### Logging
 
 **Co logować**:
+
 - 500 errors: pełny stack trace + context
 - 422 errors: message + user_id (dla analityki)
 - 409 errors: user_id + client_request_id (monitoring duplikatów)
 
 **Gdzie logować**:
+
 - Console.error dla development
 - W produkcji: rozważyć integrację z Sentry/LogRocket (opcjonalne w MVP)
 
@@ -524,6 +563,7 @@ try {
 ## 9. Etapy wdrożenia
 
 ### Krok 1: Przygotowanie środowiska
+
 - [ ] Upewnić się, że migracje bazy danych są uruchomione:
   - Tabela `transactions` z RLS
   - Tabela `transaction_categories` z danymi seed
@@ -532,33 +572,35 @@ try {
 - [ ] Zweryfikować konfigurację middleware auth w `src/middleware/index.ts`
 
 ### Krok 2: Definicja Zod schema
+
 - [ ] Utworzyć plik `src/lib/schemas/transaction.schema.ts`
 - [ ] Zdefiniować `CreateTransactionSchema`:
+
   ```typescript
   import { z } from "zod";
-  
+
   export const CreateTransactionSchema = z.object({
     type: z.enum(["INCOME", "EXPENSE"]),
     category_code: z.string().min(1),
     amount_cents: z.number().int().positive(),
-    occurred_on: z.string()
+    occurred_on: z
+      .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .refine(
-        (date) => new Date(date) <= new Date(),
-        { message: "Transaction date cannot be in the future" }
-      ),
-    note: z.string()
+      .refine((date) => new Date(date) <= new Date(), { message: "Transaction date cannot be in the future" }),
+    note: z
+      .string()
       .max(500)
       .regex(/^[^\x00-\x1F\x7F]*$/, {
-        message: "Note cannot contain control characters"
+        message: "Note cannot contain control characters",
       })
       .nullable()
       .optional(),
-    client_request_id: z.string().uuid()
+    client_request_id: z.string().uuid(),
   });
   ```
 
 ### Krok 3: Implementacja TransactionService
+
 - [ ] Utworzyć plik `src/lib/services/transaction.service.ts`
 - [ ] Zaimportować typy:
   ```typescript
@@ -590,30 +632,23 @@ try {
       .select("kind, is_active")
       .eq("code", command.category_code)
       .single();
-    
+
     if (categoryError || !category) {
-      throw new ValidationError(
-        "Category code does not exist or is inactive",
-        { category_code: command.category_code }
-      );
+      throw new ValidationError("Category code does not exist or is inactive", {
+        category_code: command.category_code,
+      });
     }
-    
+
     if (!category.is_active) {
-      throw new ValidationError(
-        "Category is not active",
-        { category_code: command.category_code }
-      );
+      throw new ValidationError("Category is not active", { category_code: command.category_code });
     }
-    
+
     if (category.kind !== command.type) {
-      throw new ValidationError(
-        `Category ${command.category_code} is not valid for ${command.type} transactions`,
-        { 
-          category_code: `Category kind ${category.kind} does not match transaction type ${command.type}` 
-        }
-      );
+      throw new ValidationError(`Category ${command.category_code} is not valid for ${command.type} transactions`, {
+        category_code: `Category kind ${category.kind} does not match transaction type ${command.type}`,
+      });
     }
-    
+
     // 2. Insert transaction
     const { data: transaction, error: insertError } = await supabase
       .from("transactions")
@@ -626,9 +661,10 @@ try {
         note: command.note ?? null,
         client_request_id: command.client_request_id,
         created_by: userId,
-        updated_by: userId
+        updated_by: userId,
       })
-      .select(`
+      .select(
+        `
         id,
         type,
         category_code,
@@ -638,14 +674,15 @@ try {
         created_at,
         updated_at,
         transaction_categories!inner(label_pl)
-      `)
+      `
+      )
       .single();
-    
+
     if (insertError) {
       // Let it propagate for 500 or rethrow specific codes
       throw insertError;
     }
-    
+
     // 3. Map to DTO
     return {
       id: transaction.id,
@@ -656,12 +693,13 @@ try {
       occurred_on: transaction.occurred_on,
       note: transaction.note,
       created_at: transaction.created_at,
-      updated_at: transaction.updated_at
+      updated_at: transaction.updated_at,
     };
   }
   ```
 
 ### Krok 4: Utworzenie endpoint handler
+
 - [ ] Utworzyć plik `src/pages/api/v1/transactions/index.ts`
 - [ ] Dodać `export const prerender = false;`
 - [ ] Zaimportować zależności:
@@ -690,86 +728,82 @@ try {
     if (!context.locals.user) {
       const errorResponse: ErrorResponseDTO = {
         error: "Unauthorized",
-        message: "User not authenticated or email not verified"
+        message: "User not authenticated or email not verified",
       };
       return new Response(JSON.stringify(errorResponse), {
         status: 401,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
     }
-    
+
     try {
       // Parse and validate request body
       const body = await context.request.json();
       const command = CreateTransactionSchema.parse(body);
-      
+
       // Call service
-      const transaction = await createTransaction(
-        context.locals.supabase,
-        context.locals.user.id,
-        command
-      );
-      
+      const transaction = await createTransaction(context.locals.supabase, context.locals.user.id, command);
+
       // Return 201 Created
       return new Response(JSON.stringify(transaction), {
         status: 201,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
-      
     } catch (error) {
       // Zod validation errors
       if (error instanceof z.ZodError) {
         const errorResponse: ErrorResponseDTO = {
           error: "Bad Request",
           message: "Invalid request body",
-          details: formatZodErrors(error)
+          details: formatZodErrors(error),
         };
         return new Response(JSON.stringify(errorResponse), {
           status: 400,
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         });
       }
-      
+
       // Business validation errors
       if (error instanceof ValidationError) {
         const errorResponse: ErrorResponseDTO = {
           error: "Unprocessable Entity",
           message: error.message,
-          details: error.details
+          details: error.details,
         };
         return new Response(JSON.stringify(errorResponse), {
           status: 422,
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         });
       }
-      
+
       // Unique constraint violation (duplicate client_request_id)
       if (error?.code === "23505") {
         const errorResponse: ErrorResponseDTO = {
           error: "Conflict",
-          message: "Transaction with this client_request_id already exists"
+          message: "Transaction with this client_request_id already exists",
         };
         return new Response(JSON.stringify(errorResponse), {
           status: 409,
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         });
       }
-      
+
       // Unexpected errors
       console.error("Unexpected error in POST /api/v1/transactions:", error);
       const errorResponse: ErrorResponseDTO = {
         error: "Internal Server Error",
-        message: "An unexpected error occurred. Please try again later."
+        message: "An unexpected error occurred. Please try again later.",
       };
       return new Response(JSON.stringify(errorResponse), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
     }
   }
   ```
 
 ### Krok 7: Code review i linting
+
 - [ ] Uruchomić linter:
   ```bash
   npm run lint
@@ -788,4 +822,3 @@ Ten plan implementacji pokrywa wszystkie aspekty endpointu POST /api/v1/transact
 - **Idempotencja**: client_request_id zapobiega duplikatom
 - **Walidacja**: Zod (format) + service layer (biznes)
 - **Error handling**: Szczegółowe kody statusu i messages
-

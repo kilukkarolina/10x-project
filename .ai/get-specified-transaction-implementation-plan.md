@@ -5,12 +5,14 @@
 Endpoint `GET /api/v1/transactions/:id` umożliwia pobranie szczegółów pojedynczej transakcji użytkownika na podstawie jej unikalnego identyfikatora UUID.
 
 **Główne funkcje:**
+
 - Pobieranie pełnych danych transakcji (przychód lub wydatek)
 - Zwracanie danych z dołączoną etykietą kategorii (join z `transaction_categories`)
 - Filtrowanie soft-deleted transakcji (tylko aktywne rekordy)
 - Weryfikacja właściciela przez RLS i explicit check
 
 **Przypadki użycia:**
+
 - Wyświetlenie szczegółów transakcji w interfejsie użytkownika
 - Pobranie danych przed edycją transakcji
 - Weryfikacja istnienia transakcji przed operacją (np. przed DELETE)
@@ -18,9 +20,11 @@ Endpoint `GET /api/v1/transactions/:id` umożliwia pobranie szczegółów pojedy
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `GET`
 
 ### Struktura URL
+
 ```
 /api/v1/transactions/:id
 ```
@@ -28,18 +32,22 @@ Endpoint `GET /api/v1/transactions/:id` umożliwia pobranie szczegółów pojedy
 ### Parametry
 
 **Path Parameters (wymagane):**
+
 - `id` (string, UUID): Unikalny identyfikator transakcji
   - Format: UUID v4 lub v7 (np. `"550e8400-e29b-41d4-a716-446655440000"`)
   - Walidacja: musi być prawidłowym UUID zgodnym z RFC 4122
 
 **Query Parameters:**
+
 - Brak
 
 **Request Headers:**
+
 - `Content-Type`: nie dotyczy (GET bez body)
 - `Authorization`: (przyszła implementacja) - obecnie używany DEFAULT_USER_ID
 
 **Request Body:**
+
 - Brak (metoda GET nie przyjmuje body)
 
 ### Przykład żądania
@@ -66,6 +74,7 @@ export interface TransactionDTO
 ```
 
 **Pola TransactionDTO:**
+
 - `id`: string (UUID) - unikalny identyfikator transakcji
 - `type`: `"INCOME" | "EXPENSE"` - typ transakcji
 - `category_code`: string - kod kategorii (np. "GROCERIES", "SALARY")
@@ -82,10 +91,10 @@ export interface TransactionDTO
 
 ```typescript
 export interface ErrorResponseDTO {
-  error: string;           // Krótki opis błędu (np. "Not Found")
-  message: string;         // Szczegółowy komunikat dla użytkownika
+  error: string; // Krótki opis błędu (np. "Not Found")
+  message: string; // Szczegółowy komunikat dla użytkownika
   details?: Record<string, string>; // Opcjonalne szczegóły (np. walidacja)
-  retry_after_seconds?: number;     // Nie używane w tym endpoincie
+  retry_after_seconds?: number; // Nie używane w tym endpoincie
 }
 ```
 
@@ -134,6 +143,7 @@ export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSc
 **Warunek:** Parametr `id` nie jest prawidłowym UUID
 
 **Body:**
+
 ```json
 {
   "error": "Bad Request",
@@ -147,11 +157,13 @@ export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSc
 #### 404 Not Found - Transakcja nie istnieje
 
 **Warunki:**
+
 - Transakcja o podanym ID nie istnieje w bazie
 - Transakcja jest soft-deleted (`deleted_at IS NOT NULL`)
 - Transakcja należy do innego użytkownika (zwracamy 404 zamiast 403 dla bezpieczeństwa)
 
 **Body:**
+
 ```json
 {
   "error": "Not Found",
@@ -166,6 +178,7 @@ export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSc
 **Warunek:** Nieoczekiwany błąd bazy danych lub serwera
 
 **Body:**
+
 ```json
 {
   "error": "Internal Server Error",
@@ -209,6 +222,7 @@ export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSc
 ### Szczegóły interakcji z bazą danych
 
 **Tabele:**
+
 - `transactions` (główna tabela)
 - `transaction_categories` (JOIN dla category_label)
 
@@ -217,7 +231,8 @@ export type GetTransactionByIdParams = z.infer<typeof GetTransactionByIdParamsSc
 ```typescript
 supabase
   .from("transactions")
-  .select(`
+  .select(
+    `
     id,
     type,
     category_code,
@@ -227,14 +242,16 @@ supabase
     created_at,
     updated_at,
     transaction_categories!inner(label_pl)
-  `)
+  `
+  )
   .eq("user_id", userId)
   .eq("id", transactionId)
   .is("deleted_at", null)
-  .single()
+  .single();
 ```
 
 **Wyjaśnienie:**
+
 - `.select()` z INNER JOIN na `transaction_categories` dla pobrania `label_pl`
 - `.eq("user_id", userId)` - explicit check właściciela (oprócz RLS)
 - `.eq("id", transactionId)` - filtrowanie po UUID
@@ -242,12 +259,14 @@ supabase
 - `.single()` - oczekujemy dokładnie jednego wyniku lub null
 
 **RLS (Row Level Security):**
+
 - Polityka SELECT na tabeli `transactions` (zgodnie z db-plan.md, linie 238-239):
   - `USING (user_id = auth.uid() AND EXISTS(SELECT 1 FROM profiles p WHERE p.user_id=auth.uid() AND p.email_confirmed))`
 - W development RLS jest tymczasowo wyłączony (migracja `20251111090000_disable_rls_for_development.sql`)
 - Przed produkcją RLS zostanie ponownie włączony
 
 **Indeksy wykorzystywane (zgodnie z db-plan.md, linie 191-199):**
+
 - `transactions_pkey(id)` - PK dla szybkiego lookup po UUID
 - `idx_tx_user(user_id)` - FK index dla filtrowania właściciela
 - Composite query będzie używać obu indeksów
@@ -257,11 +276,13 @@ supabase
 ### Uwierzytelnianie
 
 **Stan obecny:**
+
 - Uwierzytelnianie jest tymczasowo wyłączone
 - Używany jest `DEFAULT_USER_ID` z `supabase.client.ts`
 - Docelowo: integracja z Supabase Auth
 
 **Przyszła implementacja:**
+
 - Middleware Astro będzie weryfikować token JWT
 - Wymagane nagłówki: `Authorization: Bearer <token>`
 - Brak tokenu → 401 Unauthorized
@@ -269,6 +290,7 @@ supabase
 ### Autoryzacja
 
 **Obecna implementacja:**
+
 1. **Explicit user_id check:**
    - Query zawiera `.eq("user_id", userId)`
    - Użytkownik może pobrać tylko własne transakcje
@@ -283,6 +305,7 @@ supabase
    - Konsekwentne z resztą API
 
 **Bezpieczeństwo odpowiedzi:**
+
 - 404 dla nieistniejących, soft-deleted ORAZ cudzych transakcji
 - Nie ujawniamy różnicy między "nie istnieje" a "nie masz dostępu"
 - Zapobiega UUID enumeration attacks
@@ -290,28 +313,33 @@ supabase
 ### Walidacja danych wejściowych
 
 **Walidacja UUID:**
+
 - Zod schema: `z.string().uuid()`
 - Sprawdza format RFC 4122
 - Odrzuca nieprawidłowe formaty (np. zbyt krótkie, nieprawidłowe znaki)
 
 **Sanityzacja:**
+
 - UUID jest bezpiecznym typem (brak SQL injection przez parametryzację)
 - Brak user input w query strings (tylko parametr path)
 
 ### Ochrona przed atakami
 
 **SQL Injection:**
+
 - Supabase query builder używa parametryzowanych zapytań
 - Brak bezpośredniej konkatenacji SQL
 - Ryzyko: **minimalne**
 
 **UUID Enumeration:**
+
 - Teoretycznie możliwe próby odgadnięcia UUID
 - Mitigacja: RLS + explicit user_id check blokują dostęp
 - UUIDv4/v7 mają wysoką entropię (2^122 możliwości)
 - Ryzyko: **niskie**
 
 **Timing Attacks:**
+
 - Czas odpowiedzi może się nieznacznie różnić dla:
   - Nieistniejących transakcji (szybkie)
   - Cudzych transakcji (RLS może być wolniejszy)
@@ -319,6 +347,7 @@ supabase
 - Ryzyko: **bardzo niskie**
 
 **DoS (Denial of Service):**
+
 - Single-record query jest lekkie
 - Brak paginacji ani agregacji
 - Indeks PK zapewnia O(log n) lookup
@@ -336,15 +365,15 @@ supabase
 
 ### Macierz błędów
 
-| # | Warunek | Walidacja/Check | Status Code | Error Type | Message | Details |
-|---|---------|-----------------|-------------|------------|---------|---------|
-| 1 | Parametr `id` brak | Zod parse | 400 | Bad Request | "Invalid transaction ID format" | `{ "id": "Transaction ID must be a valid UUID" }` |
-| 2 | Parametr `id` nieprawidłowy format | Zod UUID validation | 400 | Bad Request | "Invalid transaction ID format" | `{ "id": "Transaction ID must be a valid UUID" }` |
-| 3 | Transakcja nie istnieje | Service zwraca null | 404 | Not Found | "Transaction not found or has been deleted" | - |
-| 4 | Transakcja soft-deleted | Query z `deleted_at IS NULL` | 404 | Not Found | "Transaction not found or has been deleted" | - |
-| 5 | Transakcja innego użytkownika | RLS + `user_id` filter | 404 | Not Found | "Transaction not found or has been deleted" | - |
-| 6 | Błąd połączenia z bazą | Catch database error | 500 | Internal Server Error | "An unexpected error occurred. Please try again later." | - |
-| 7 | Nieoczekiwany błąd | Catch all handler | 500 | Internal Server Error | "An unexpected error occurred. Please try again later." | - |
+| #   | Warunek                            | Walidacja/Check              | Status Code | Error Type            | Message                                                 | Details                                           |
+| --- | ---------------------------------- | ---------------------------- | ----------- | --------------------- | ------------------------------------------------------- | ------------------------------------------------- |
+| 1   | Parametr `id` brak                 | Zod parse                    | 400         | Bad Request           | "Invalid transaction ID format"                         | `{ "id": "Transaction ID must be a valid UUID" }` |
+| 2   | Parametr `id` nieprawidłowy format | Zod UUID validation          | 400         | Bad Request           | "Invalid transaction ID format"                         | `{ "id": "Transaction ID must be a valid UUID" }` |
+| 3   | Transakcja nie istnieje            | Service zwraca null          | 404         | Not Found             | "Transaction not found or has been deleted"             | -                                                 |
+| 4   | Transakcja soft-deleted            | Query z `deleted_at IS NULL` | 404         | Not Found             | "Transaction not found or has been deleted"             | -                                                 |
+| 5   | Transakcja innego użytkownika      | RLS + `user_id` filter       | 404         | Not Found             | "Transaction not found or has been deleted"             | -                                                 |
+| 6   | Błąd połączenia z bazą             | Catch database error         | 500         | Internal Server Error | "An unexpected error occurred. Please try again later." | -                                                 |
+| 7   | Nieoczekiwany błąd                 | Catch all handler            | 500         | Internal Server Error | "An unexpected error occurred. Please try again later." | -                                                 |
 
 ### Strategia obsługi błędów w kodzie
 
@@ -354,32 +383,32 @@ supabase
 try {
   // 1. Parse and validate path parameter
   const params = GetTransactionByIdParamsSchema.parse(context.params);
-  
+
   // 2. Call service layer
-  const transaction = await getTransactionById(
-    supabaseClient, 
-    DEFAULT_USER_ID, 
-    params.id
-  );
-  
+  const transaction = await getTransactionById(supabaseClient, DEFAULT_USER_ID, params.id);
+
   // 3. Handle not found
   if (!transaction) {
-    return new Response(JSON.stringify({
-      error: "Not Found",
-      message: "Transaction not found or has been deleted"
-    }), { status: 404, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: "Not Found",
+        message: "Transaction not found or has been deleted",
+      }),
+      { status: 404, headers: { "Content-Type": "application/json" } }
+    );
   }
-  
+
   // 4. Return success
   return new Response(JSON.stringify(transaction), {
     status: 200,
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
-  
 } catch (error) {
   // Handle validation errors (400)
-  if (error instanceof z.ZodError) { /* ... */ }
-  
+  if (error instanceof z.ZodError) {
+    /* ... */
+  }
+
   // Handle unexpected errors (500)
   console.error("Unexpected error in GET /api/v1/transactions/:id:", error);
   // Return 500 response
@@ -398,7 +427,7 @@ export async function getTransactionById(
     .from("transactions")
     // ... query ...
     .single();
-  
+
   // Database errors are thrown and caught by API handler
   if (error) {
     // PostgresError with code PGRST116 = not found
@@ -408,29 +437,34 @@ export async function getTransactionById(
     }
     throw error; // Other errors propagate as 500
   }
-  
+
   // Not found
   if (!data) {
     return null;
   }
-  
+
   // Map and return DTO
-  return { /* ... mapped DTO ... */ };
+  return {
+    /* ... mapped DTO ... */
+  };
 }
 ```
 
 ### Logging i monitoring
 
 **Console logging:**
+
 - Wszystkie nieoczekiwane błędy są logowane do console.error
 - Format: `"Unexpected error in GET /api/v1/transactions/:id:"`, error
 - Zawiera stack trace dla debugowania
 
 **Informacje NIE logowane (bezpieczeństwo):**
+
 - UUID transakcji w error logs (może ujawnić dane użytkowników)
 - User IDs w public logs
 
 **Przyszłe ulepszenia:**
+
 - Integracja z Sentry lub innym narzędziem do error trackingu
 - Structured logging z kontekstem (request ID, user ID, timestamp)
 - Alerting dla wysokiej częstości 500 errors
@@ -440,21 +474,23 @@ export async function getTransactionById(
 ### Optymalizacje bazy danych
 
 **Wykorzystywane indeksy:**
+
 1. **Primary Key Index (`transactions_pkey`):**
    - Kolumna: `id`
    - Typ: B-tree (domyślny dla PK)
    - Użycie: `.eq("id", transactionId)` → O(log n) lookup
-   
 2. **Foreign Key Index (`idx_tx_user`):**
    - Kolumna: `user_id`
    - Użycie: `.eq("user_id", userId)` → filter po właścicielu
 
 **Composite Query:**
+
 - Query używa dwóch warunków: `user_id = X AND id = Y`
 - PostgreSQL optimizer wybierze najbardziej selektywny indeks (prawdopodobnie PK)
 - Złożoność: O(log n) - bardzo wydajne
 
 **INNER JOIN na transaction_categories:**
+
 - Tabela `transaction_categories` jest małym słownikiem (kilkanaście rekordów)
 - JOIN po `category_code` (indexed via FK)
 - Cost: minimalny, często cache'owane w pamięci
@@ -462,6 +498,7 @@ export async function getTransactionById(
 ### Oczekiwany czas odpowiedzi
 
 **Breakdown:**
+
 1. Network latency (client → server): ~10-50ms (zależne od lokalizacji)
 2. Astro routing + parsing: ~1-2ms
 3. Zod validation: <1ms (single UUID check)
@@ -475,6 +512,7 @@ export async function getTransactionById(
 **Szacowany total:** 30-120ms (p50: ~50ms, p95: ~100ms, p99: ~150ms)
 
 **Benchmark (do weryfikacji po implementacji):**
+
 - Local development: <30ms
 - Production (same region): <50ms
 - Production (cross-region): <150ms
@@ -482,23 +520,27 @@ export async function getTransactionById(
 ### Potencjalne wąskie gardła
 
 **1. Database Connection Pool:**
+
 - **Problem:** Zbyt mało połączeń w pool → kolejkowanie
 - **Mitigacja:** Supabase Free Tier domyślnie ma 15 połączeń, wystarczające dla MVP
 - **Monitoring:** Sprawdzać metryki połączeń w Supabase Dashboard
 
 **2. Cold Start (Supabase):**
+
 - **Problem:** Pierwsze zapytanie po okresie bezczynności może być wolniejsze
 - **Częstość:** Rzadka w production (tylko po dłuższej nieaktywności)
 - **Czas:** +50-200ms dla pierwszego request
 - **Mitigacja:** Keep-alive ping lub zwiększenie aktywności
 
 **3. Network Latency:**
+
 - **Problem:** Cross-region calls (user → Astro → Supabase)
-- **Mitigacja:** 
+- **Mitigacja:**
   - Deploy Astro app w tym samym regionie co Supabase project
   - Użycie CDN dla statycznych assets (ale API calls zawsze przez origin)
 
 **4. RLS Overhead (w produkcji):**
+
 - **Problem:** RLS policies dodają ~1-5ms do query time
 - **Akceptowalne:** W zamian za bezpieczeństwo
 - **Optymalizacja:** Upewnić się, że indeksy wspierają RLS WHERE clauses
@@ -510,19 +552,23 @@ export async function getTransactionById(
 **Przyszłe możliwości:**
 
 **1. Browser Cache:**
+
 - Nagłówek: `Cache-Control: private, max-age=60`
 - Zaleta: Zmniejsza liczbę requestów dla często przeglądanych transakcji
 - Wada: Stale data (np. po edycji w innej zakładce)
 - **Rekomendacja:** Nie cache'ować (transakcje mogą być edytowane)
 
 **2. CDN Cache:**
+
 - Nie dotyczy (endpoint per-user, nie public)
 
 **3. Application-level Cache (Redis/Memcached):**
+
 - Kompleksowe, overhead dla MVP
 - **Rekomendacja:** Odłożyć do fazy skalowania
 
 **4. Optimistic UI Updates:**
+
 - Frontend może cache'ować transakcje lokalnie (localStorage/IndexedDB)
 - Po edycji: invalidate cache i refetch
 - **Rekomendacja:** Implementować na poziomie frontend, nie backend
@@ -530,18 +576,22 @@ export async function getTransactionById(
 ### Skalowanie
 
 **Current limits (Supabase Free Tier):**
+
 - 500 MB database size
 - 2 GB bandwidth/month
 - 50,000 monthly active users
 
 **Skalowanie pionowe (w przyszłości):**
+
 - Upgrade Supabase plan dla więcej połączeń i resources
 
 **Skalowanie poziome:**
+
 - Read replicas dla high-traffic reads (Supabase Pro+)
 - Load balancing na Astro instances
 
 **Breaking point estimation:**
+
 - Single UUID lookup: ~1000 requests/second (teoretyczne)
 - Ograniczenie: Supabase Free Tier connection pool (15 połączeń)
 - Praktyczne: ~100-200 concurrent requests/second
@@ -549,10 +599,13 @@ export async function getTransactionById(
 ## 9. Etapy wdrożenia
 
 ### Krok 1: Rozszerzenie Zod Schema
+
 **Plik:** `src/lib/schemas/transaction.schema.ts`
 
 **Akcje:**
+
 1. Dodać nową schema na końcu pliku:
+
    ```typescript
    /**
     * Zod schema for GET /api/v1/transactions/:id path parameters
@@ -561,7 +614,7 @@ export async function getTransactionById(
    export const GetTransactionByIdParamsSchema = z.object({
      id: z.string().uuid("Transaction ID must be a valid UUID"),
    });
-   
+
    /**
     * Type inference from schema
     */
@@ -571,6 +624,7 @@ export async function getTransactionById(
 2. Wyeksportować nową schema w istniejącym pliku (brak zmian w exports - już jest export)
 
 **Kryteria akceptacji:**
+
 - ✅ Schema waliduje prawidłowe UUID
 - ✅ Schema odrzuca nieprawidłowe formaty (testy: "123", "", "not-a-uuid", null)
 - ✅ TypeScript type inference działa poprawnie
@@ -578,9 +632,11 @@ export async function getTransactionById(
 ---
 
 ### Krok 2: Implementacja funkcji `getTransactionById` w Service Layer
+
 **Plik:** `src/lib/services/transaction.service.ts`
 
 **Akcje:**
+
 1. Dodać nową funkcję na końcu pliku (po `listTransactions`):
 
 ```typescript
@@ -633,7 +689,7 @@ export async function getTransactionById(
     if (error.code === "PGRST116") {
       return null;
     }
-    
+
     // Other database errors should propagate as 500
     throw error;
   }
@@ -665,6 +721,7 @@ export async function getTransactionById(
    (Już istnieje, brak zmian)
 
 **Kryteria akceptacji:**
+
 - ✅ Funkcja zwraca `TransactionDTO` dla istniejącej transakcji użytkownika
 - ✅ Funkcja zwraca `null` dla nieistniejącej transakcji
 - ✅ Funkcja zwraca `null` dla soft-deleted transakcji
@@ -675,9 +732,11 @@ export async function getTransactionById(
 ---
 
 ### Krok 3: Utworzenie API Route Handler
+
 **Plik:** `src/pages/api/v1/transactions/[id].ts` (nowy plik)
 
 **Akcje:**
+
 1. Utworzyć nowy plik w strukturze Astro dynamic routes
 2. Implementować GET handler z pełną obsługą błędów:
 
@@ -745,11 +804,7 @@ export async function GET(context: APIContext) {
 
     // Step 2: Call service layer to get transaction
     // Note: Using DEFAULT_USER_ID until auth is implemented
-    const transaction = await getTransactionById(
-      supabaseClient,
-      DEFAULT_USER_ID,
-      params.id
-    );
+    const transaction = await getTransactionById(supabaseClient, DEFAULT_USER_ID, params.id);
 
     // Step 3: Handle not found case
     if (!transaction) {
@@ -798,6 +853,7 @@ export async function GET(context: APIContext) {
 ```
 
 **Kryteria akceptacji:**
+
 - ✅ Handler odpowiada 200 OK z TransactionDTO dla prawidłowego UUID istniejącej transakcji
 - ✅ Handler odpowiada 400 Bad Request dla nieprawidłowego UUID
 - ✅ Handler odpowiada 404 Not Found dla nieistniejącej transakcji
@@ -810,11 +866,13 @@ export async function GET(context: APIContext) {
 ---
 
 ### Krok 4: Testowanie manualne
+
 **Narzędzie:** cURL, Postman, lub Bruno
 
 **Test Cases:**
 
 **TC1: Sukces - Pobranie istniejącej transakcji**
+
 ```bash
 # Najpierw stwórz transakcję (POST)
 curl -X POST http://localhost:4321/api/v1/transactions \
@@ -835,6 +893,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 ```
 
 **TC2: Błąd - Nieprawidłowy UUID**
+
 ```bash
 curl http://localhost:4321/api/v1/transactions/invalid-uuid-format
 
@@ -847,6 +906,7 @@ curl http://localhost:4321/api/v1/transactions/invalid-uuid-format
 ```
 
 **TC3: Błąd - Nieistniejący UUID**
+
 ```bash
 curl http://localhost:4321/api/v1/transactions/00000000-0000-0000-0000-000000000000
 
@@ -858,6 +918,7 @@ curl http://localhost:4321/api/v1/transactions/00000000-0000-0000-0000-000000000
 ```
 
 **TC4: Błąd - Soft-deleted transakcja**
+
 ```bash
 # Najpierw soft-delete transakcję (gdy DELETE będzie zaimplementowane)
 # Następnie spróbuj ją pobrać:
@@ -867,6 +928,7 @@ curl http://localhost:4321/api/v1/transactions/{DELETED_TRANSACTION_ID}
 ```
 
 **TC5: Weryfikacja JOIN na category_label**
+
 ```bash
 curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 
@@ -876,6 +938,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 ```
 
 **Kryteria akceptacji:**
+
 - ✅ Wszystkie test cases przechodzą pomyślnie
 - ✅ Response times < 100ms (local development)
 - ✅ Brak błędów w console (oprócz expected 404/400)
@@ -887,6 +950,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 **Przed merge do main:**
 
 **Kod:**
+
 - [ ] Wszystkie funkcje mają JSDoc comments
 - [ ] Używane double quotes (`"`) zamiast single quotes (`'`)
 - [ ] Semicolons na końcu statements
@@ -895,6 +959,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 - [ ] TypeScript types są explicit (brak `any`)
 
 **Funkcjonalność:**
+
 - [ ] Endpoint zwraca 200 OK dla prawidłowych requestów
 - [ ] Endpoint zwraca 400 Bad Request dla nieprawidłowego UUID
 - [ ] Endpoint zwraca 404 Not Found dla nieistniejących/soft-deleted/cudzych transakcji
@@ -902,6 +967,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 - [ ] JOIN poprawnie pobiera `category_label`
 
 **Bezpieczeństwo:**
+
 - [ ] RLS jest respektowany (explicit `user_id` check w query)
 - [ ] Soft-deleted transakcje są filtrowane
 - [ ] Nie ujawniamy różnicy między "nie istnieje" a "nie masz dostępu"
@@ -909,16 +975,19 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 - [ ] Error messages nie zawierają wrażliwych danych
 
 **Wydajność:**
+
 - [ ] Query używa indeksów (PK + FK)
 - [ ] INNER JOIN jest efektywny (mała tabela słownikowa)
 - [ ] Brak N+1 queries
 - [ ] Single query zamiast multiple roundtrips
 
 **Testy:**
+
 - [ ] Wszystkie manualne test cases przechodzą
 - [ ] Edge cases przetestowane (invalid UUID, not found, soft-deleted)
 
 **Dokumentacja:**
+
 - [ ] JSDoc comments dla wszystkich funkcji
 - [ ] Inline comments dla nieoczywistej logiki
 - [ ] Plan implementacji zaktualizowany (jeśli były zmiany)
@@ -926,9 +995,11 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 ---
 
 ### Krok 6: Aktualizacja dokumentacji API
+
 **Plik:** `.ai/api-plan.md`
 
 **Akcje:**
+
 1. Zlokalizować sekcję `GET /api/v1/transactions/:id` (linie 129-150)
 2. Zweryfikować, że implementacja jest zgodna ze specyfikacją
 3. Dodać uwagę o implementacji, jeśli potrzebne:
@@ -937,6 +1008,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
    ```
 
 **Kryteria akceptacji:**
+
 - ✅ Dokumentacja API jest aktualna
 - ✅ Przykłady requestów/responses są zgodne z rzeczywistym API
 - ✅ Status implementacji zaktualizowany
@@ -946,17 +1018,20 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 ### Krok 7: Deployment i monitoring
 
 **Pre-deployment:**
+
 1. Uruchomić `npm run lint` - brak błędów
 2. Uruchomić `npm run build` - build success
 3. Zweryfikować, że RLS jest WŁĄCZONY w produkcji (nie jak w development)
    - Przeczytać `.ai/re-enable-rls-checklist.md` przed production deploy
 
 **Deployment:**
+
 1. Push do GitHub
 2. CI/CD (jeśli skonfigurowane) automatycznie deploy
 3. Jeśli manual: build i deploy do hostingu
 
 **Post-deployment:**
+
 1. Smoke test production endpoint:
    ```bash
    curl https://PRODUCTION_URL/api/v1/transactions/{TEST_ID}
@@ -968,10 +1043,12 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
    - Database connection pool usage
 
 **Rollback plan:**
+
 - Jeśli endpoint nie działa: revert commit i redeploy previous version
 - Jeśli database issue: sprawdzić migration status, RLS policies
 
 **Kryteria akceptacji:**
+
 - ✅ Endpoint działa w production
 - ✅ Smoke tests przechodzą
 - ✅ Brak critical errors w logach
@@ -1051,6 +1128,7 @@ curl http://localhost:4321/api/v1/transactions/{TRANSACTION_ID}
 Plan implementacji endpointu `GET /api/v1/transactions/:id` jest kompletny i gotowy do realizacji. Implementacja powinna zająć około 1-2 godzin dla doświadczonego programisty, włączając testowanie manualne.
 
 **Kluczowe punkty:**
+
 - ✅ Prosty endpoint do odczytu single record
 - ✅ Wykorzystanie istniejącego service pattern
 - ✅ Spójna obsługa błędów z resztą API
@@ -1059,13 +1137,14 @@ Plan implementacji endpointu `GET /api/v1/transactions/:id` jest kompletny i got
 - ✅ Gotowe do implementacji auth w przyszłości
 
 **Następne kroki po implementacji:**
+
 1. Implementacja PATCH /api/v1/transactions/:id (update)
 2. Implementacja DELETE /api/v1/transactions/:id (soft-delete)
 3. Integracja z frontend (React components)
 4. Comprehensive auth implementation
 
 **Pytania lub wątpliwości?**
+
 - Szczegóły implementacji są w sekcji "Etapy wdrożenia"
 - Przykłady kodu są gotowe do copy-paste z dostosowaniem
 - Test cases są zdefiniowane dla weryfikacji
-
