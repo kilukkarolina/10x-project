@@ -355,7 +355,7 @@ ORDER BY month DESC;
 
 -- Sprawdź audit_log (trigger)
 SELECT * FROM audit_log
-WHERE user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
+WHERE owner_user_id = '4eef0567-df09-4a61-9219-631def0eb53e'
 ORDER BY performed_at DESC;
 ```
 

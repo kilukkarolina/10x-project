@@ -928,9 +928,3 @@ export async function createGoal(
 2. Prawidłowe obliczenie `progress_percentage` (będzie 0 dla nowych celów)
 3. Zgodność z istniejącym stylem kodu (transactions pattern)
 
-**Następne kroki po implementacji:**
-- Implementacja `GET /api/v1/goals` (lista celów)
-- Implementacja `GET /api/v1/goals/:id` (szczegóły celu)
-- Implementacja `PATCH /api/v1/goals/:id` (aktualizacja celu)
-- Implementacja `POST /api/v1/goals/:id/archive` (archiwizacja)
-

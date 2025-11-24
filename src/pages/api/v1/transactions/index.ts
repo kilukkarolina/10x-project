@@ -115,6 +115,7 @@ export async function POST(context: APIContext) {
     }
 
     // Handle all other unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
     console.error("Unexpected error in POST /api/v1/transactions:", error);
     const errorResponse: ErrorResponseDTO = {
       error: "Internal Server Error",
@@ -206,6 +207,7 @@ export async function GET(context: APIContext) {
     }
 
     // Handle all other unexpected errors (500 Internal Server Error)
+    // eslint-disable-next-line no-console
     console.error("Unexpected error in GET /api/v1/transactions:", error);
     const errorResponse: ErrorResponseDTO = {
       error: "Internal Server Error",
