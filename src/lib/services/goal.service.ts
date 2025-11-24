@@ -1,5 +1,12 @@
 import type { SupabaseClient } from "@/db/supabase.client";
-import type { CreateGoalCommand, GoalDTO, GoalDetailDTO, UpdateGoalCommand, ArchiveGoalResponseDTO } from "@/types";
+import type {
+  CreateGoalCommand,
+  GoalDTO,
+  GoalDetailDTO,
+  UpdateGoalCommand,
+  ArchiveGoalResponseDTO,
+  PriorityGoalMetricsDTO,
+} from "@/types";
 
 /**
  * Custom error class for business validation errors
@@ -600,4 +607,117 @@ export async function archiveGoal(
   };
 
   return response;
+}
+
+/**
+ * Get priority goal metrics with monthly change calculation
+ *
+ * Business logic flow:
+ * 1. Query goals table for is_priority=true goal
+ * 2. JOIN with goal_types to get type_label
+ * 3. Filter: archived_at IS NULL, deleted_at IS NULL
+ * 4. If no priority goal found, return null
+ * 5. Query goal_events for specified month
+ * 6. Aggregate: SUM(DEPOSIT) - SUM(WITHDRAW)
+ * 7. Compute progress_percentage
+ * 8. Transform to PriorityGoalMetricsDTO
+ *
+ * @param supabase - Supabase client instance with user context
+ * @param userId - ID of authenticated user (from context.locals.user)
+ * @param month - Month in YYYY-MM format for monthly change calculation
+ * @returns Promise<PriorityGoalMetricsDTO | null> - Priority goal metrics or null if no priority goal set
+ * @throws Error - Database error (will be caught as 500)
+ */
+export async function getPriorityGoalMetrics(
+  supabase: SupabaseClient,
+  userId: string,
+  month: string
+): Promise<PriorityGoalMetricsDTO | null> {
+  // Step 1: Query priority goal with joined type_label
+  const { data: goal, error: goalError } = await supabase
+    .from("goals")
+    .select(
+      `
+      id,
+      name,
+      type_code,
+      target_amount_cents,
+      current_balance_cents,
+      is_priority,
+      goal_types!inner(label_pl)
+    `
+    )
+    .eq("user_id", userId)
+    .eq("is_priority", true)
+    .is("archived_at", null)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (goalError) {
+    console.error("Database error in getPriorityGoalMetrics (goal query):", {
+      userId,
+      month,
+      error: goalError.message,
+      code: goalError.code,
+    });
+    throw new Error(`Failed to fetch priority goal: ${goalError.message}`);
+  }
+
+  // Step 2: Return null if no priority goal exists
+  if (!goal) {
+    return null;
+  }
+
+  // Step 3: Extract type_label from joined data
+  const goalTypes = goal.goal_types as { label_pl: string } | { label_pl: string }[];
+  const typeLabel = Array.isArray(goalTypes) ? goalTypes[0].label_pl : goalTypes.label_pl;
+
+  // Step 4: Compute progress_percentage
+  const progressPercentage =
+    goal.target_amount_cents > 0 ? (goal.current_balance_cents / goal.target_amount_cents) * 100 : 0;
+
+  // Step 5: Query goal_events for monthly change calculation
+  // Convert month from YYYY-MM to YYYY-MM-01 for database query (month column is date type)
+  const monthDate = `${month}-01`;
+
+  const { data: events, error: eventsError } = await supabase
+    .from("goal_events")
+    .select("type, amount_cents")
+    .eq("goal_id", goal.id)
+    .eq("user_id", userId)
+    .eq("month", monthDate);
+
+  if (eventsError) {
+    console.error("Database error in getPriorityGoalMetrics (events query):", {
+      userId,
+      goalId: goal.id,
+      month,
+      error: eventsError.message,
+      code: eventsError.code,
+    });
+    throw new Error(`Failed to fetch goal events: ${eventsError.message}`);
+  }
+
+  // Step 6: Calculate monthly change (DEPOSIT - WITHDRAW)
+  let monthlyChangeCents = 0;
+  if (events && events.length > 0) {
+    monthlyChangeCents = events.reduce((sum, event) => {
+      return sum + (event.type === "DEPOSIT" ? event.amount_cents : -event.amount_cents);
+    }, 0);
+  }
+
+  // Step 7: Build and return PriorityGoalMetricsDTO
+  const metricsDTO: PriorityGoalMetricsDTO = {
+    goal_id: goal.id,
+    name: goal.name,
+    type_code: goal.type_code,
+    type_label: typeLabel,
+    target_amount_cents: goal.target_amount_cents,
+    current_balance_cents: goal.current_balance_cents,
+    progress_percentage: progressPercentage,
+    monthly_change_cents: monthlyChangeCents,
+    month: month,
+  };
+
+  return metricsDTO;
 }
