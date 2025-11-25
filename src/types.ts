@@ -259,7 +259,7 @@ export interface ExpenseByCategoryDTO {
   category_code: string;
   category_label: string;
   total_cents: number;
-  expense_percentage: number; // Percentage of total expenses
+  percentage: number; // Percentage of total expenses (renamed from expense_percentage in API response)
   transaction_count: number;
 }
 

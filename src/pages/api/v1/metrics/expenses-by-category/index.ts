@@ -54,6 +54,8 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  *   total_expenses_cents: 235000
  * }
  *
+ * Note: 'percentage' field represents the expense percentage of total expenses
+ *
  * If no expenses exist for the month, returns:
  * {
  *   month: "2025-01",
@@ -104,21 +106,8 @@ export async function GET(context: APIContext): Promise<Response> {
     // Step 3: Fetch expenses by category from service layer
     const expenses = await getExpensesByCategory(supabaseClient, userId, validatedQuery.month);
 
-    // Step 4: Map response to match API spec (expense_percentage → percentage)
-    const response = {
-      month: expenses.month,
-      data: expenses.data.map((item) => ({
-        category_code: item.category_code,
-        category_label: item.category_label,
-        total_cents: item.total_cents,
-        percentage: item.expense_percentage, // Map to API spec name
-        transaction_count: item.transaction_count,
-      })),
-      total_expenses_cents: expenses.total_expenses_cents,
-    };
-
-    // Step 5: Return success response
-    return new Response(JSON.stringify(response), {
+    // Step 4: Return success response
+    return new Response(JSON.stringify(expenses), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +116,7 @@ export async function GET(context: APIContext): Promise<Response> {
       },
     });
   } catch (error) {
-    // Step 6: Handle unexpected errors
+    // Step 5: Handle unexpected errors
     console.error("Error in GET /api/v1/metrics/expenses-by-category:", {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,

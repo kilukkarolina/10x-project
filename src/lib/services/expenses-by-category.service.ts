@@ -132,7 +132,7 @@ export async function getExpensesByCategory(
       category_code: cat.category_code,
       category_label: cat.category_label,
       total_cents: cat.total_cents,
-      expense_percentage: calculatePercentage(cat.total_cents, totalExpensesCents),
+      percentage: calculatePercentage(cat.total_cents, totalExpensesCents),
       transaction_count: cat.transaction_count,
     });
   }
