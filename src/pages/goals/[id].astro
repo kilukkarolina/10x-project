@@ -1,0 +1,15 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { GoalDetailApp } from "../../components/goals/GoalDetailApp";
+
+// Pobierz id celu z URL params
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect("/goals");
+}
+---
+
+<Layout title={`Szczegóły celu - Finance Flow`}>
+  <GoalDetailApp client:load goalId={id} />
+</Layout>

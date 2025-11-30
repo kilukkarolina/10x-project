@@ -45,3 +45,55 @@ export interface UpdateGoalPayload {
   is_priority?: boolean;
 }
 
+/**
+ * ViewModel szczegółów celu
+ */
+export interface GoalDetailVM extends GoalListItemVM {
+  isArchived: boolean;
+}
+
+/**
+ * Stan filtrów listy zdarzeń celu
+ */
+export interface GoalEventFilterState {
+  month: string; // YYYY-MM
+  type: "ALL" | "DEPOSIT" | "WITHDRAW";
+  cursor?: string | null;
+  limit: number;
+}
+
+/**
+ * Agregaty zdarzeń celu
+ */
+export interface GoalEventsAggregates {
+  monthDepositCents: number;
+  monthWithdrawCents: number;
+  monthNetCents: number; // Σ(DEPOSIT − WITHDRAW) dla aktywnego miesiąca
+  totalDepositCents: number;
+  totalWithdrawCents: number;
+  totalNetCents: number;
+}
+
+/**
+ * Wartości formularza zdarzenia celu
+ */
+export interface GoalEventFormValues {
+  type: "DEPOSIT" | "WITHDRAW";
+  amountPlnInput: string;
+  occurred_on: string; // YYYY-MM-DD
+  client_request_id?: string;
+}
+
+/**
+ * ViewModel pojedynczego zdarzenia celu w liście
+ */
+export interface GoalEventVM {
+  id: string;
+  goal_id: string;
+  goal_name: string;
+  type: "DEPOSIT" | "WITHDRAW";
+  amount_cents: number;
+  amount_pln: string;
+  occurred_on: string;
+  created_at: string;
+}

@@ -1,8 +1,8 @@
 // src/components/goals/mappers.ts
 
-import type { GoalDTO } from "@/types";
-import type { GoalListItemVM } from "./types";
-import { formatCurrencyPL } from "@/lib/utils";
+import type { GoalDTO, GoalEventDTO } from "@/types";
+import type { GoalListItemVM, GoalDetailVM, GoalEventVM } from "./types";
+import { formatCurrencyPL, formatCurrencyWithSignPL } from "@/lib/utils";
 
 /**
  * Mapuje GoalDTO na GoalListItemVM
@@ -27,3 +27,33 @@ export function mapGoalDtoToVm(dto: GoalDTO): GoalListItemVM {
   };
 }
 
+/**
+ * Mapuje GoalDTO na GoalDetailVM
+ * @param dto - GoalDTO z API
+ * @returns GoalDetailVM z sformatowanymi kwotami i flagą archiwizacji
+ */
+export function mapGoalDtoToDetailVm(dto: GoalDTO): GoalDetailVM {
+  const base = mapGoalDtoToVm(dto);
+  return {
+    ...base,
+    isArchived: dto.archived_at !== null,
+  };
+}
+
+/**
+ * Mapuje GoalEventDTO na GoalEventVM
+ * @param dto - GoalEventDTO z API
+ * @returns GoalEventVM z sformatowaną kwotą
+ */
+export function mapGoalEventDtoToVm(dto: GoalEventDTO): GoalEventVM {
+  return {
+    id: dto.id,
+    goal_id: dto.goal_id,
+    goal_name: dto.goal_name,
+    type: dto.type as "DEPOSIT" | "WITHDRAW",
+    amount_cents: dto.amount_cents,
+    amount_pln: formatCurrencyWithSignPL(dto.type === "DEPOSIT" ? dto.amount_cents : -dto.amount_cents),
+    occurred_on: dto.occurred_on,
+    created_at: dto.created_at,
+  };
+}
