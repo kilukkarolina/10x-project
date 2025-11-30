@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { Toaster } from "@/components/ui/sonner";
+import { GlobalSystemStatus } from "@/components/system/GlobalSystemStatus";
 
 interface Props {
   title?: string;
@@ -19,6 +20,7 @@ const { title = "10x Astro Starter" } = Astro.props;
     <title>{title}</title>
   </head>
   <body>
+    <GlobalSystemStatus client:load />
     <slot />
     <Toaster client:load />
   </body>

@@ -1,8 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { TransactionsApp } from "../components/transactions/TransactionsApp";
+import { GlobalErrorBoundary } from "../components/system/GlobalErrorBoundary";
 ---
 
 <Layout title="Transakcje - Finance Flow">
-  <TransactionsApp client:load />
+  <GlobalErrorBoundary client:load>
+    <TransactionsApp client:load />
+  </GlobalErrorBoundary>
 </Layout>

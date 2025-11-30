@@ -1,9 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { GoalsApp } from "../components/goals/GoalsApp";
+import { GlobalErrorBoundary } from "../components/system/GlobalErrorBoundary";
 ---
 
 <Layout title="Cele - Finance Flow">
-  <GoalsApp client:load />
+  <GlobalErrorBoundary client:load>
+    <GoalsApp client:load />
+  </GlobalErrorBoundary>
 </Layout>
-

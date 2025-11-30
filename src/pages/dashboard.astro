@@ -1,8 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { DashboardApp } from "../components/dashboard/DashboardApp";
+import { GlobalErrorBoundary } from "../components/system/GlobalErrorBoundary";
 ---
 
 <Layout>
-  <DashboardApp client:load />
+  <GlobalErrorBoundary client:load>
+    <DashboardApp client:load />
+  </GlobalErrorBoundary>
 </Layout>

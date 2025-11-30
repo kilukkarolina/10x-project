@@ -332,3 +332,71 @@ export type AuditLogAction = "CREATE" | "UPDATE" | "DELETE";
  * Audit log entity type literal
  */
 export type AuditLogEntityType = "transaction" | "goal" | "goal_event";
+
+// ============================================================================
+// SYSTEM STATUS TYPES - Typy dla globalnych statusów systemowych
+// ============================================================================
+
+/**
+ * VM statusów globalnych
+ */
+export interface SystemStatusVM {
+  isOffline: boolean;
+  rateLimit: RateLimitInfo | null;
+  lastCriticalError?: {
+    statusCode?: number;
+    message: string;
+    atISO: string;
+  };
+}
+
+/**
+ * Rate limit scope - rodzaj akcji objętej limitem
+ */
+export type RateLimitScope = "verify_email" | "reset_password" | "api_general";
+
+/**
+ * Rate limit information
+ */
+export interface RateLimitInfo {
+  scope: RateLimitScope;
+  retryAt: number; // epoch ms, wyliczony = Date.now() + retry_after_seconds * 1000
+  secondsLeft: number; // dynamicznie aktualizowane
+  message?: string; // z ErrorResponseDTO.message jeśli dostępny
+}
+
+/**
+ * GlobalErrorScreen props
+ */
+export interface GlobalErrorScreenProps {
+  title: string;
+  message: string;
+  statusCode?: number;
+  onRetry?: () => void;
+  homeHref?: string; // domyślnie "/"
+}
+
+/**
+ * OfflineBanner props
+ */
+export interface OfflineBannerProps {
+  visible: boolean;
+}
+
+/**
+ * RateLimitBanner props
+ */
+export interface RateLimitBannerProps {
+  rateLimit: RateLimitInfo | null;
+  onRetry?: () => void;
+  onClear: () => void;
+  topOffset?: number; // Offset od góry w px (jeśli OfflineBanner jest widoczny)
+}
+
+/**
+ * GlobalErrorBoundary props
+ */
+export interface GlobalErrorBoundaryProps {
+  children: React.ReactNode;
+  onRetry?: () => void;
+}

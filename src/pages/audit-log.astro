@@ -1,8 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { AuditLogApp } from "../components/audit-log/AuditLogApp";
+import { GlobalErrorBoundary } from "../components/system/GlobalErrorBoundary";
 ---
 
 <Layout title="Dziennik zmian - Finance Flow">
-  <AuditLogApp client:load />
+  <GlobalErrorBoundary client:load>
+    <AuditLogApp client:load />
+  </GlobalErrorBoundary>
 </Layout>
