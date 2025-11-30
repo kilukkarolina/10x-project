@@ -73,6 +73,12 @@ export const AuditLogService = {
       .select("id, entity_type, entity_id, action, before, after, performed_at")
       .eq("owner_user_id", userId);
 
+    console.log("[AuditLogService] Query params:", {
+      userId,
+      table: "audit_log",
+      filters: { entity_type, entity_id, action, from_date, to_date, cursor, limit },
+    });
+
     // Apply optional filters dynamically
     if (entity_type) {
       query = query.eq("entity_type", entity_type);
@@ -107,6 +113,15 @@ export const AuditLogService = {
 
     // Execute query
     const { data, error } = await query;
+
+    // Debug logging - DETAILED
+    console.log("[AuditLogService] Query result:", {
+      success: !error,
+      dataLength: data?.length || 0,
+      hasData: !!data,
+      error: error ? { message: error.message, details: error.details, hint: error.hint, code: error.code } : null,
+      firstItem: data?.[0] ? { id: data[0].id, performed_at: data[0].performed_at } : null,
+    });
 
     if (error) {
       throw new Error(`Database error: ${error.message}`);
