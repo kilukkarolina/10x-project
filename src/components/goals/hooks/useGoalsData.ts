@@ -43,7 +43,9 @@ export function useGoalsData(filters: GoalsFiltersState): UseGoalsDataReturn {
         url.searchParams.set("include_archived", "true");
       }
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        cache: "no-cache",
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -84,4 +86,3 @@ export function useGoalsData(filters: GoalsFiltersState): UseGoalsDataReturn {
     refetch,
   };
 }
-

@@ -19,6 +19,7 @@ import { useTransactionMutations } from "./hooks/useTransactionMutations";
 import type { CreateTransactionPayload, UpdateTransactionPayload } from "./types";
 import type { TransactionDTO } from "@/types";
 import { formatDateShort } from "./utils/groupByDate";
+import { emitAppEvent, AppEvent } from "@/lib/events";
 
 /**
  * TransactionsApp - główny komponent widoku Transakcje
@@ -35,6 +36,7 @@ export function TransactionsApp() {
   // Stan filtrów z localStorage
   const {
     filters,
+    isInitialized: filtersInitialized,
     setMonth,
     setType,
     setCategory,
@@ -64,7 +66,10 @@ export function TransactionsApp() {
     [filters, debouncedSearch]
   );
 
-  const { sections, isLoading, error, pagination, loadMore, refetch } = useTransactionsData(filtersWithDebouncedSearch);
+  const { sections, isLoading, error, pagination, loadMore, refetch } = useTransactionsData(
+    filtersWithDebouncedSearch,
+    filtersInitialized
+  );
 
   // Mutacje
   const { createTransaction, updateTransaction, deleteTransaction, isCreating, isUpdating, isDeleting } =
@@ -135,7 +140,13 @@ export function TransactionsApp() {
   // Submit formularza (create/edit)
   const handleFormSubmit = async (payload: CreateTransactionPayload | UpdateTransactionPayload, id?: string) => {
     if (formMode === "create") {
-      await createTransaction(payload as CreateTransactionPayload);
+      const created = await createTransaction(payload as CreateTransactionPayload);
+      // Emituj event o utworzeniu transakcji
+      emitAppEvent(AppEvent.TRANSACTION_CHANGED, {
+        action: "create",
+        transactionId: created.id,
+        month: created.occurred_on.substring(0, 7), // YYYY-MM
+      });
     } else if (id) {
       const updated = await updateTransaction(id, payload as UpdateTransactionPayload);
 
@@ -145,6 +156,13 @@ export function TransactionsApp() {
         // Auto-hide po 10 sekundach
         setTimeout(() => setShowBackdateBanner(false), 10000);
       }
+
+      // Emituj event o aktualizacji transakcji
+      emitAppEvent(AppEvent.TRANSACTION_CHANGED, {
+        action: "update",
+        transactionId: updated.id,
+        month: updated.occurred_on.substring(0, 7), // YYYY-MM
+      });
     }
 
     // Zamknij modal i refetch
@@ -157,6 +175,13 @@ export function TransactionsApp() {
     if (!deletingTransaction) return;
 
     await deleteTransaction(deletingTransaction.id);
+
+    // Emituj event o usunięciu transakcji
+    emitAppEvent(AppEvent.TRANSACTION_CHANGED, {
+      action: "delete",
+      transactionId: deletingTransaction.id,
+      month: deletingTransaction.occurred_on.substring(0, 7), // YYYY-MM
+    });
 
     // Zamknij modal i refetch
     setDeleteModalOpen(false);

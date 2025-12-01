@@ -29,9 +29,13 @@ interface UseTransactionsDataReturn {
  * - Zarządzanie stanem ładowania i błędów
  *
  * @param filters - Filtry transakcji
+ * @param isInitialized - Czy filtry są już zainicjalizowane (z localStorage)
  * @returns Dane transakcji, sekcje, paginacja, stany
  */
-export function useTransactionsData(filters: TransactionsFiltersState): UseTransactionsDataReturn {
+export function useTransactionsData(
+  filters: TransactionsFiltersState,
+  isInitialized: boolean
+): UseTransactionsDataReturn {
   const [items, setItems] = useState<TransactionsListItemVM[]>([]);
   const [sections, setSections] = useState<TransactionsGroupedSectionVM[]>([]);
   const [pagination, setPagination] = useState<PaginationDTO | null>(null);
@@ -70,7 +74,9 @@ export function useTransactionsData(filters: TransactionsFiltersState): UseTrans
 
         url.searchParams.set("limit", filters.limit.toString());
 
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), {
+          cache: "no-cache",
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -134,10 +140,11 @@ export function useTransactionsData(filters: TransactionsFiltersState): UseTrans
     fetchTransactions(pagination.next_cursor);
   }, [pagination, isLoading, fetchTransactions]);
 
-  // Fetch przy zmianach filtrów
+  // Fetch przy zmianach filtrów (tylko po inicjalizacji)
   useEffect(() => {
+    if (!isInitialized) return;
     fetchTransactions();
-  }, [fetchTransactions]);
+  }, [fetchTransactions, isInitialized]);
 
   // Aktualizacja sekcji przy zmianach items
   useEffect(() => {

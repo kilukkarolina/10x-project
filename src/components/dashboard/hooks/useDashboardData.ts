@@ -21,7 +21,7 @@ const API_TIMEOUT = 10000; // 10 sekund
  * - Zarządzanie stanami loading/error
  * - Cache per miesiąc
  */
-export function useDashboardData(month: string): UseDashboardDataReturn {
+export function useDashboardData(month: string, isInitialized: boolean): UseDashboardDataReturn {
   const [metrics, setMetrics] = useState<MonthlyMetricsDTO | null>(null);
   const [expenses, setExpenses] = useState<ExpensesByCategoryResponseDTO | null>(null);
   const [priorityGoal, setPriorityGoal] = useState<PriorityGoalMetricsDTO | null>(null);
@@ -54,6 +54,7 @@ export function useDashboardData(month: string): UseDashboardDataReturn {
         try {
           const response = await fetch(url, {
             signal: signal,
+            cache: "no-cache",
             headers: {
               "Content-Type": "application/json",
             },
@@ -123,8 +124,10 @@ export function useDashboardData(month: string): UseDashboardDataReturn {
     }
   }, [month]);
 
-  // Efekt pobierający dane przy zmianie miesiąca
+  // Efekt pobierający dane przy zmianie miesiąca (tylko po inicjalizacji)
   useEffect(() => {
+    if (!isInitialized) return;
+
     fetchData();
 
     // Cleanup: anuluj żądania przy odmontowaniu
@@ -133,7 +136,7 @@ export function useDashboardData(month: string): UseDashboardDataReturn {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchData]);
+  }, [fetchData, isInitialized]);
 
   const refetch = useCallback(() => {
     fetchData();

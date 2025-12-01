@@ -88,7 +88,9 @@ export function useAuditLogData(filters: AuditLogFiltersVM): UseAuditLogDataRetu
 
     try {
       const url = buildApiUrl(null);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        cache: "no-cache",
+      });
 
       if (!response.ok) {
         // Parsowanie błędu z API
@@ -139,7 +141,9 @@ export function useAuditLogData(filters: AuditLogFiltersVM): UseAuditLogDataRetu
 
     try {
       const url = buildApiUrl(cursor);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        cache: "no-cache",
+      });
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;

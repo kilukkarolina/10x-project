@@ -40,7 +40,9 @@ export function useGoalDetailData(goalId: string): UseGoalDetailDataReturn {
       const url = new URL("/api/v1/goals", window.location.origin);
       url.searchParams.set("include_archived", "true"); // Pobieramy również zarchiwizowane
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        cache: "no-cache",
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

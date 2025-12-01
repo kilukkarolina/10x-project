@@ -1,12 +1,13 @@
 // src/components/goals/GoalListItem.tsx
 
+import React from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { GoalPriorityToggle } from "./GoalPriorityToggle";
 import { GoalArchiveButton } from "./GoalArchiveButton";
 import type { GoalListItemVM } from "./types";
-import { Archive } from "lucide-react";
+import { Archive, ArrowRight } from "lucide-react";
 
 interface GoalListItemProps {
   item: GoalListItemVM;
@@ -35,18 +36,33 @@ export function GoalListItem({ item, onTogglePriority, onArchiveClick, isPriorit
       ? "Ten cel jest już zarchiwizowany"
       : undefined;
 
+  const handleCardClick = () => {
+    window.location.href = `/goals/${item.id}`;
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <Card
-      className={`hover:shadow-md transition-shadow overflow-hidden ${
+      className={`group hover:shadow-md hover:border-primary/50 transition-all overflow-hidden cursor-pointer ${
         isArchived ? "bg-muted/30 opacity-75" : ""
       }`}
+      onClick={handleCardClick}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4 min-w-0">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold truncate break-words" title={item.name}>
-              {item.name}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold truncate break-words" title={item.name}>
+                {item.name}
+              </h3>
+              <ArrowRight
+                className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                aria-hidden="true"
+              />
+            </div>
             <p className="text-sm text-muted-foreground truncate break-words" title={item.type_label}>
               {item.type_label}
             </p>
@@ -88,7 +104,7 @@ export function GoalListItem({ item, onTogglePriority, onArchiveClick, isPriorit
         </div>
       </CardContent>
 
-      <CardFooter className="flex gap-2 pt-3 border-t">
+      <CardFooter className="flex gap-2 pt-3 border-t" onClick={handleActionClick}>
         {/* Akcje */}
         {!isArchived && (
           <GoalPriorityToggle
@@ -107,4 +123,3 @@ export function GoalListItem({ item, onTogglePriority, onArchiveClick, isPriorit
     </Card>
   );
 }
-

@@ -62,7 +62,9 @@ export function useGoalEventsData(goalId: string, filters: GoalEventFilterState)
           url.searchParams.set("cursor", cursor);
         }
 
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), {
+          cache: "no-cache",
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);

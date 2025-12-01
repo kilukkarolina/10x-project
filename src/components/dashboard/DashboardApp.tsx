@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useMonthState } from "./hooks/useMonthState";
 import { useDashboardData } from "./hooks/useDashboardData";
 import { useBackdateFlag } from "./hooks/useBackdateFlag";
@@ -11,6 +13,7 @@ import { EmptyState } from "./EmptyState";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { ErrorState } from "./ErrorState";
 import { mapMetricsToVM, mapExpensesToVM, mapPriorityGoalToVM } from "./mappers";
+import { listenToAppEvent, AppEvent, hasDataChanged, saveCheckedVersion, getDataVersion } from "@/lib/events";
 
 /**
  * DashboardApp - główny orkiestrator widoku Dashboard
@@ -22,23 +25,46 @@ import { mapMetricsToVM, mapExpensesToVM, mapPriorityGoalToVM } from "./mappers"
  * - Propagacja danych do komponentów potomnych
  */
 export function DashboardApp() {
-  const { month, setMonth, goPrev, goNext, isNextDisabled } = useMonthState();
-  const { metrics, expenses, priorityGoal, loading, error, refetch } = useDashboardData(month);
+  const { month, isInitialized: monthInitialized, setMonth, goPrev, goNext, isNextDisabled } = useMonthState();
+  const { metrics, expenses, priorityGoal, loading, error, refetch } = useDashboardData(month, monthInitialized);
   const { visible: backdateVisible, consume: dismissBackdate } = useBackdateFlag();
   const isInitialMount = useRef(true);
 
-  // Synchronizacja miesiąca z URL przy pierwszym montowaniu
+  // Synchronizacja miesiąca z URL i sprawdzenie wersji danych przy pierwszym montowaniu
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
+
+      // 1. Synchronizacja miesiąca z URL
       const params = new URLSearchParams(window.location.search);
       const urlMonth = params.get("month");
 
       if (urlMonth && urlMonth !== month) {
         setMonth(urlMonth);
       }
+
+      // 2. Sprawdź czy dane się zmieniły od ostatniej wizyty (localStorage versioning)
+      const viewKey = "dashboard";
+      const transactionsChanged = hasDataChanged(AppEvent.TRANSACTION_CHANGED, viewKey);
+      const goalsChanged = hasDataChanged(AppEvent.GOAL_CHANGED, viewKey);
+
+      if (transactionsChanged || goalsChanged) {
+        // eslint-disable-next-line no-console
+        console.log("[Dashboard] Wykryto zmiany w danych od ostatniej wizyty - dane zostaną odświeżone");
+        // Dane zostaną automatycznie pobrane przez useDashboardData
+        // Nie musimy wywoływać refetch - normalny flow się tym zajmie
+      }
     }
   }, [month, setMonth]);
+
+  // Zapisuj sprawdzoną wersję danych po każdym udanym załadowaniu
+  useEffect(() => {
+    if (!loading && !error) {
+      const viewKey = "dashboard";
+      saveCheckedVersion(AppEvent.TRANSACTION_CHANGED, viewKey, getDataVersion(AppEvent.TRANSACTION_CHANGED));
+      saveCheckedVersion(AppEvent.GOAL_CHANGED, viewKey, getDataVersion(AppEvent.GOAL_CHANGED));
+    }
+  }, [loading, error]);
 
   // Aktualizacja URL przy zmianie miesiąca
   useEffect(() => {
@@ -48,6 +74,38 @@ export function DashboardApp() {
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
   }, [month]);
+
+  // Nasłuchuj na zmiany w transakcjach, celach i miesiącu - odśwież dane
+  useEffect(() => {
+    const unsubscribeTransactions = listenToAppEvent(AppEvent.TRANSACTION_CHANGED, () => {
+      // Odśwież dane Dashboard gdy zmieni się transakcja
+      refetch();
+    });
+
+    const unsubscribeGoals = listenToAppEvent(AppEvent.GOAL_CHANGED, () => {
+      // Odśwież dane Dashboard gdy zmieni się cel (szczególnie priorytet)
+      refetch();
+    });
+
+    const unsubscribeMonth = listenToAppEvent(AppEvent.MONTH_CHANGED, (detail) => {
+      if (!detail) return;
+      const { source } = detail as { month: string; source: string };
+
+      // Ignoruj swoje własne eventy (zmiany z MonthPicker na Dashboard)
+      if (source === "dashboard") return;
+
+      // Odśwież dane gdy miesiąc zmieni się z innego widoku
+      // eslint-disable-next-line no-console
+      console.log("[Dashboard] Wykryto zmianę miesiąca z innego widoku - odświeżam dane");
+      refetch();
+    });
+
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeGoals();
+      unsubscribeMonth();
+    };
+  }, [refetch]);
 
   // Wyświetl stan ładowania
   if (loading) {
@@ -85,16 +143,6 @@ export function DashboardApp() {
     );
   }
 
-  // Debug: loguj stan danych
-  console.log("[DashboardApp] Render state:", {
-    month,
-    loading,
-    error,
-    hasMetrics: !!metrics,
-    hasExpenses: !!expenses,
-    hasPriorityGoal: !!priorityGoal,
-  });
-
   // Wyświetl stan pusty gdy brak danych w miesiącu
   const isEmpty =
     !loading &&
@@ -128,8 +176,8 @@ export function DashboardApp() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Kontrolka wyboru miesiąca */}
-      <div className="mb-6">
+      {/* Kontrolka wyboru miesiąca i przycisk odśwież */}
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <MonthPicker
           value={month}
           onChange={setMonth}
@@ -137,6 +185,11 @@ export function DashboardApp() {
           onNext={goNext}
           isNextDisabled={isNextDisabled}
         />
+
+        <Button onClick={refetch} variant="outline" size="sm" disabled={loading}>
+          <RefreshCw className={`size-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Odśwież
+        </Button>
       </div>
 
       {/* Baner backdate */}

@@ -28,7 +28,9 @@ export function useGoalTypesData(): UseGoalTypesDataReturn {
 
     try {
       const url = new URL("/api/v1/goal-types", window.location.origin);
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        cache: "no-cache",
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -58,4 +60,3 @@ export function useGoalTypesData(): UseGoalTypesDataReturn {
     refetch: fetchGoalTypes,
   };
 }
-

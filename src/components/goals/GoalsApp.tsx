@@ -11,6 +11,7 @@ import { useGoalTypesData } from "./hooks/useGoalTypesData";
 import { useGoalMutations } from "./hooks/useGoalMutations";
 import type { CreateGoalPayload } from "./types";
 import { mapGoalDtoToVm } from "./mappers";
+import { emitAppEvent, AppEvent } from "@/lib/events";
 
 /**
  * GoalsApp - główny kontener widoku Cele
@@ -35,7 +36,11 @@ export function GoalsApp() {
 
   // Stan modalów
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [archiveModalState, setArchiveModalState] = useState<{ open: boolean; goalId: string | null; goalName: string }>({
+  const [archiveModalState, setArchiveModalState] = useState<{
+    open: boolean;
+    goalId: string | null;
+    goalName: string;
+  }>({
     open: false,
     goalId: null,
     goalName: "",
@@ -64,6 +69,11 @@ export function GoalsApp() {
       // Sukces - zamknij modal i odśwież listę
       setIsCreateModalOpen(false);
       refetch();
+      // Emituj event o utworzeniu celu
+      emitAppEvent(AppEvent.GOAL_CHANGED, {
+        action: "create",
+        goalId: newGoal.id,
+      });
       // Opcjonalnie: optimistic add (ale refetch jest prostsze i spójniejsze)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Nie udało się utworzyć celu";
@@ -83,6 +93,11 @@ export function GoalsApp() {
       const updated = await updateGoal(id, { is_priority: next });
       // Sukces - odśwież listę (backend atomowo zmienia priorytet)
       refetch();
+      // Emituj event o zmianie priorytetu (Dashboard powinien się odświeżyć)
+      emitAppEvent(AppEvent.GOAL_CHANGED, {
+        action: "priority-changed",
+        goalId: updated.id,
+      });
     } catch (err) {
       // Błąd - pokaż komunikat (można dodać toast)
       console.error("Failed to toggle priority:", err);
@@ -115,6 +130,11 @@ export function GoalsApp() {
       // Sukces - zamknij modal i odśwież listę
       setArchiveModalState({ open: false, goalId: null, goalName: "" });
       refetch();
+      // Emituj event o archiwizacji celu
+      emitAppEvent(AppEvent.GOAL_CHANGED, {
+        action: "archive",
+        goalId: archiveModalState.goalId,
+      });
     } catch (err) {
       // Błąd - pokazujemy alert
       const message = err instanceof Error ? err.message : "Nie udało się zarchiwizować celu";
@@ -181,4 +201,3 @@ export function GoalsApp() {
     </div>
   );
 }
-

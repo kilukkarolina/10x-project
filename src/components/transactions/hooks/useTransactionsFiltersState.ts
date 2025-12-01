@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { parseMonth, getCurrentMonth, isMonthValid } from "@/lib/utils";
+import { emitAppEvent, listenToAppEvent, AppEvent } from "@/lib/events";
 import type { TransactionsFiltersState } from "../types";
 
 interface UseTransactionsFiltersStateReturn {
   filters: TransactionsFiltersState;
+  isInitialized: boolean;
   setMonth: (month: string) => void;
   setType: (type: TransactionsFiltersState["type"]) => void;
   setCategory: (category: string | null) => void;
@@ -18,7 +20,7 @@ interface UseTransactionsFiltersStateReturn {
 }
 
 const STORAGE_KEYS = {
-  month: "ff.transactions.month",
+  month: "ff.month", // Wspólny klucz z dashboard
   type: "ff.transactions.type",
   category: "ff.transactions.category",
   search: "ff.transactions.search",
@@ -43,11 +45,14 @@ const DEFAULT_FILTERS: TransactionsFiltersState = {
  * - Nawigacja między miesiącami
  */
 export function useTransactionsFiltersState(): UseTransactionsFiltersStateReturn {
-  // Inicjalizacja stanu z localStorage
-  const [filters, setFilters] = useState<TransactionsFiltersState>(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_FILTERS;
-    }
+  // Zawsze inicjalizuj z DEFAULT_FILTERS aby uniknąć hydration mismatch
+  // localStorage będzie załadowany w useEffect
+  const [filters, setFilters] = useState<TransactionsFiltersState>(DEFAULT_FILTERS);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Załaduj filtry z localStorage po montowaniu (tylko klient)
+  useEffect(() => {
+    if (isInitialized) return;
 
     try {
       // Miesiąc
@@ -67,23 +72,23 @@ export function useTransactionsFiltersState(): UseTransactionsFiltersStateReturn
       const storedSearch = localStorage.getItem(STORAGE_KEYS.search);
       const search = storedSearch || "";
 
-      return {
+      setFilters({
         month,
         type,
         category,
         search,
         limit: DEFAULT_FILTERS.limit,
-      };
+      });
     } catch {
-      return DEFAULT_FILTERS;
+      // Ignore localStorage errors
     }
-  });
 
-  // Synchronizacja z localStorage przy zmianach
+    setIsInitialized(true);
+  }, [isInitialized]);
+
+  // Synchronizacja z localStorage przy zmianach + emitowanie eventu dla miesiąca
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    if (!isInitialized) return;
 
     try {
       localStorage.setItem(STORAGE_KEYS.month, filters.month);
@@ -103,7 +108,35 @@ export function useTransactionsFiltersState(): UseTransactionsFiltersStateReturn
     } catch {
       // Ignore localStorage errors
     }
-  }, [filters]);
+  }, [filters, isInitialized]);
+
+  // Emituj event przy zmianie miesiąca
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    emitAppEvent(AppEvent.MONTH_CHANGED, {
+      month: filters.month,
+      source: "transactions",
+    });
+  }, [filters.month, isInitialized]);
+
+  // Nasłuchuj na zmiany miesiąca z innych widoków
+  useEffect(() => {
+    const cleanup = listenToAppEvent(AppEvent.MONTH_CHANGED, (detail) => {
+      if (!detail) return;
+      const { month: newMonth, source } = detail as { month: string; source: string };
+
+      // Ignoruj swoje własne eventy
+      if (source === "transactions") return;
+
+      // Aktualizuj stan jeśli miesiąc jest inny
+      if (newMonth !== filters.month) {
+        setFilters((prev) => ({ ...prev, month: newMonth }));
+      }
+    });
+
+    return cleanup;
+  }, [filters.month]);
 
   // Settery dla poszczególnych filtrów
   const setMonth = useCallback((newMonth: string) => {
@@ -188,6 +221,7 @@ export function useTransactionsFiltersState(): UseTransactionsFiltersStateReturn
 
   return {
     filters,
+    isInitialized,
     setMonth,
     setType,
     setCategory,
