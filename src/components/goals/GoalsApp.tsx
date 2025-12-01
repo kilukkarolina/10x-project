@@ -10,7 +10,6 @@ import { useGoalsData } from "./hooks/useGoalsData";
 import { useGoalTypesData } from "./hooks/useGoalTypesData";
 import { useGoalMutations } from "./hooks/useGoalMutations";
 import type { CreateGoalPayload } from "./types";
-import { mapGoalDtoToVm } from "./mappers";
 import { emitAppEvent, AppEvent } from "@/lib/events";
 
 /**

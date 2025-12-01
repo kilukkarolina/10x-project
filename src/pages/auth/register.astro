@@ -1,0 +1,10 @@
+---
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import { RegisterForm } from "@/components/system/auth/RegisterForm";
+---
+
+<AuthLayout title="Rejestracja - FinFlow">
+  <div class="container mx-auto px-4 py-12 flex items-center justify-center min-h-[calc(100vh-8rem)]">
+    <RegisterForm client:load />
+  </div>
+</AuthLayout>

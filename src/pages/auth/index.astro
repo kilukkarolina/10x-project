@@ -1,0 +1,94 @@
+---
+import AuthLayout from "@/layouts/AuthLayout.astro";
+---
+
+<AuthLayout title="Autentykacja - FinFlow">
+  <div class="container mx-auto px-4 py-12">
+    <div class="max-w-4xl mx-auto">
+      <div class="mb-8 text-center">
+        <h1 class="text-4xl font-bold mb-2">System autentykacji</h1>
+        <p class="text-muted-foreground">Wybierz jedną z dostępnych opcji poniżej</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Logowanie -->
+        <a href="/auth/login" class="block group">
+          <div
+            class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm transition-all hover:shadow-lg hover:border-primary/50"
+          >
+            <div class="px-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-2">
+              <div class="leading-none font-semibold group-hover:text-primary transition-colors">Zaloguj się</div>
+              <div class="text-muted-foreground text-sm">
+                Masz już konto? Zaloguj się, aby uzyskać dostęp do aplikacji
+              </div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Rejestracja -->
+        <a href="/auth/register" class="block group">
+          <div
+            class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm transition-all hover:shadow-lg hover:border-primary/50"
+          >
+            <div class="px-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-2">
+              <div class="leading-none font-semibold group-hover:text-primary transition-colors">Zarejestruj się</div>
+              <div class="text-muted-foreground text-sm">Nowy użytkownik? Utwórz konto w kilku prostych krokach</div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Reset hasła -->
+        <a href="/auth/reset-password" class="block group">
+          <div
+            class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm transition-all hover:shadow-lg hover:border-primary/50"
+          >
+            <div class="px-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-2">
+              <div class="leading-none font-semibold group-hover:text-primary transition-colors">Resetuj hasło</div>
+              <div class="text-muted-foreground text-sm">Zapomniałeś hasła? Wyślemy Ci link do resetu</div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Weryfikacja e-mail -->
+        <a href="/auth/verify" class="block group">
+          <div
+            class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm transition-all hover:shadow-lg hover:border-primary/50"
+          >
+            <div class="px-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-2">
+              <div class="leading-none font-semibold group-hover:text-primary transition-colors">
+                Weryfikacja e-mail
+              </div>
+              <div class="text-muted-foreground text-sm">Wyślij ponownie link weryfikacyjny na swój adres e-mail</div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Ustaw nowe hasło -->
+        <a href="/auth/update-password" class="block group">
+          <div
+            class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm transition-all hover:shadow-lg hover:border-primary/50"
+          >
+            <div class="px-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-2">
+              <div class="leading-none font-semibold group-hover:text-primary transition-colors">Ustaw nowe hasło</div>
+              <div class="text-muted-foreground text-sm">Finalizacja resetu hasła (wymaga linku z e-maila)</div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Info dla deweloperów -->
+      <div class="mt-12 p-6 bg-muted/50 rounded-lg border border-dashed">
+        <h2 class="text-lg font-semibold mb-2">Informacja dla deweloperów</h2>
+        <p class="text-sm text-muted-foreground mb-4">
+          Wszystkie formularze są gotowe UI-wise, ale wymagają integracji z backendem:
+        </p>
+        <ul class="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+          <li>Integracja z Supabase Auth (signIn, signUp, resetPassword, etc.)</li>
+          <li>Implementacja endpointów API: /api/v1/auth/reset-password i /api/v1/auth/resend-verification</li>
+          <li>Dodanie middleware dla coarse gating (redirect do /auth/login)</li>
+          <li>Integracja z rate limiting (3/30 min)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</AuthLayout>
