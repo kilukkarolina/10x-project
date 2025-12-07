@@ -1,21 +1,30 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { CircleAlert, CircleCheck, Loader2 } from "lucide-react";
+import { CircleAlert, Loader2 } from "lucide-react";
+import { supabaseBrowser } from "@/db/supabase.browser";
+import { RegisterRequestSchema } from "@/lib/schemas/auth";
 
 /**
  * RegisterForm - formularz rejestracji
  *
  * Odpowiedzialności:
- * - Walidacja danych (e-mail, hasło zgodnie z polityką)
- * - Wyświetlanie wskazówek dotyczących wymagań hasła
- * - Obsługa błędów rejestracji
- * - Wyświetlenie ekranu sukcesu z instrukcją weryfikacji
+ * - Walidacja danych (e-mail, hasło zgodnie z polityką: min 10 znaków, ≥1 litera, ≥1 cyfra)
+ * - Rejestracja przez Supabase Auth (signUp)
+ * - Automatyczne logowanie po rejestracji
  *
- * Note: Integracja z Supabase będzie dodana w kolejnym kroku
+ * Security:
+ * - Nie ujawnia istnienia konta (neutralne komunikaty przy konflikcie)
+ * - Hasła walidowane client-side i server-side (Supabase)
+ *
+ * Flow:
+ * 1. Walidacja client-side (Zod)
+ * 2. signUp() → Supabase tworzy konto
+ * 3. Automatyczne przekierowanie na dashboard
  */
 export function RegisterForm() {
   const [email, setEmail] = useState("");
@@ -23,7 +32,6 @@ export function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   // Walidacja hasła w czasie rzeczywistym
   const passwordValidation = {
@@ -43,78 +51,51 @@ export function RegisterForm() {
     setIsLoading(true);
 
     try {
-      // TODO: Implementacja rejestracji przez Supabase
-      // const { data, error } = await supabase.auth.signUp({
-      //   email,
-      //   password,
-      //   options: {
-      //     emailRedirectTo: `${window.location.origin}/auth/verify`
-      //   }
-      // });
+      // Client-side validation
+      const validation = RegisterRequestSchema.safeParse({ email, password });
+      if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        setError(firstError.message);
+        setIsLoading(false);
+        return;
+      }
 
-      // eslint-disable-next-line no-console
-      console.log("[RegisterForm] Rejestracja:", { email });
+      // Sign up with Supabase
+      const { data, error: signUpError } = await supabaseBrowser.auth.signUp({
+        email: validation.data.email,
+        password: validation.data.password,
+      });
 
-      // Symulacja opóźnienia
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (signUpError) {
+        // Handle specific errors
+        if (signUpError.message.toLowerCase().includes("already registered")) {
+          // Neutralna odpowiedź - nie ujawniamy istnienia konta
+          setError("Konto z tym adresem e-mail już istnieje.");
+        } else {
+          setError("Wystąpił błąd podczas rejestracji. Spróbuj ponownie.");
+        }
+        setIsLoading(false);
+        return;
+      }
 
-      setIsLoading(false);
-      setSuccess(true);
+      // Check if user was created and session exists
+      if (!data.user || !data.session) {
+        setError("Wystąpił błąd podczas rejestracji. Spróbuj ponownie.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Success - redirect to dashboard
+      toast.success("Konto zostało utworzone. Witamy w FinFlow!");
+      window.location.href = "/dashboard";
     } catch (err) {
       setIsLoading(false);
       setError("Wystąpił błąd podczas rejestracji. Spróbuj ponownie.");
+      toast.error("Błąd połączenia z serwerem");
       // eslint-disable-next-line no-console
       console.error("[RegisterForm] Error:", err);
     }
   };
-
-  // Ekran sukcesu po rejestracji
-  if (success) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader className="pb-4">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
-            <CircleCheck className="size-6 text-primary" />
-          </div>
-          <CardTitle className="text-center">Sprawdź swoją skrzynkę e-mail</CardTitle>
-          <CardDescription className="text-center">
-            Wysłaliśmy link weryfikacyjny na adres <strong>{email}</strong>
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="pt-0">
-          <Alert>
-            <CircleAlert className="size-4" />
-            <div className="ml-2">
-              <p className="font-medium mb-2">Ważne informacje:</p>
-              <ul className="text-sm space-y-1.5 list-disc list-inside">
-                <li>Link weryfikacyjny jest ważny przez 30 minut</li>
-                <li>Sprawdź folder spam, jeśli nie widzisz wiadomości</li>
-                <li>Po weryfikacji będziesz mógł się zalogować</li>
-              </ul>
-            </div>
-          </Alert>
-        </CardContent>
-
-        <CardFooter className="flex flex-col gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => (window.location.href = "/auth/login")}
-          >
-            Przejdź do logowania
-          </Button>
-          <p className="text-sm text-center text-muted-foreground">
-            Nie otrzymałeś e-maila?{" "}
-            <a href="/auth/verify" className="text-primary hover:underline font-medium">
-              Wyślij ponownie
-            </a>
-          </p>
-        </CardFooter>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-md mx-auto">

@@ -1,9 +1,9 @@
 import type { APIContext } from "astro";
 import { z } from "zod";
 
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
 import { CreateTransactionSchema, GetTransactionsQuerySchema } from "@/lib/schemas/transaction.schema";
 import { createTransaction, listTransactions, ValidationError } from "@/lib/services/transaction.service";
+import { AuthService } from "@/lib/services/auth.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -42,16 +42,21 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  *
  * Success response: 201 Created with TransactionDTO
  * Error responses:
+ * - 401: Unauthorized (not logged in)
  * - 400: Invalid request body (Zod validation failed)
  * - 409: Duplicate client_request_id (idempotency conflict)
  * - 422: Business validation failed (invalid category, date, etc.)
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function POST(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse; // Return 401
+    }
+    const userId = userIdOrResponse;
+
     // Parse request body
     const body = await context.request.json();
 
@@ -59,8 +64,7 @@ export async function POST(context: APIContext) {
     const command = CreateTransactionSchema.parse(body);
 
     // Call service layer to create transaction
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const transaction = await createTransaction(supabaseClient, DEFAULT_USER_ID, command);
+    const transaction = await createTransaction(context.locals.supabase, userId, command);
 
     // Return 201 Created with TransactionDTO
     return new Response(JSON.stringify(transaction), {
@@ -149,13 +153,19 @@ export async function POST(context: APIContext) {
  * }
  *
  * Error responses:
+ * - 401: Unauthorized (not logged in)
  * - 400: Invalid query parameters
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
  */
 export async function GET(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse; // Return 401
+    }
+    const userId = userIdOrResponse;
+
     // Parse query parameters from URL
     const url = new URL(context.request.url);
     const queryParams = {
@@ -171,8 +181,7 @@ export async function GET(context: APIContext) {
     const filters = GetTransactionsQuerySchema.parse(queryParams);
 
     // Call service layer to list transactions
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const result = await listTransactions(supabaseClient, DEFAULT_USER_ID, filters);
+    const result = await listTransactions(context.locals.supabase, userId, filters);
 
     // Return 200 OK with TransactionListResponseDTO
     return new Response(JSON.stringify(result), {

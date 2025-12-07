@@ -1,57 +1,63 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { CircleAlert, Loader2 } from "lucide-react";
-
-// interface LoginFormProps {
-//   onResendVerification?: () => void;
-// }
+import { supabaseBrowser } from "@/db/supabase.browser";
+import { LoginRequestSchema } from "@/lib/schemas/auth";
 
 /**
  * LoginForm - formularz logowania
  *
  * Odpowiedzialności:
- * - Walidacja danych po stronie klienta
- * - Obsługa błędów logowania
- * - Obsługa nieweryfikowanego konta z CTA "Wyślij ponownie"
+ * - Walidacja danych po stronie klienta (Zod)
+ * - Logowanie przez Supabase Auth (signInWithPassword)
  * - Przekierowanie do /dashboard po sukcesie
- *
- * Note: Integracja z Supabase będzie dodana w kolejnym kroku
  */
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsVerification, setNeedsVerification] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setNeedsVerification(false);
     setIsLoading(true);
 
     try {
-      // TODO: Implementacja logowania przez Supabase
-      // const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      // Client-side validation
+      const validation = LoginRequestSchema.safeParse({ email, password });
+      if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        setError(firstError.message);
+        setIsLoading(false);
+        return;
+      }
 
-      // eslint-disable-next-line no-console
-      console.log("[LoginForm] Logowanie:", { email });
+      // Attempt to sign in
+      const { error: signInError } = await supabaseBrowser.auth.signInWithPassword({
+        email: validation.data.email,
+        password: validation.data.password,
+      });
 
-      // Symulacja opóźnienia
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Handle authentication errors
+      if (signInError) {
+        setError("Nieprawidłowy e-mail lub hasło");
+        setIsLoading(false);
+        return;
+      }
 
-      // TODO: Obsługa błędu email_not_confirmed
-      // TODO: Sprawdzenie user.email_confirmed_at
-      // TODO: Przekierowanie do /dashboard
-
-      setIsLoading(false);
+      // Success - redirect to dashboard
+      toast.success("Zalogowano pomyślnie");
+      window.location.href = "/dashboard";
     } catch (err) {
       setIsLoading(false);
       setError("Wystąpił błąd podczas logowania. Spróbuj ponownie.");
+      toast.error("Błąd połączenia z serwerem");
       // eslint-disable-next-line no-console
       console.error("[LoginForm] Error:", err);
     }
@@ -70,19 +76,6 @@ export function LoginForm() {
             <Alert variant="destructive">
               <CircleAlert className="size-4" />
               <div className="ml-2">{error}</div>
-            </Alert>
-          )}
-
-          {needsVerification && (
-            <Alert>
-              <CircleAlert className="size-4" />
-              <div className="ml-2 space-y-3">
-                <p className="font-medium">Zweryfikuj adres e-mail</p>
-                <p className="text-sm">Musisz potwierdzić swój adres e-mail przed zalogowaniem.</p>
-                <a href="/auth/verify" className="text-sm text-primary hover:underline font-medium inline-block">
-                  Wyślij link ponownie
-                </a>
-              </div>
             </Alert>
           )}
 

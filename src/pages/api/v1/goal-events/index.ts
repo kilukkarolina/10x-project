@@ -1,7 +1,7 @@
 import type { APIContext } from "astro";
 import { z } from "zod";
 
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
+import { AuthService } from "@/lib/services/auth.service";
 import { CreateGoalEventSchema, ListGoalEventsQuerySchema } from "@/lib/schemas/goal-event.schema";
 import { createGoalEvent, listGoalEvents, NotFoundError, ValidationError } from "@/lib/services/goal-event.service";
 import type { ErrorResponseDTO } from "@/types";
@@ -34,11 +34,8 @@ export const prerender = false;
  *
  * Error responses:
  * - 400: Invalid query parameters (Zod validation) or invalid cursor
- * - 401: Unauthorized (future - authentication required)
+ * - 401: Unauthorized (not logged in)
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function GET(context: APIContext) {
   try {
@@ -67,9 +64,15 @@ export async function GET(context: APIContext) {
       });
     }
 
-    // 3. Call service layer to list goal events
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const result = await listGoalEvents(supabaseClient, DEFAULT_USER_ID, {
+    // 3. Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
+    // 4. Call service layer to list goal events
+    const result = await listGoalEvents(context.locals.supabase, userId, {
       goalId: validated.data.goal_id,
       month: validated.data.month,
       type: validated.data.type,
@@ -163,23 +166,27 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  * - 400: Invalid request body (Zod validation failed)
  * - 404: Goal not found, is archived, or soft-deleted
  * - 409: Conflict - duplicate client_request_id OR insufficient balance for withdrawal
+ * - 401: Unauthorized (not logged in)
  * - 422: Business validation failed (future date, etc.)
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function POST(context: APIContext) {
   try {
-    // 1. Parse request body
+    // 1. Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
+    // 2. Parse request body
     const body = await context.request.json();
 
-    // 2. Validate with Zod schema
+    // 3. Validate with Zod schema
     const command = CreateGoalEventSchema.parse(body);
 
-    // 3. Call service layer to create goal event
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const goalEvent = await createGoalEvent(supabaseClient, DEFAULT_USER_ID, command);
+    // 4. Call service layer to create goal event
+    const goalEvent = await createGoalEvent(context.locals.supabase, userId, command);
 
     // 4. Return 201 Created with GoalEventDetailDTO
     return new Response(JSON.stringify(goalEvent), {

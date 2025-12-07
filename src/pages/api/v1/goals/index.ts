@@ -1,9 +1,9 @@
 import type { APIContext } from "astro";
 import { z } from "zod";
 
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
 import { CreateGoalSchema, ListGoalsQuerySchema } from "@/lib/schemas/goal.schema";
 import { createGoal, listGoals, ValidationError } from "@/lib/services/goal.service";
+import { AuthService } from "@/lib/services/auth.service";
 import type { ErrorResponseDTO, GoalListResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -40,14 +40,19 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  * }
  *
  * Error responses:
+ * - 401: Unauthorized (not logged in)
  * - 400: Invalid query parameters (Zod validation failed)
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function GET(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Parse query parameters from URL
     const url = new URL(context.request.url);
     const queryParams = {
@@ -58,8 +63,7 @@ export async function GET(context: APIContext) {
     const validatedQuery = ListGoalsQuerySchema.parse(queryParams);
 
     // Call service layer to list goals
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const goals = await listGoals(supabaseClient, DEFAULT_USER_ID, validatedQuery.include_archived ?? false);
+    const goals = await listGoals(context.locals.supabase, userId, validatedQuery.include_archived ?? false);
 
     // Return 200 OK with GoalListResponseDTO
     const response: GoalListResponseDTO = { data: goals };
@@ -110,16 +114,21 @@ export async function GET(context: APIContext) {
  *
  * Success response: 201 Created with GoalDTO
  * Error responses:
+ * - 401: Unauthorized (not logged in)
  * - 400: Invalid request body (Zod validation failed)
  * - 409: Priority conflict (another goal is already priority)
  * - 422: Business validation failed (invalid type_code, etc.)
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function POST(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Parse request body
     const body = await context.request.json();
 
@@ -127,8 +136,7 @@ export async function POST(context: APIContext) {
     const command = CreateGoalSchema.parse(body);
 
     // Call service layer to create goal
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const goal = await createGoal(supabaseClient, DEFAULT_USER_ID, command);
+    const goal = await createGoal(context.locals.supabase, userId, command);
 
     // Return 201 Created with GoalDTO
     return new Response(JSON.stringify(goal), {

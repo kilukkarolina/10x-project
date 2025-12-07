@@ -43,12 +43,12 @@ interface FetchJsonOptions extends RequestInit {
  * });
  *
  * // Z obsługą 429
- * const data = await fetchJson<any>("/api/v1/auth/verify", {
+ * const data = await fetchJson<any>("/api/v1/auth/reset-password", {
  *   method: "POST",
- *   body: JSON.stringify({ code }),
- *   rateLimitScope: "verify_email",
+ *   body: JSON.stringify({ email }),
+ *   rateLimitScope: "reset_password",
  *   on429: ({ retryAfterSeconds }) => notify429({
- *     scope: "verify_email",
+ *     scope: "reset_password",
  *     retryAfterSeconds
  *   }),
  * });

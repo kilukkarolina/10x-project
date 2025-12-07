@@ -49,20 +49,6 @@ import AuthLayout from "@/layouts/AuthLayout.astro";
           </div>
         </a>
 
-        <!-- Weryfikacja e-mail -->
-        <a href="/auth/verify" class="block group">
-          <div
-            class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm transition-all hover:shadow-lg hover:border-primary/50"
-          >
-            <div class="px-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-2">
-              <div class="leading-none font-semibold group-hover:text-primary transition-colors">
-                Weryfikacja e-mail
-              </div>
-              <div class="text-muted-foreground text-sm">Wyślij ponownie link weryfikacyjny na swój adres e-mail</div>
-            </div>
-          </div>
-        </a>
-
         <!-- Ustaw nowe hasło -->
         <a href="/auth/update-password" class="block group">
           <div
@@ -84,7 +70,7 @@ import AuthLayout from "@/layouts/AuthLayout.astro";
         </p>
         <ul class="text-sm text-muted-foreground space-y-1 list-disc list-inside">
           <li>Integracja z Supabase Auth (signIn, signUp, resetPassword, etc.)</li>
-          <li>Implementacja endpointów API: /api/v1/auth/reset-password i /api/v1/auth/resend-verification</li>
+          <li>Implementacja endpointu API: /api/v1/auth/reset-password</li>
           <li>Dodanie middleware dla coarse gating (redirect do /auth/login)</li>
           <li>Integracja z rate limiting (3/30 min)</li>
         </ul>

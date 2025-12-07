@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,12 @@ import { CircleAlert, CircleCheck, Loader2 } from "lucide-react";
  * - Obsługa błędu 429 (rate limit) z wyświetleniem czasu do odblokowania
  * - Wyświetlenie neutralnej odpowiedzi (nie ujawniamy istnienia konta)
  *
- * Note: Integracja z API będzie dodana w kolejnym kroku
+ * Flow:
+ * 1. Walidacja e-mail (HTML5 + przyszła Zod)
+ * 2. POST /api/v1/auth/reset-password
+ * 3. API egzekwuje rate limit (3/30 min)
+ * 4. Supabase wysyła e-mail z linkiem (redirectTo: /auth/update-password)
+ * 5. Neutralny ekran sukcesu (nie ujawnia istnienia konta)
  */
 export function ResetPasswordRequestForm() {
   const [email, setEmail] = useState("");
@@ -31,27 +37,39 @@ export function ResetPasswordRequestForm() {
     setIsLoading(true);
 
     try {
-      // TODO: Implementacja wywołania API
-      // const response = await fetch("/api/v1/auth/reset-password", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ email })
-      // });
+      const response = await fetch("/api/v1/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
-      // eslint-disable-next-line no-console
-      console.log("[ResetPasswordRequestForm] Żądanie resetu:", { email });
+      if (response.status === 204) {
+        setSuccess(true);
+        toast.success("Link resetujący został wysłany");
+        setIsLoading(false);
+        return;
+      }
 
-      // Symulacja opóźnienia
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (response.status === 429) {
+        const data = await response.json();
+        setRateLimitSeconds(data.retry_after_seconds || 1800);
+        toast.error("Zbyt wiele prób. Spróbuj ponownie później.");
+        setIsLoading(false);
+        return;
+      }
 
-      // TODO: Obsługa odpowiedzi 429 (rate limit)
-      // TODO: Wyświetlenie retry_after_seconds w UI
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.message || "Wystąpił błąd podczas wysyłania żądania");
+        setIsLoading(false);
+        return;
+      }
 
       setIsLoading(false);
-      setSuccess(true);
     } catch (err) {
       setIsLoading(false);
-      setError("Wystąpił błąd podczas wysyłania żądania. Spróbuj ponownie.");
+      setError("Wystąpił błąd połączenia. Spróbuj ponownie.");
+      toast.error("Błąd połączenia z serwerem");
       // eslint-disable-next-line no-console
       console.error("[ResetPasswordRequestForm] Error:", err);
     }

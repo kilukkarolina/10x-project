@@ -1,22 +1,34 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { CircleAlert, CircleCheck, Loader2 } from "lucide-react";
+import { supabaseBrowser } from "@/db/supabase.browser";
+import { UpdatePasswordSchema } from "@/lib/schemas/auth";
 
 /**
  * UpdatePasswordForm - formularz ustawienia nowego hasła po resecie
  *
  * Odpowiedzialności:
  * - Wymiana tokenu z URL na sesję (exchangeCodeForSession)
- * - Walidacja nowego hasła (zgodnie z polityką)
+ * - Walidacja nowego hasła (polityka: min 10 znaków, ≥1 litera, ≥1 cyfra)
  * - Wywołanie updateUser({ password })
  * - Obsługa błędów (nieprawidłowy/wygasły link)
  * - Przekierowanie do /auth/login po sukcesie
  *
- * Note: Integracja z Supabase będzie dodana w kolejnym kroku
+ * Flow:
+ * 1. useEffect: exchangeCodeForSession(code) z URL
+ * 2. Jeśli invalid/expired → ekran błędu z CTA ponownego resetu
+ * 3. Jeśli OK → formularz zmiany hasła
+ * 4. updateUser({ password }) → sukces → redirect /auth/login
+ *
+ * Security:
+ * - Linki jednorazowe (po użyciu nieważne)
+ * - Ważne 30 minut (Supabase default)
+ * - Hasła walidowane client+server-side
  */
 export function UpdatePasswordForm() {
   const [password, setPassword] = useState("");
@@ -25,6 +37,7 @@ export function UpdatePasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [invalidLink, setInvalidLink] = useState(false);
+  const [isCheckingLink, setIsCheckingLink] = useState(true);
 
   // Walidacja hasła w czasie rzeczywistym
   const passwordValidation = {
@@ -40,22 +53,36 @@ export function UpdatePasswordForm() {
 
   // Sprawdź kod w URL przy montowaniu
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
+    const exchangeCode = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
 
-    if (!code) {
-      setInvalidLink(true);
-      return;
-    }
+      if (!code) {
+        setInvalidLink(true);
+        setIsCheckingLink(false);
+        return;
+      }
 
-    // TODO: Wymiana kodu na sesję
-    // const { error } = await supabase.auth.exchangeCodeForSession(code);
-    // if (error) {
-    //   setInvalidLink(true);
-    // }
+      try {
+        // Exchange code for session
+        const { error } = await supabaseBrowser.auth.exchangeCodeForSession(code);
 
-    // eslint-disable-next-line no-console
-    console.log("[UpdatePasswordForm] Kod z URL:", code);
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error("[UpdatePasswordForm] Error exchanging code:", error);
+          setInvalidLink(true);
+        }
+
+        setIsCheckingLink(false);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[UpdatePasswordForm] Unexpected error:", err);
+        setInvalidLink(true);
+        setIsCheckingLink(false);
+      }
+    };
+
+    exchangeCode();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,29 +91,57 @@ export function UpdatePasswordForm() {
     setIsLoading(true);
 
     try {
-      // TODO: Implementacja zmiany hasła przez Supabase
-      // const { error } = await supabase.auth.updateUser({ password });
+      // Validate password with Zod
+      const validation = UpdatePasswordSchema.safeParse({ password });
+      if (!validation.success) {
+        const firstError = validation.error.errors[0];
+        setError(firstError.message);
+        setIsLoading(false);
+        return;
+      }
 
-      // eslint-disable-next-line no-console
-      console.log("[UpdatePasswordForm] Zmiana hasła");
+      // Update password
+      const { error: updateError } = await supabaseBrowser.auth.updateUser({
+        password: validation.data.password,
+      });
 
-      // Symulacja opóźnienia
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (updateError) {
+        setError("Wystąpił błąd podczas zmiany hasła. Spróbuj ponownie.");
+        setIsLoading(false);
+        return;
+      }
 
-      setIsLoading(false);
+      // Success
+      toast.success("Hasło zostało zmienione");
       setSuccess(true);
+      setIsLoading(false);
 
-      // Przekierowanie po 2 sekundach
+      // Redirect to login after 2 seconds
       setTimeout(() => {
         window.location.href = "/auth/login";
       }, 2000);
     } catch (err) {
       setIsLoading(false);
       setError("Wystąpił błąd podczas zmiany hasła. Spróbuj ponownie.");
+      toast.error("Błąd połączenia z serwerem");
       // eslint-disable-next-line no-console
       console.error("[UpdatePasswordForm] Error:", err);
     }
   };
+
+  // Loading state while checking link
+  if (isCheckingLink) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center gap-4 py-8">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Sprawdzanie linku...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Link nieprawidłowy/wygasły
   if (invalidLink) {

@@ -11,10 +11,20 @@ declare global {
   }
 }
 
+// Cookie options type for Supabase SSR
+export interface CookieOptions {
+  path?: string;
+  domain?: string;
+  maxAge?: number;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: "lax" | "strict" | "none";
+}
+
 interface ImportMetaEnv {
-  readonly SUPABASE_URL: string;
-  readonly SUPABASE_KEY: string;
-  readonly SUPABASE_SERVICE_ROLE_KEY?: string;
+  readonly PUBLIC_SUPABASE_URL: string;
+  readonly PUBLIC_SUPABASE_ANON_KEY: string;
+  readonly SUPABASE_SERVICE_ROLE_KEY: string;
   readonly OPENROUTER_API_KEY?: string;
   // more env variables...
 }

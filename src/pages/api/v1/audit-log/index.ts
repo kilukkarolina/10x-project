@@ -1,7 +1,7 @@
 // src/pages/api/v1/audit-log/index.ts
 
 import type { APIRoute } from "astro";
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
+import { AuthService } from "@/lib/services/auth.service";
 import { AuditLogQueryParamsSchema } from "@/lib/schemas/audit-log.schema";
 import { AuditLogService, CursorDecodeError } from "@/lib/services/audit-log.service";
 import type { ErrorResponseDTO } from "@/types";
@@ -33,12 +33,12 @@ export const prerender = false;
  * }
  *
  * Error Responses:
+ * - 401 Unauthorized: Not logged in
  * - 400 Bad Request: Invalid query parameters or cursor
  * - 500 Internal Server Error: Database or unexpected error
  *
  * Note:
- * - Currently using DEFAULT_USER_ID for development
- * - Authentication will be implemented comprehensively later
+ * - Requires authentication (session-based)
  * - Audit log entries are retained for 30 days
  *
  * @example
@@ -61,9 +61,15 @@ export const GET: APIRoute = async (context) => {
       );
     }
 
-    // Step 2: Call service to get audit log entries
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const result = await AuditLogService.list(supabaseClient, DEFAULT_USER_ID, params.data);
+    // Step 2: Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
+    // Step 3: Call service to get audit log entries
+    const result = await AuditLogService.list(context.locals.supabase, userId, params.data);
 
     // Step 3: Return success response
     return new Response(JSON.stringify(result), {

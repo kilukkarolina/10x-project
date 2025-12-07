@@ -1,7 +1,7 @@
 import type { APIContext } from "astro";
 import { z } from "zod";
 
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
+import { AuthService } from "@/lib/services/auth.service";
 import { GetExpensesByCategoryQuerySchema } from "@/lib/schemas/expenses-by-category.schema";
 import { getExpensesByCategory } from "@/lib/services/expenses-by-category.service";
 import type { ErrorResponseDTO } from "@/types";
@@ -65,7 +65,7 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  *
  * Error responses:
  * - 400: Invalid query parameters (missing month, wrong format, future month)
- * - 401: Authentication required (currently disabled, using DEFAULT_USER_ID)
+ * - 401: Unauthorized (not logged in)
  * - 500: Unexpected server error
  *
  * @param context - Astro API context
@@ -99,12 +99,15 @@ export async function GET(context: APIContext): Promise<Response> {
       throw error;
     }
 
-    // Step 2: Get user ID
-    // TODO: Replace with auth.getUser() when authentication is implemented
-    const userId = DEFAULT_USER_ID;
+    // Step 2: Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
 
     // Step 3: Fetch expenses by category from service layer
-    const expenses = await getExpensesByCategory(supabaseClient, userId, validatedQuery.month);
+    const expenses = await getExpensesByCategory(context.locals.supabase, userId, validatedQuery.month);
 
     // Step 4: Return success response
     return new Response(JSON.stringify(expenses), {

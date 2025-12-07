@@ -1,9 +1,9 @@
 import type { APIContext } from "astro";
 import { z } from "zod";
 
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
 import { ArchiveGoalParamsSchema } from "@/lib/schemas/goal.schema";
 import { archiveGoal, ValidationError } from "@/lib/services/goal.service";
+import { AuthService } from "@/lib/services/auth.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -51,14 +51,19 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  * - 400: Invalid goal ID format (Zod validation failed)
  * - 404: Goal not found or doesn't belong to user
  * - 409: Cannot archive priority goal (unset priority first)
+ * - 401: Unauthorized (not logged in)
  * - 422: Goal is already archived
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function POST(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Step 1: Validate path parameter (goal ID)
     const paramsValidation = ArchiveGoalParamsSchema.safeParse({ id: context.params.id });
 
@@ -75,8 +80,7 @@ export async function POST(context: APIContext) {
     }
 
     // Step 2: Call service layer to archive goal
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const result = await archiveGoal(supabaseClient, DEFAULT_USER_ID, paramsValidation.data.id);
+    const result = await archiveGoal(context.locals.supabase, userId, paramsValidation.data.id);
 
     // Step 3: Return 404 if goal doesn't exist
     if (!result) {

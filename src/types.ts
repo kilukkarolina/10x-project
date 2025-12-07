@@ -353,7 +353,7 @@ export interface SystemStatusVM {
 /**
  * Rate limit scope - rodzaj akcji objętej limitem
  */
-export type RateLimitScope = "verify_email" | "reset_password" | "api_general";
+export type RateLimitScope = "reset_password" | "api_general";
 
 /**
  * Rate limit information

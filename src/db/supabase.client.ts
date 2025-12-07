@@ -16,19 +16,34 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 /**
- * Supabase client for API endpoints
+ * Supabase client for server-side API endpoints
+ *
+ * Configuration:
+ * - autoRefreshToken: false (server-side, no token refresh needed)
+ * - persistSession: false (stateless server requests)
+ * - Uses anon key (public access level)
+ *
+ * Usage:
+ * - Import in API routes via context.locals.supabase (preferred)
+ * - Direct import acceptable for non-auth operations
+ * - For auth operations, use supabaseBrowser (client-side) or supabaseAdmin (server-side with elevated privileges)
  *
  * DEVELOPMENT MODE (CURRENT):
  * - RLS is temporarily DISABLED on main tables (see migration 20251111090000)
- * - Using anon key - sufficient for testing without auth
- * - Auth middleware not yet implemented
+ * - Using DEFAULT_USER_ID in domain API endpoints until full auth integration
+ *
+ * AUTH INTEGRATION (IN PROGRESS):
+ * - Login/register flows use supabaseBrowser (client-side)
+ * - Rate limiting uses supabaseAdmin (service role)
+ * - Domain endpoints will be updated to extract user_id from session
  *
  * PRODUCTION MODE (FUTURE):
  * - RLS will be RE-ENABLED for security
- * - Auth middleware will provide user context (context.locals.user)
- * - RLS policies will enforce user-based access control
+ * - Auth middleware will extract user context from session
+ * - All API endpoints will use authenticated user_id
+ * - DEFAULT_USER_ID will be removed from domain services
  *
- * Note: Re-enable RLS and implement auth before production deployment
+ * Note: Re-enable RLS before production deployment (see .ai/re-enable-rls-checklist.md)
  */
 export const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -42,6 +57,13 @@ export type SupabaseClient = typeof supabaseClient;
 /**
  * Default user ID for development/testing
  * This user is seeded in migration 20251109120500_seed_test_user.sql
- * Used when auth is not yet implemented
+ *
+ * TEMPORARY: Used by domain API endpoints (transactions, goals, etc.) until
+ * full auth integration replaces it with real authenticated user_id.
+ *
+ * Auth endpoints (login, register, reset-password) do NOT use this.
+ * They extract user_id from Supabase Auth session or lookup by email.
+ *
+ * TODO: Remove after integrating auth with domain endpoints.
  */
 export const DEFAULT_USER_ID = "4eef0567-df09-4a61-9219-631def0eb53e";

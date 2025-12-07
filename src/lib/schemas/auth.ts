@@ -1,72 +1,58 @@
 import { z } from "zod";
 
 /**
- * Schemat walidacji adresu e-mail
- * RFC 5322, max 254 znaki
+ * Email schema - zgodny z RFC 5322
+ * Max length 254 zgodnie ze standardem
  */
 export const EmailSchema = z
   .string()
-  .min(1, "Adres e-mail jest wymagany")
   .email("Nieprawidłowy format adresu e-mail")
   .max(254, "Adres e-mail jest za długi");
 
 /**
- * Schemat walidacji hasła
+ * Password schema - polityka haseł FinFlow
  * - Minimum 10 znaków
- * - Co najmniej jedna litera
- * - Co najmniej jedna cyfra
+ * - Co najmniej 1 litera (A-Z lub a-z)
+ * - Co najmniej 1 cyfra (0-9)
  */
 export const PasswordSchema = z
   .string()
-  .min(10, "Hasło musi mieć minimum 10 znaków")
+  .min(10, "Hasło musi zawierać minimum 10 znaków")
   .regex(/[A-Za-z]/, "Hasło musi zawierać co najmniej jedną literę")
   .regex(/[0-9]/, "Hasło musi zawierać co najmniej jedną cyfrę");
 
 /**
- * Schemat dla żądania resetu hasła
+ * Login request schema
+ */
+export const LoginRequestSchema = z.object({
+  email: EmailSchema,
+  password: z.string().min(1, "Hasło jest wymagane"),
+});
+
+/**
+ * Reset password request schema
  */
 export const ResetPasswordRequestSchema = z.object({
   email: EmailSchema,
 });
 
 /**
- * Schemat dla ustawienia nowego hasła po resecie
+ * Update password schema
  */
-export const UpdatePasswordSchema = z
-  .object({
-    password: PasswordSchema,
-    confirmPassword: z.string().min(1, "Potwierdzenie hasła jest wymagane"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Hasła muszą być identyczne",
-    path: ["confirmPassword"],
-  });
-
-/**
- * Schemat dla rejestracji
- */
-export const RegisterSchema = z
-  .object({
-    email: EmailSchema,
-    password: PasswordSchema,
-    confirmPassword: z.string().min(1, "Potwierdzenie hasła jest wymagane"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Hasła muszą być identyczne",
-    path: ["confirmPassword"],
-  });
-
-/**
- * Schemat dla logowania
- */
-export const LoginSchema = z.object({
-  email: EmailSchema,
-  password: z.string().min(1, "Hasło jest wymagane"),
+export const UpdatePasswordSchema = z.object({
+  password: PasswordSchema,
 });
 
 /**
- * Schemat dla ponownej wysyłki weryfikacji
+ * Register request schema
  */
-export const ResendVerificationRequestSchema = z.object({
+export const RegisterRequestSchema = z.object({
   email: EmailSchema,
+  password: PasswordSchema,
 });
+
+// Export types for TypeScript
+export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
+export type UpdatePasswordRequest = z.infer<typeof UpdatePasswordSchema>;
+export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;

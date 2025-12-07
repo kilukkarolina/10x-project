@@ -1,7 +1,6 @@
 import type { APIContext } from "astro";
 import { z } from "zod";
 
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
 import {
   GetTransactionByIdParamsSchema,
   UpdateTransactionParamsSchema,
@@ -14,6 +13,7 @@ import {
   deleteTransaction,
   ValidationError,
 } from "@/lib/services/transaction.service";
+import { AuthService } from "@/lib/services/auth.service";
 import type { ErrorResponseDTO } from "@/types";
 
 // Disable static rendering for API endpoint
@@ -57,21 +57,25 @@ function formatZodErrors(error: z.ZodError): Record<string, string> {
  * }
  *
  * Error responses:
+ * - 401: Unauthorized (not logged in)
  * - 400: Invalid transaction ID format (not a valid UUID)
  * - 404: Transaction not found or soft-deleted
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function GET(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Step 1: Parse and validate path parameter
     const params = GetTransactionByIdParamsSchema.parse(context.params);
 
     // Step 2: Call service layer to get transaction
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const transaction = await getTransactionById(supabaseClient, DEFAULT_USER_ID, params.id);
+    const transaction = await getTransactionById(context.locals.supabase, userId, params.id);
 
     // Step 3: Handle not found case
     if (!transaction) {
@@ -153,14 +157,19 @@ export async function GET(context: APIContext) {
  * Error responses:
  * - 400: Invalid request data (Zod validation failed)
  * - 404: Transaction not found or soft-deleted
+ * - 401: Unauthorized (not logged in)
  * - 422: Business validation failed (category invalid, etc.)
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  */
 export async function PATCH(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Step 1: Parse and validate path parameter
     const params = UpdateTransactionParamsSchema.parse(context.params);
 
@@ -169,8 +178,7 @@ export async function PATCH(context: APIContext) {
     const command = UpdateTransactionSchema.parse(body);
 
     // Step 3: Call service layer to update transaction
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const transaction = await updateTransaction(supabaseClient, DEFAULT_USER_ID, params.id, command);
+    const transaction = await updateTransaction(context.locals.supabase, userId, params.id, command);
 
     // Step 4: Handle not found case
     if (!transaction) {
@@ -244,26 +252,27 @@ export async function PATCH(context: APIContext) {
  *
  * Error responses:
  * - 400: Invalid transaction ID format (not a valid UUID)
+ * - 401: Unauthorized (not logged in)
  * - 404: Transaction not found, already deleted, or belongs to different user
  * - 500: Unexpected server error
- *
- * Note: Authentication is temporarily disabled. Using DEFAULT_USER_ID.
- * Auth will be implemented comprehensively in a future iteration.
  *
  * Idempotency: Calling DELETE multiple times on the same transaction
  * will return 404 after the first successful deletion.
  */
 export async function DELETE(context: APIContext) {
   try {
+    // Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Step 1: Parse and validate path parameter
     const params = DeleteTransactionParamsSchema.parse(context.params);
 
-    // Step 2: Get user context
-    // Note: Using DEFAULT_USER_ID until auth is implemented
-    const userId = DEFAULT_USER_ID;
-
-    // Step 3: Call service layer to soft-delete transaction
-    const deleted = await deleteTransaction(supabaseClient, userId, params.id);
+    // Step 2: Call service layer to soft-delete transaction
+    const deleted = await deleteTransaction(context.locals.supabase, userId, params.id);
 
     // Step 4: Handle not found case
     if (!deleted) {

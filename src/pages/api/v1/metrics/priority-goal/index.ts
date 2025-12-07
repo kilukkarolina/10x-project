@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { PriorityGoalMetricsQuerySchema } from "@/lib/schemas/priority-goal-metrics.schema";
 import { getPriorityGoalMetrics } from "@/lib/services/goal.service";
-import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
+import { AuthService } from "@/lib/services/auth.service";
 
 /**
  * GET /api/v1/metrics/priority-goal
@@ -27,17 +27,19 @@ import { supabaseClient, DEFAULT_USER_ID } from "@/db/supabase.client";
  * Error Responses:
  * - 400 Bad Request: Invalid month format
  * - 404 Not Found: No priority goal set
+ * - 401 Unauthorized: Not logged in
  * - 500 Internal Server Error: Database error
- *
- * Note: Currently using DEFAULT_USER_ID for development.
- * Authentication will be implemented later.
  */
 
 export const GET: APIRoute = async (context) => {
-  const userId = DEFAULT_USER_ID;
-  const supabase = supabaseClient;
-
   try {
+    // Step 1: Get authenticated user ID
+    const userIdOrResponse = await AuthService.getUserIdOrUnauthorized(context);
+    if (userIdOrResponse instanceof Response) {
+      return userIdOrResponse;
+    }
+    const userId = userIdOrResponse;
+
     // Step 2: Extract and validate query parameters
     const url = new URL(context.request.url);
     const monthParam = url.searchParams.get("month");
@@ -66,7 +68,7 @@ export const GET: APIRoute = async (context) => {
     const month = validatedQuery.data.month || new Date().toISOString().slice(0, 7);
 
     // Step 4: Call service layer
-    const result = await getPriorityGoalMetrics(supabase, userId, month);
+    const result = await getPriorityGoalMetrics(context.locals.supabase, userId, month);
 
     // Step 5: Handle not found case
     if (!result) {
