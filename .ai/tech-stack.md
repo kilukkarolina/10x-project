@@ -2,9 +2,13 @@
 
 ### Architektura – wariant A (prawie‑SPA na Astro)
 
-- Frontend: Astro statyczny + jeden duży „React island” (panel po zalogowaniu), Tailwind 4, shadcn/ui. Brak SSR — dane przez `@supabase/supabase-js`.
+- Frontend: Astro statyczny + jeden duży „React island" (panel po zalogowaniu), Tailwind 4, shadcn/ui. Brak SSR — dane przez `@supabase/supabase-js`.
 - Backend: Supabase (Postgres + RLS, Auth, Edge Functions).
 - E‑mail: Supabase Auth wysyła przez SMTP Postmark (domena z DKIM/SPF/DMARC). Fallback SMTP: Resend/Brevo, gdyby darmowy limit Postmark okazał się testowy.
+- Testing:
+  - **Unit & Integration**: Vitest (framework), React Testing Library (komponenty UI), MSW (mockowanie API), Testcontainers (PostgreSQL dla testów integracyjnych).
+  - **E2E**: Playwright (framework), Supabase Cloud (dedykowany projekt testowy), Ethereal Email (weryfikacja maili).
+  - **Coverage**: Vitest Coverage (v8 provider); cele: ≥80% unit, 100% API endpoints, ≥70% UI components.
 
 ### Co zrobić krok po kroku (skrócone)
 
@@ -70,6 +74,37 @@ AUTH_EMAIL_FROM="FinFlow <no-reply@twojadomena.pl>"
 - Wniosek: przy wariancie A i Twoich założeniach zrobimy MVP bez dodatkowych opłat (poza hostingiem i domeną); kluczowe jest przygotowanie szybkiego fallbacku SMTP na wypadek limitów Postmark.
 
 - Krótko:
-  - OK na Supabase Free + Postmark „free” (z limitem) i płatny hosting.
+  - OK na Supabase Free + Postmark „free" (z limitem) i płatny hosting.
   - Zrób adapter SMTP i fallback do Resend/Brevo.
   - Resztę wymagań PRD domykamy w Supabase (RLS, Edge Functions, triggery, cron przez Actions).
+
+### Strategia testowa (3 poziomy)
+
+- **Level 1 – Unit tests** (Vitest + in-memory):
+  - Szybkie (~10ms per test), uruchamiane w watch mode przy każdym zapisie.
+  - Wszystkie zależności mockowane.
+  - Cel: logika biznesowa (parsowanie kwot, bankierskie zaokrąglanie, obliczenia finansowe).
+  
+- **Level 2 – Integration tests** (Vitest + Testcontainers):
+  - Prawdziwa baza Postgres w kontenerze Docker (~100-500ms per test).
+  - **Fake auth** (mock userId) – testujemy logikę biznesową, nie Supabase Auth.
+  - Migracje z `./supabase/migrations/` uruchamiane automatycznie.
+  - Cel: API endpoints, RLS policies, soft-delete, audit_log, agregacje.
+  
+- **Level 3 – E2E tests** (Playwright + Supabase Cloud):
+  - Prawdziwy Supabase Auth (GoTrue) + dedykowany projekt testowy.
+  - Ethereal Email dla weryfikacji maili (rejestracja, reset hasła).
+  - Pełne user flows (~5-15s per flow).
+  - Cel: auth flows, critical user journeys, smoke tests.
+
+**CI/CD Pipeline**:
+- Unit tests: każdy push (~1-2 min)
+- Integration tests: każdy PR (~5-8 min)
+- E2E tests: merge do master + release (~10-15 min)
+
+**Pominięte w MVP** (świadomie):
+- ❌ Performance/load testing (k6, Artillery) – małe obciążenie, Supabase skaluje automatycznie
+- ❌ Security testing (OWASP, pentesty) – RLS testowane funkcjonalnie, Supabase ma wbudowane zabezpieczenia
+- ❌ Mutation testing – opcjonalnie post-MVP
+
+Pełna dokumentacja: `.ai/test-plan.md`

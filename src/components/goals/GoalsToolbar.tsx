@@ -19,19 +19,25 @@ interface GoalsToolbarProps {
  * - Przełącznik "Pokaż archiwalne"
  * - Przycisk "Utwórz cel"
  */
-export function GoalsToolbar({ includeArchived, onToggleArchived, onCreateClick, totalCount, archivedCount }: GoalsToolbarProps) {
+export function GoalsToolbar({
+  includeArchived,
+  onToggleArchived,
+  onCreateClick,
+  totalCount,
+  archivedCount,
+}: GoalsToolbarProps) {
   // Formatowanie licznika celów
   const getCountLabel = () => {
     if (totalCount === 0) return null;
-    
+
     const baseLabel = totalCount === 1 ? "1 cel" : `${totalCount} celów`;
-    
+
     // Jeśli widok z archiwalnymi i są jakieś zarchiwizowane
     if (includeArchived && archivedCount > 0) {
       const archivedLabel = archivedCount === 1 ? "1 nieaktywny" : `${archivedCount} nieaktywne`;
       return `${baseLabel} (w tym ${archivedLabel})`;
     }
-    
+
     return baseLabel;
   };
 
@@ -40,9 +46,7 @@ export function GoalsToolbar({ includeArchived, onToggleArchived, onCreateClick,
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Cele oszczędnościowe</h1>
         {totalCount > 0 && (
-          <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-md">
-            {getCountLabel()}
-          </span>
+          <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-md">{getCountLabel()}</span>
         )}
       </div>
 
@@ -78,4 +82,3 @@ export function GoalsToolbar({ includeArchived, onToggleArchived, onCreateClick,
     </div>
   );
 }
-

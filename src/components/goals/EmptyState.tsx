@@ -24,7 +24,8 @@ export function EmptyState({ onCreateGoal, hasFilters = false }: EmptyStateProps
         </div>
         <h3 className="text-lg font-semibold mb-2">Brak zarchiwizowanych celów</h3>
         <p className="text-sm text-muted-foreground max-w-md mb-6">
-          Nie masz jeszcze żadnych zarchiwizowanych celów. Archiwizacja pozwala ukryć nieaktualne cele bez utraty historii.
+          Nie masz jeszcze żadnych zarchiwizowanych celów. Archiwizacja pozwala ukryć nieaktualne cele bez utraty
+          historii.
         </p>
       </div>
     );
@@ -46,4 +47,3 @@ export function EmptyState({ onCreateGoal, hasFilters = false }: EmptyStateProps
     </div>
   );
 }
-

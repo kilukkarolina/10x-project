@@ -54,7 +54,9 @@ export class RateLimitService {
     try {
       // Calculate current 30-minute bucket
       const now = new Date();
-      const bucketStart = new Date(Math.floor(now.getTime() / (1000 * this.WINDOW_SECONDS)) * (1000 * this.WINDOW_SECONDS));
+      const bucketStart = new Date(
+        Math.floor(now.getTime() / (1000 * this.WINDOW_SECONDS)) * (1000 * this.WINDOW_SECONDS)
+      );
       const bucketEnd = new Date(bucketStart.getTime() + this.WINDOW_SECONDS * 1000);
 
       // Count attempts in current bucket
@@ -143,4 +145,3 @@ export class RateLimitService {
     }
   }
 }
-

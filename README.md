@@ -56,6 +56,12 @@ References:
   - `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`
   - `lucide-react` (icons)
   - Charts (planned per PRD): Recharts
+- Testing
+  - Unit & Integration: Vitest with React Testing Library
+  - E2E: Playwright
+  - API Mocking: MSW (Mock Service Worker)
+  - Integration DB: Testcontainers (PostgreSQL)
+  - Coverage: Vitest Coverage (v8 provider)
 - Runtime
   - Node.js 22.14.0 (see `.nvmrc`)
 
@@ -118,6 +124,14 @@ These come directly from `package.json`:
 - `lint`: run ESLint across the project
 - `lint:fix`: run ESLint with auto‑fix
 - `format`: run Prettier on supported files
+- `test`: run all tests (unit + integration)
+- `test:unit`: run unit tests
+- `test:unit:watch`: run unit tests in watch mode
+- `test:unit:coverage`: run unit tests with coverage report
+- `test:integration`: run integration tests
+- `test:e2e`: run E2E tests with Playwright
+- `test:e2e:ui`: run E2E tests in Playwright UI mode
+- `test:all`: run complete test suite (unit + integration + E2E)
 
 ## 6. Project scope
 
@@ -145,8 +159,9 @@ Out of scope (MVP):
 
 - Status: Work in progress (MVP).
 - Frontend skeleton: Astro 5 + React 19 + Tailwind 4 + shadcn/ui in place.
+- Testing: Vitest (unit/integration) + Playwright (E2E); see `.ai/test-plan.md` for complete testing strategy.
 - Planned (not yet added to dependencies): `@supabase/supabase-js` for data access and `recharts` for charts (per PRD).
-- Documentation: see `.ai/prd.md` for full requirements and `.ai/tech-stack.md` for architectural notes and operations plan.
+- Documentation: see `.ai/prd.md` for full requirements, `.ai/tech-stack.md` for architectural notes, and `.ai/test-plan.md` for testing strategy.
 
 ## 8. License
 

@@ -44,5 +44,3 @@ export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseService
 });
 
 export type SupabaseAdminClient = typeof supabaseAdmin;
-
-

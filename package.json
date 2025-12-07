@@ -10,7 +10,18 @@
     "astro": "astro",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:unit:watch": "vitest watch --config vitest.config.ts",
+    "test:unit:coverage": "vitest run --coverage --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.config.ts tests/integration",
+    "test:integration:watch": "vitest watch --config vitest.config.ts tests/integration",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:all": "npm run test && npm run test:e2e"
   },
   "dependencies": {
     "@astrojs/node": "^9.4.3",
@@ -43,8 +54,17 @@
   "devDependencies": {
     "@eslint/compat": "1.2.7",
     "@eslint/js": "9.23.0",
+    "@playwright/test": "^1.57.0",
+    "@testcontainers/postgresql": "^11.9.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/nodemailer": "^7.0.4",
+    "@types/pg": "^8.15.6",
     "@typescript-eslint/eslint-plugin": "8.28.0",
     "@typescript-eslint/parser": "8.28.0",
+    "@vitest/coverage-v8": "^4.0.15",
+    "dotenv": "^17.2.3",
     "eslint": "9.23.0",
     "eslint-config-prettier": "10.1.1",
     "eslint-import-resolver-typescript": "4.2.5",
@@ -55,10 +75,16 @@
     "eslint-plugin-react": "7.37.4",
     "eslint-plugin-react-compiler": "19.0.0-beta-aeaed83-20250323",
     "eslint-plugin-react-hooks": "5.2.0",
+    "happy-dom": "^20.0.11",
     "husky": "9.1.7",
+    "jsdom": "^27.2.0",
     "lint-staged": "15.5.0",
+    "msw": "^2.12.4",
+    "nodemailer": "^7.0.11",
+    "pg": "^8.16.3",
     "prettier-plugin-astro": "0.14.1",
-    "typescript-eslint": "8.28.0"
+    "typescript-eslint": "8.28.0",
+    "vitest": "^4.0.15"
   },
   "lint-staged": {
     "*.{ts,tsx,astro}": [

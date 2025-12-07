@@ -18,7 +18,12 @@ interface GoalPriorityToggleProps {
  * Steruje czy cel jest priorytetowy (tylko jeden cel może być priorytetowy)
  * Backend atomowo usuwa priorytet z poprzedniego celu
  */
-export function GoalPriorityToggle({ checked, disabled = false, onChange, isLoading = false }: GoalPriorityToggleProps) {
+export function GoalPriorityToggle({
+  checked,
+  disabled = false,
+  onChange,
+  isLoading = false,
+}: GoalPriorityToggleProps) {
   const handleClick = () => {
     if (disabled || isLoading) return;
     onChange(!checked);
@@ -57,4 +62,3 @@ export function GoalPriorityToggle({ checked, disabled = false, onChange, isLoad
 
   return button;
 }
-

@@ -63,10 +63,7 @@ export function emitAppEvent(eventType: AppEvent, detail?: AppEventDetail): void
 /**
  * Nasłuchuje na event aplikacyjny (w tej samej stronie)
  */
-export function listenToAppEvent(
-  eventType: AppEvent,
-  handler: (detail?: AppEventDetail) => void
-): () => void {
+export function listenToAppEvent(eventType: AppEvent, handler: (detail?: AppEventDetail) => void): () => void {
   const listener = (event: Event) => {
     const customEvent = event as CustomEvent<AppEventDetail>;
     handler(customEvent.detail);
@@ -118,4 +115,3 @@ export function hasDataChanged(eventType: AppEvent, viewKey: string): boolean {
 
   return currentVersion > checkedVersion;
 }
-

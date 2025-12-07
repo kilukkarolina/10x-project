@@ -16,9 +16,16 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
+.env.test
 
 # macOS-specific files
 .DS_Store
 
 # jetbrains setting folder
 .idea/
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
+.playwright/

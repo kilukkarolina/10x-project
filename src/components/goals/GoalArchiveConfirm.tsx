@@ -40,7 +40,8 @@ export function GoalArchiveConfirm({ open, onOpenChange, onConfirm, isSubmitting
             <span className="truncate">Archiwizuj cel</span>
           </DialogTitle>
           <DialogDescription className="break-words overflow-wrap-anywhere">
-            Czy na pewno chcesz zarchiwizować cel <span className="font-semibold break-all">&quot;{goalName}&quot;</span>?
+            Czy na pewno chcesz zarchiwizować cel{" "}
+            <span className="font-semibold break-all">&quot;{goalName}&quot;</span>?
           </DialogDescription>
         </DialogHeader>
 
@@ -48,7 +49,9 @@ export function GoalArchiveConfirm({ open, onOpenChange, onConfirm, isSubmitting
           <Info className="size-5 text-blue-500 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground mb-1">Historia pozostanie zachowana</p>
-            <p>Archiwizacja nie usuwa historii celu ani powiązanych wydarzeń. Będziesz mógł przywrócić cel w przyszłości.</p>
+            <p>
+              Archiwizacja nie usuwa historii celu ani powiązanych wydarzeń. Będziesz mógł przywrócić cel w przyszłości.
+            </p>
           </div>
         </div>
 
@@ -64,4 +67,3 @@ export function GoalArchiveConfirm({ open, onOpenChange, onConfirm, isSubmitting
     </Dialog>
   );
 }
-

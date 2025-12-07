@@ -39,4 +39,3 @@ export function GoalArchiveButton({ onClick, disabled = false, disabledReason }:
 
   return button;
 }
-

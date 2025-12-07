@@ -46,7 +46,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Debug logging
   // eslint-disable-next-line no-console
-  console.log("[Middleware] Parsed cookies:", Object.keys(cookies).filter((k) => k.startsWith("sb-")));
+  console.log(
+    "[Middleware] Parsed cookies:",
+    Object.keys(cookies).filter((k) => k.startsWith("sb-"))
+  );
 
   // Twórz per-request Supabase client z cookies
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
