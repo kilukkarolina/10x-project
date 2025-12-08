@@ -98,8 +98,23 @@ jobs:
       - name: Build application
         run: npm run build
       
+      - name: Start preview server in background
+        run: |
+          npx astro preview --port 3004 &
+          echo $! > .preview-server.pid
+          # Wait for server to be ready (max 60 seconds)
+          timeout 60 bash -c 'until curl -sf http://localhost:3004 > /dev/null; do sleep 1; done' || true
+          echo "Preview server is ready"
+      
       - name: Run E2E tests
         run: npm run test:e2e
+      
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f .preview-server.pid ]; then
+            kill $(cat .preview-server.pid) || true
+          fi
       
       - name: Upload E2E test report
         if: always()
