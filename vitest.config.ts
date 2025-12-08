@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
 
   test: {
-    // Include both unit tests (in src/) and integration tests (in tests/)
-    include: ["src/**/*.test.{ts,tsx}", "tests/integration/**/*.integration.test.ts"],
+    // Include both unit tests (in src/ and tests/unit/) and integration tests (in tests/)
+    include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.ts", "tests/integration/**/*.integration.test.ts"],
 
     globals: true,
     environment: "jsdom",
