@@ -1,4 +1,4 @@
-# FinFlow
+# FinFlow App
 
 [![Node Version](https://img.shields.io/badge/node-22.14.0-339933?logo=node.js)](https://nodejs.org/en/download)
 [![Astro](https://img.shields.io/badge/Astro-5.x-FF5D01?logo=astro&logoColor=white)](https://astro.build/)
