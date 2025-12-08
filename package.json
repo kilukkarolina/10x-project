@@ -5,6 +5,7 @@
   "scripts": {
     "predev": "npx kill-port 3004 || true",
     "dev": "astro dev",
+    "dev:e2e": "node scripts/dev-e2e.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",

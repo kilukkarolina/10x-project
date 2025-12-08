@@ -20,7 +20,7 @@ export function MetricsCards({ data }: MetricsCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Karta: Dochód */}
-      <Card>
+      <Card data-test-id="metric-card-income">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Dochód</CardTitle>
           <TrendingUp className="size-4 text-green-600" aria-hidden="true" />
@@ -36,7 +36,7 @@ export function MetricsCards({ data }: MetricsCardsProps) {
       </Card>
 
       {/* Karta: Wydatki */}
-      <Card>
+      <Card data-test-id="metric-card-expenses">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Wydatki</CardTitle>
           <TrendingDown className="size-4 text-blue-600" aria-hidden="true" />
@@ -47,7 +47,7 @@ export function MetricsCards({ data }: MetricsCardsProps) {
       </Card>
 
       {/* Karta: Odłożone netto */}
-      <Card>
+      <Card data-test-id="metric-card-net-saved">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Odłożone netto</CardTitle>
           <Wallet className="size-4 text-blue-600" aria-hidden="true" />
@@ -58,7 +58,7 @@ export function MetricsCards({ data }: MetricsCardsProps) {
       </Card>
 
       {/* Karta: Wolne środki z tooltipem */}
-      <Card>
+      <Card data-test-id="metric-card-free-cash-flow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Wolne środki</CardTitle>

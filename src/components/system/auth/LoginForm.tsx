@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { CircleAlert, Loader2 } from "lucide-react";
 import { supabaseBrowser } from "@/db/supabase.browser";
 import { LoginRequestSchema } from "@/lib/schemas/auth";
+import { getCurrentMonth } from "@/lib/utils";
 
 /**
  * LoginForm - formularz logowania
@@ -51,9 +52,10 @@ export function LoginForm() {
         return;
       }
 
-      // Success - redirect to dashboard
+      // Success - redirect to dashboard with current month parameter
+      // This ensures proper UI initialization (dashboard requires ?month= param)
       toast.success("Zalogowano pomyślnie");
-      window.location.href = "/dashboard";
+      window.location.href = `/dashboard?month=${getCurrentMonth()}`;
     } catch (err) {
       setIsLoading(false);
       setError("Wystąpił błąd podczas logowania. Spróbuj ponownie.");
@@ -65,7 +67,7 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-md mx-auto">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} action="javascript:void(0)">
         <CardHeader className="pb-4">
           <CardTitle>Zaloguj się</CardTitle>
           <CardDescription>Wprowadź swoje dane, aby uzyskać dostęp do konta</CardDescription>
@@ -73,7 +75,7 @@ export function LoginForm() {
 
         <CardContent className="space-y-6 pt-0">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" data-test-id="login-error-message">
               <CircleAlert className="size-4" />
               <div className="ml-2">{error}</div>
             </Alert>
@@ -83,6 +85,7 @@ export function LoginForm() {
             <Label htmlFor="email">Adres e-mail</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="twoj@email.pl"
               value={email}
@@ -90,6 +93,7 @@ export function LoginForm() {
               disabled={isLoading}
               required
               autoComplete="email"
+              data-test-id="login-email-input"
             />
           </div>
 
@@ -105,6 +109,7 @@ export function LoginForm() {
             </div>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••••"
               value={password}
@@ -112,12 +117,13 @@ export function LoginForm() {
               disabled={isLoading}
               required
               autoComplete="current-password"
+              data-test-id="login-password-input"
             />
           </div>
         </CardContent>
 
         <CardFooter className="flex flex-col gap-4 pt-2">
-          <Button type="submit" className="w-full" disabled={isLoading || !email || !password}>
+          <Button type="submit" className="w-full" disabled={isLoading} data-test-id="login-submit">
             {isLoading && <Loader2 className="size-4 animate-spin" />}
             {isLoading ? "Logowanie..." : "Zaloguj się"}
           </Button>

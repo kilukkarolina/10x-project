@@ -261,7 +261,7 @@ W Supabase Dashboard → Settings → API:
 PUBLIC_SUPABASE_URL=https://your-test-project.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_KEY=your-service-key-here  # Dla cleanup users
-TEST_BASE_URL=http://localhost:4321
+TEST_BASE_URL=http://localhost:3004
 ```
 
 **⚠️WAŻNE**: Dodaj `.env.test` do `.gitignore`!

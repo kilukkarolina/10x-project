@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { CircleAlert, Loader2 } from "lucide-react";
 import { supabaseBrowser } from "@/db/supabase.browser";
 import { RegisterRequestSchema } from "@/lib/schemas/auth";
+import { getCurrentMonth } from "@/lib/utils";
 
 /**
  * RegisterForm - formularz rejestracji
@@ -85,9 +86,10 @@ export function RegisterForm() {
         return;
       }
 
-      // Success - redirect to dashboard
+      // Success - redirect to dashboard with current month parameter
+      // This ensures proper UI initialization (dashboard requires ?month= param)
       toast.success("Konto zostało utworzone. Witamy w FinFlow!");
-      window.location.href = "/dashboard";
+      window.location.href = `/dashboard?month=${getCurrentMonth()}`;
     } catch (err) {
       setIsLoading(false);
       setError("Wystąpił błąd podczas rejestracji. Spróbuj ponownie.");
@@ -107,7 +109,7 @@ export function RegisterForm() {
 
         <CardContent className="space-y-6 pt-0">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" data-test-id="register-error-message">
               <CircleAlert className="size-4" />
               <div className="ml-2">{error}</div>
             </Alert>
@@ -117,6 +119,7 @@ export function RegisterForm() {
             <Label htmlFor="email">Adres e-mail</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="twoj@email.pl"
               value={email}
@@ -131,6 +134,7 @@ export function RegisterForm() {
             <Label htmlFor="password">Hasło</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••••"
               value={password}
@@ -141,7 +145,7 @@ export function RegisterForm() {
             />
             {/* Wskazówki dotyczące hasła */}
             {password && (
-              <div className="space-y-1.5 text-sm mt-3">
+              <div className="space-y-1.5 text-sm mt-3" data-test-id="password-requirements">
                 <PasswordRequirement met={passwordValidation.minLength} label="Minimum 10 znaków" />
                 <PasswordRequirement met={passwordValidation.hasLetter} label="Co najmniej jedna litera" />
                 <PasswordRequirement met={passwordValidation.hasDigit} label="Co najmniej jedna cyfra" />
@@ -153,6 +157,7 @@ export function RegisterForm() {
             <Label htmlFor="confirmPassword">Powtórz hasło</Label>
             <Input
               id="confirmPassword"
+              name="confirmPassword"
               type="password"
               placeholder="••••••••••"
               value={confirmPassword}
@@ -162,13 +167,15 @@ export function RegisterForm() {
               autoComplete="new-password"
             />
             {confirmPassword && !passwordValidation.passwordsMatch && (
-              <p className="text-sm text-destructive">Hasła muszą być identyczne</p>
+              <p className="text-sm text-destructive" data-test-id="password-mismatch-error">
+                Hasła muszą być identyczne
+              </p>
             )}
           </div>
         </CardContent>
 
         <CardFooter className="flex flex-col gap-4 pt-2">
-          <Button type="submit" className="w-full" disabled={isLoading || !isFormValid}>
+          <Button type="submit" className="w-full" disabled={isLoading || !isFormValid} data-test-id="register-submit">
             {isLoading && <Loader2 className="size-4 animate-spin" />}
             {isLoading ? "Rejestracja..." : "Zarejestruj się"}
           </Button>

@@ -34,10 +34,11 @@ export default defineConfig({
   ],
 
   // Start dev server locally (optional, can be disabled if running manually)
+  // The dev:e2e script loads .env.test automatically
   webServer: process.env.CI
     ? undefined
     : {
-        command: "npm run dev",
+        command: "npm run dev:e2e",
         url: "http://localhost:3004",
         reuseExistingServer: true,
         timeout: 120000,

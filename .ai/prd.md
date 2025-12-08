@@ -92,6 +92,7 @@ Kryteria akceptacji:
 - Po podaniu e-mail/hasła spełniającego politykę (≥10 znaków, ≥1 litera i ≥1 cyfra) otrzymuję e-mail weryfikacyjny.
 - Przy próbie logowania przed weryfikacją widzę informację o konieczności weryfikacji i CTA ponownej wysyłki (limit 3/30 min).
 - Link weryfikacyjny działa 30 min; po kliknięciu konto jest aktywne.
+- Rejestracja odbywa się na dedykowanej stronie.
 
 US-002 Logowanie
 Opis: Jako użytkownik chcę się zalogować, aby uzyskać dostęp do swoich danych.
@@ -99,12 +100,14 @@ Kryteria akceptacji:
 
 - Poprawne dane → dostęp
 - Błędne dane → komunikat błędu → jasny komunikat.
+- Logowanie odbywa się na dedykowanej stronie.
 
 US-003 Wylogowanie
 Opis: Jako użytkownik chcę się wylogować.
 Kryteria akceptacji:
 
 - Kliknięcie „Wyloguj” unieważnia sesję i przekierowuje do ekranu logowania.
+- Użytkownik może się wylogować poprzez przycisk w prawym górnym rogu.
 
 US-004 Reset hasła
 Opis: Jako użytkownik chcę zresetować hasło poprzez e-mail.

@@ -110,6 +110,7 @@ export function Navigation({ currentPath }: NavigationProps) {
               disabled={isLoggingOut}
               className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Wyloguj się"
+              data-test-id="logout-button"
             >
               {isLoggingOut ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />

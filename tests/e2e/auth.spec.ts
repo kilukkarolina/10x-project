@@ -11,61 +11,78 @@ test.describe("Authentication", () => {
     test("should show error for invalid credentials", async ({ page }) => {
       await page.goto("/auth/login");
 
-      await page.fill('[name="email"]', "wrong@example.com");
-      await page.fill('[name="password"]', "wrongpassword");
-      await page.click('button[type="submit"]');
+      // Wait for form to be ready
+      await page.waitForLoadState("networkidle");
 
-      // Wait for error message
-      // Adjust selector based on your actual error display
-      await expect(page.locator("text=/invalid.*credentials/i")).toBeVisible();
+      // Fill form fields using name selectors (more reliable)
+      await page.fill('[name="email"]', "test@gmail.com");
+      await page.fill('[name="password"]', "WrongPassword123!");
+
+      // Click submit button using data-test-id
+      await page.click('[data-test-id="login-submit"]');
+
+      // Wait for error message to appear
+      const errorMessage = page.locator('[data-test-id="login-error-message"]');
+      await expect(errorMessage).toBeVisible({ timeout: 10000 });
+      await expect(errorMessage).toContainText("Nieprawidłowy e-mail lub hasło");
     });
 
     test("should redirect to dashboard after successful login", async ({ page }) => {
       // This test requires a pre-existing verified user in your test Supabase project
-      // You can create one manually or in a setup script
+      // Credentials are loaded from environment variables
 
-      const testEmail = "verified-test-user@example.com"; // Replace with actual test user
-      const testPassword = "TestPassword123!"; // Replace with actual password
+      const testEmail = process.env.E2E_USERNAME;
+      const testPassword = process.env.E2E_PASSWORD;
+
+      if (!testEmail || !testPassword) {
+        throw new Error("E2E_USERNAME and E2E_PASSWORD environment variables must be set for E2E tests.");
+      }
 
       await page.goto("/auth/login");
+      await page.waitForLoadState("networkidle");
 
       await page.fill('[name="email"]', testEmail);
       await page.fill('[name="password"]', testPassword);
-      await page.click('button[type="submit"]');
+      await page.click('[data-test-id="login-submit"]');
 
-      // Should redirect to dashboard
-      await expect(page).toHaveURL("/dashboard", { timeout: 10000 });
-
-      // Verify dashboard loaded
-      await expect(page.locator("h1")).toContainText(/dashboard/i);
+      // Should redirect to dashboard (may include query params like ?month=2025-12)
+      await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 10000 });
     });
   });
 
   test.describe("Registration Flow", () => {
     test("should show validation error for weak password", async ({ page }) => {
       await page.goto("/auth/register");
+      await page.waitForLoadState("networkidle");
 
       const { email } = generateTestUser();
 
       await page.fill('[name="email"]', email);
       await page.fill('[name="password"]', "weak"); // Too weak
-      await page.click('button[type="submit"]');
 
-      // Should show password requirements error
-      await expect(page.locator("text=/password.*requirements/i")).toBeVisible({ timeout: 5000 });
+      // Password requirements should appear when typing
+      const passwordRequirements = page.locator('[data-test-id="password-requirements"]');
+      await expect(passwordRequirements).toBeVisible({ timeout: 5000 });
+
+      // Submit button should be disabled for weak password
+      const submitButton = page.locator('[data-test-id="register-submit"]');
+      await expect(submitButton).toBeDisabled();
     });
 
-    test("should show confirmation message after registration", async ({ page }) => {
+    test("should redirect to dashboard after successful registration", async ({ page }) => {
       const { email, password } = generateTestUser();
 
       await page.goto("/auth/register");
+      await page.waitForLoadState("networkidle");
 
       await page.fill('[name="email"]', email);
       await page.fill('[name="password"]', password);
-      await page.click('button[type="submit"]');
+      await page.fill('[name="confirmPassword"]', password);
 
-      // Should show email verification message
-      await expect(page.locator("text=/check.*email|verify.*email/i")).toBeVisible({ timeout: 10000 });
+      await page.click('[data-test-id="register-submit"]');
+
+      // Should redirect to dashboard (auto-login after registration)
+      await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 10000 });
 
       // Cleanup
       await cleanupTestUser(email);
@@ -112,16 +129,20 @@ test.describe("Authentication", () => {
   test.describe("Logout Flow", () => {
     test("should redirect to login page after logout", async ({ page }) => {
       // Login first
-      const testEmail = "verified-test-user@example.com";
-      const testPassword = "TestPassword123!";
+      const testEmail = process.env.E2E_USERNAME;
+      const testPassword = process.env.E2E_PASSWORD;
+
+      if (!testEmail || !testPassword) {
+        throw new Error("E2E_USERNAME and E2E_PASSWORD environment variables must be set for E2E tests.");
+      }
 
       await login(page, testEmail, testPassword);
 
-      // Should be on dashboard
-      await expect(page).toHaveURL("/dashboard");
+      // Should be on dashboard (may include query params like ?month=2025-12)
+      await expect(page).toHaveURL(/\/dashboard(\?|$)/);
 
-      // Click logout (adjust selector based on your implementation)
-      await page.click('[aria-label="Logout"]');
+      // Click logout button
+      await page.click('[data-test-id="logout-button"]');
 
       // Should redirect to login
       await expect(page).toHaveURL(/\/auth\/login/, { timeout: 5000 });

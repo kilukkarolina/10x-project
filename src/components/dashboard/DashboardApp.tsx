@@ -110,7 +110,7 @@ export function DashboardApp() {
   // Wyświetl stan ładowania
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8" data-test-id="dashboard">
         <div className="mb-6">
           <MonthPicker
             value={month}
@@ -128,7 +128,7 @@ export function DashboardApp() {
   // Wyświetl stan błędu (tylko dla krytycznych błędów, np. metryki miesięczne)
   if (error && !metrics) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8" data-test-id="dashboard">
         <div className="mb-6">
           <MonthPicker
             value={month}
@@ -154,7 +154,7 @@ export function DashboardApp() {
 
   if (isEmpty) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8" data-test-id="dashboard">
         <div className="mb-6">
           <MonthPicker
             value={month}
@@ -175,7 +175,7 @@ export function DashboardApp() {
   const priorityGoalVM = priorityGoal ? mapPriorityGoalToVM(priorityGoal) : null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" data-test-id="dashboard">
       {/* Kontrolka wyboru miesiąca i przycisk odśwież */}
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <MonthPicker

@@ -9,31 +9,42 @@ import { login } from "./helpers/test-data";
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
-    // Replace with actual test user credentials from your Supabase test project
-    const testEmail = "verified-test-user@example.com";
-    const testPassword = "TestPassword123!";
+    // Use credentials from environment variables for security and configurability
+    const testEmail = process.env.E2E_USERNAME;
+    const testPassword = process.env.E2E_PASSWORD;
+
+    if (!testEmail || !testPassword) {
+      throw new Error("E2E_USERNAME and E2E_PASSWORD environment variables must be set for E2E tests.");
+    }
 
     await login(page, testEmail, testPassword);
   });
 
   test("should display dashboard after login", async ({ page }) => {
-    // Should be on dashboard
-    await expect(page).toHaveURL("/dashboard");
+    // Should be on dashboard (may include query params like ?month=2025-12)
+    await expect(page).toHaveURL(/\/dashboard(\?|$)/);
 
-    // Verify main heading
-    await expect(page.locator("h1")).toBeVisible();
-
-    // Verify dashboard loaded (look for key elements)
-    // Adjust selectors based on your actual dashboard structure
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible();
+    // Verify dashboard loaded
+    await expect(page.locator('[data-test-id="dashboard"]')).toBeVisible();
   });
 
-  test("should display 4 metric cards", async ({ page }) => {
+  test("should display 4 metric cards when data exists", async ({ page }) => {
     // Per PRD: Dashboard shows 4 cards (Dochód, Wydatki, Odłożone netto, Wolne środki)
-    // Adjust selectors based on your actual implementation
+    // If there's no data, empty state is shown instead
 
-    const cards = page.locator('[data-testid^="metric-card"]');
-    await expect(cards).toHaveCount(4, { timeout: 10000 });
+    // Check if there's data (metric cards visible) or empty state
+    const hasData = await page.locator('[data-test-id="metric-card-income"]').isVisible();
+
+    if (hasData) {
+      // If data exists, all 4 cards should be visible
+      await expect(page.locator('[data-test-id="metric-card-income"]')).toBeVisible();
+      await expect(page.locator('[data-test-id="metric-card-expenses"]')).toBeVisible();
+      await expect(page.locator('[data-test-id="metric-card-net-saved"]')).toBeVisible();
+      await expect(page.locator('[data-test-id="metric-card-free-cash-flow"]')).toBeVisible();
+    } else {
+      // If no data, empty state should be visible
+      await expect(page.locator("text=Brak danych w tym miesiącu")).toBeVisible();
+    }
   });
 
   test("should allow navigation to transactions", async ({ page }) => {

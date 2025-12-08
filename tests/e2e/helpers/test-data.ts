@@ -2,7 +2,7 @@
  * Test data helpers for E2E tests
  */
 
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -55,12 +55,14 @@ export async function cleanupTestUser(email: string) {
  */
 export async function login(page: Page, email: string, password: string) {
   await page.goto("/auth/login");
+  await page.waitForLoadState("networkidle");
+
   await page.fill('[name="email"]', email);
   await page.fill('[name="password"]', password);
-  await page.click('button[type="submit"]');
+  await page.click('[data-test-id="login-submit"]');
 
-  // Wait for navigation to dashboard
-  await page.waitForURL("/dashboard", { timeout: 10000 });
+  // Wait for navigation to dashboard (may include query params)
+  await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 10000 });
 }
 
 /**
