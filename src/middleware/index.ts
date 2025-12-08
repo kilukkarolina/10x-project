@@ -1,5 +1,5 @@
 import { defineMiddleware } from "astro:middleware";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptionsWithName } from "@supabase/ssr";
 import type { Database } from "../db/database.types";
 
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
@@ -62,12 +62,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
         }
         return value;
       },
-      set(key: string, value: string, options: any) {
+      set(key: string, value: string, options: CookieOptionsWithName) {
         // eslint-disable-next-line no-console
         console.log(`[Middleware] Cookie SET: ${key}`);
         context.cookies.set(key, value, options);
       },
-      remove(key: string, options: any) {
+      remove(key: string, options: CookieOptionsWithName) {
         // eslint-disable-next-line no-console
         console.log(`[Middleware] Cookie REMOVE: ${key}`);
         context.cookies.delete(key, options);

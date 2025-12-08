@@ -6,7 +6,11 @@ import type { SupabaseClient } from "@/db/supabase.client";
  *
  * Provides utilities for extracting and validating user sessions
  * in server-side API routes.
+ *
+ * Note: Using class with static methods as a namespace alternative
+ * for better tree-shaking and explicit imports.
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class AuthService {
   /**
    * Get authenticated user ID from request

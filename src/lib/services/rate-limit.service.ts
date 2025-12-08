@@ -26,7 +26,11 @@ export interface RateLimitResult {
  * - bucket_30m is auto-calculated by database trigger
  * - Index idx_rl_bucket optimizes count queries
  * - Only enforces limit if user_id can be resolved
+ *
+ * Note: Using class with static methods as a namespace alternative
+ * for better tree-shaking and explicit imports.
  */
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class RateLimitService {
   /**
    * Maximum attempts allowed per 30-minute window
@@ -94,6 +98,7 @@ export class RateLimitService {
         user_id: userId,
         action: scope,
         occurred_at: now.toISOString(),
+        bucket_30m: bucketStart.toISOString(), // Auto-calculated by trigger, but required by TS
       });
 
       if (insertError) {
