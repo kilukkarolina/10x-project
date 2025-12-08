@@ -258,13 +258,20 @@ W Supabase Dashboard → Settings → API:
 #### 5. Wypełnij `.env.test`
 
 ```bash
+# Copy template
+cp env.test.template .env.test
+
+# Edit .env.test with your values:
 PUBLIC_SUPABASE_URL=https://your-test-project.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_KEY=your-service-key-here  # Dla cleanup users
+SUPABASE_SERVICE_KEY=your-service-key-here  # Required for database cleanup
 TEST_BASE_URL=http://localhost:3004
+E2E_USERNAME=raketap480@alexida.com  # Main test user email
+E2E_PASSWORD=TestPassword123!  # Main test user password
+E2E_USERNAME_ID=85b37466-4e1b-49d8-a925-ee5c0eb623a1  # Main test user UUID
 ```
 
-**⚠️WAŻNE**: Dodaj `.env.test` do `.gitignore`!
+**⚠️WAŻNE**: `.env.test` jest już w `.gitignore` - nie commituj tego pliku!
 
 ### Uruchomienie testów E2E
 
@@ -339,11 +346,92 @@ Dla podstawowych testów login/dashboard, stwórz ręcznie test usera:
 
 1. W Supabase Dashboard → Authentication → Users
 2. Add User manually
-3. Email: `verified-test-user@example.com`
+3. Email: `raketap480@alexida.com`
 4. Password: `TestPassword123!`
-5. Potwierdź email (kliknij "Verify email")
+5. UUID: `85b37466-4e1b-49d8-a925-ee5c0eb623a1`
+6. Potwierdź email (kliknij "Verify email")
+7. Utwórz profil:
+```sql
+INSERT INTO profiles (user_id, email_confirmed, created_at, updated_at)
+VALUES ('85b37466-4e1b-49d8-a925-ee5c0eb623a1', true, now(), now());
+```
 
-Użyj tego usera w testach które nie wymagają pełnego flow rejestracji.
+**⚠️ WAŻNE**: Ten użytkownik jest chroniony przez mechanizm czyszczenia bazy (global teardown) - jego dane NIE będą usuwane po testach. Użyj tego usera w testach które nie wymagają pełnego flow rejestracji.
+
+### Database Cleanup
+
+Projekt używa **dwupoziomowego czyszczenia bazy danych** dla zapewnienia izolacji testów:
+
+#### 1. Per-Test Cleanup (po każdym teście)
+
+Każdy test suite automatycznie czyści dane głównego test usera w `afterEach` hook:
+
+```typescript
+test.afterEach(async () => {
+  await cleanupMainTestUserData();
+});
+```
+
+**Co jest czyszczone:**
+- Transactions głównego test usera
+- Goals i goal_events głównego test usera
+- Monthly_metrics głównego test usera
+- Audit_log głównego test usera
+- Rate_limits głównego test usera
+
+**Co jest zachowywane:**
+- Profil głównego test usera (`raketap480@alexida.com`)
+- Auth record głównego test usera
+
+**Korzyści:**
+- ✅ Pełna izolacja między testami
+- ✅ Każdy test startuje z czystym stanem
+- ✅ Brak "brudnych" danych z poprzednich testów
+- ✅ Łatwiejsze debugowanie (tylko dane z obecnego testu)
+
+#### 2. Global Teardown (po wszystkich testach)
+
+Po zakończeniu wszystkich testów E2E, automatycznie uruchamia się `tests/e2e/helpers/global-teardown.ts`.
+
+**Co robi teardown:**
+1. Usuwa wszystkie dane testowe z bazy (transactions, goals, goal_events, monthly_metrics, audit_log, rate_limits)
+2. Usuwa profile i użytkowników auth utworzonych podczas testów rejestracji
+3. **Zachowuje** głównego test usera (`raketap480@alexida.com`)
+4. **Zachowuje** tabele słownikowe (transaction_categories, goal_types)
+
+**Kiedy jest potrzebny:**
+- Cleanup użytkowników utworzonych w testach rejestracji
+- Dodatkowe zabezpieczenie na wypadek failujących testów
+- Końcowe "sprzątanie" środowiska testowego
+
+#### Konfiguracja
+
+W `.env.test` wymagane są:
+```bash
+PUBLIC_SUPABASE_URL=...
+SUPABASE_SERVICE_KEY=...  # Service role key - WYMAGANY do teardown
+```
+
+Bez `SUPABASE_SERVICE_KEY` czyszczenie zostanie pominięte z ostrzeżeniem.
+
+#### Debugowanie
+
+Jeśli teardown nie działa:
+1. Sprawdź logi konsoli po testach - powinny zawierać `🧹 Starting database cleanup...`
+2. Sprawdź czy `.env.test` ma poprawne wartości
+3. Sprawdź czy service role key ma pełne uprawnienia
+4. Uruchom teardown ręcznie:
+```bash
+# Używając npm script
+npm run test:e2e:cleanup
+
+# Lub bezpośrednio
+npx tsx tests/e2e/helpers/global-teardown.ts
+```
+
+#### Szczegółowe informacje
+
+Zobacz `tests/e2e/helpers/teardown-manual.md` dla pełnej dokumentacji czyszczenia bazy danych.
 
 ---
 

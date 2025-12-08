@@ -112,21 +112,45 @@ npx supabase db push
 
 ```bash
 # Skopiuj template
-cp .env.test.example .env.test
+cp env.test.template .env.test
 
 # Edytuj .env.test i wypełnij:
 # - PUBLIC_SUPABASE_URL (z Dashboard → Settings → API)
 # - PUBLIC_SUPABASE_ANON_KEY (anon key)
 # - SUPABASE_SERVICE_KEY (service_role key, TRZYMAJ W SEKRECIE!)
+# - E2E_USERNAME (email głównego test usera)
+# - E2E_PASSWORD (hasło głównego test usera)
+```
+
+**⚠️ WAŻNE**: `.env.test` jest w `.gitignore` - nie commituj tego pliku!
+
+**Przykładowa zawartość `.env.test`**:
+```bash
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_KEY=eyJhbGc...
+TEST_BASE_URL=http://localhost:3004
+E2E_USERNAME=raketap480@alexida.com
+E2E_PASSWORD=TestPassword123!
+E2E_USERNAME_ID=85b37466-4e1b-49d8-a925-ee5c0eb623a1
 ```
 
 #### 4. Stwórz test usera
 
 W Supabase Dashboard → Authentication → Users:
 - Add User
-- Email: `verified-test-user@example.com`
+- Email: `raketap480@alexida.com`
 - Password: `TestPassword123!`
 - Auto Confirm User: ✅
+- Skopiuj UUID użytkownika (będzie potrzebny)
+
+Następnie utwórz profil w tabeli `profiles`:
+```sql
+INSERT INTO profiles (user_id, email_confirmed, created_at, updated_at)
+VALUES ('85b37466-4e1b-49d8-a925-ee5c0eb623a1', true, now(), now());
+```
+
+**⚠️ UWAGA**: Ten użytkownik jest chroniony przez mechanizm czyszczenia bazy - jego dane NIE będą usuwane po testach.
 
 ### Uruchomienie
 
@@ -140,6 +164,44 @@ npm run test:e2e
 # Lub w UI mode (zalecane)
 npm run test:e2e:ui
 ```
+
+### Automatyczne czyszczenie bazy danych
+
+Projekt używa **dwupoziomowego czyszczenia** dla zapewnienia izolacji testów:
+
+#### 1. Po każdym teście (Per-Test Cleanup)
+
+Każdy test automatycznie czyści dane głównego test usera w `afterEach` hook.
+
+**Co jest czyszczone:**
+- Transakcje głównego test usera
+- Cele i zdarzenia celów głównego test usera
+- Metryki miesięczne głównego test usera
+- Logi audytu głównego test usera
+- Limity ratowe głównego test usera
+
+**Co jest zachowywane:**
+- Sam użytkownik (`raketap480@alexida.com`) - tylko jego DANE są usuwane, nie konto
+
+**Korzyść:** Każdy test startuje z czystym stanem - pełna izolacja! ✅
+
+#### 2. Po wszystkich testach (Global Teardown)
+
+Skrypt `tests/e2e/helpers/global-teardown.ts` uruchamia się raz na końcu.
+
+**Co jest usuwane:**
+- Pozostałe dane testowe
+- Użytkownicy utworzeni w testach rejestracji
+- Wszystkie profile i użytkownicy auth (oprócz głównego test usera)
+
+**Co jest zachowywane:**
+- Główny test user: `raketap480@alexida.com` (UUID: `85b37466-4e1b-49d8-a925-ee5c0eb623a1`)
+- Tabele słownikowe: `transaction_categories`, `goal_types`
+
+**Wymagania:**
+- `.env.test` musi zawierać `SUPABASE_SERVICE_KEY` (service role key)
+- `.env.test` musi zawierać `E2E_USERNAME_ID` (UUID głównego test usera)
+- Bez tych kluczy czyszczenie zostanie pominięte z ostrzeżeniem
 
 ---
 

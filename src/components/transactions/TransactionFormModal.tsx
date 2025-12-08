@@ -243,6 +243,7 @@ export function TransactionFormModal({
                       ? "border-green-500 bg-green-50 dark:bg-green-950"
                       : "border-border hover:border-green-300"
                   }`}
+                  data-test-id="transaction-type-income"
                 >
                   <ArrowUpCircle className="size-5 text-green-600" />
                   <span className="font-medium">Przychód</span>
@@ -256,6 +257,7 @@ export function TransactionFormModal({
                       ? "border-red-500 bg-red-50 dark:bg-red-950"
                       : "border-border hover:border-red-300"
                   }`}
+                  data-test-id="transaction-type-expense"
                 >
                   <ArrowDownCircle className="size-5 text-red-600" />
                   <span className="font-medium">Wydatek</span>
@@ -284,7 +286,11 @@ export function TransactionFormModal({
           <div className="space-y-2">
             <Label htmlFor="category">Kategoria</Label>
             <Select value={formData.category_code} onValueChange={(value) => handleChange("category_code", value)}>
-              <SelectTrigger id="category" className={errors.category_code ? "border-destructive" : ""}>
+              <SelectTrigger
+                id="category"
+                className={errors.category_code ? "border-destructive" : ""}
+                data-test-id="transaction-category-select"
+              >
                 <SelectValue placeholder="Wybierz kategorię" />
               </SelectTrigger>
               <SelectContent>
@@ -303,6 +309,7 @@ export function TransactionFormModal({
             <Label htmlFor="amount">Kwota (PLN)</Label>
             <Input
               id="amount"
+              name="amount"
               type="text"
               inputMode="decimal"
               value={formData.amount_pln}
@@ -326,6 +333,7 @@ export function TransactionFormModal({
             <Label htmlFor="date">Data</Label>
             <Input
               id="date"
+              name="date"
               type="date"
               value={formData.occurred_on}
               onChange={(e) => handleChange("occurred_on", e.target.value)}
@@ -340,6 +348,7 @@ export function TransactionFormModal({
             <Label htmlFor="note">Notatka (opcjonalnie)</Label>
             <Textarea
               id="note"
+              name="note"
               value={formData.note}
               onChange={(e) => handleChange("note", e.target.value)}
               placeholder="Dodatkowe informacje..."
@@ -355,7 +364,7 @@ export function TransactionFormModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Anuluj
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} data-test-id="transaction-form-submit">
               {isSubmitting ? "Zapisywanie..." : mode === "create" ? "Dodaj" : "Zapisz zmiany"}
             </Button>
           </DialogFooter>

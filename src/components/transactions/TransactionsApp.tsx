@@ -208,7 +208,7 @@ export function TransactionsApp() {
             <h1 className="text-3xl font-bold tracking-tight">Transakcje</h1>
             <p className="mt-2 text-muted-foreground">Przeglądaj, filtruj i zarządzaj swoimi transakcjami</p>
           </div>
-          <Button onClick={handleAddTransaction}>
+          <Button onClick={handleAddTransaction} data-test-id="add-transaction-button">
             <Plus className="size-4 mr-2" />
             Dodaj transakcję
           </Button>

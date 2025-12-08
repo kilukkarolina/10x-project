@@ -4,9 +4,14 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { generateTestUser, cleanupTestUser, login } from "./helpers/test-data";
+import { generateTestUser, cleanupTestUser, login, cleanupMainTestUserData } from "./helpers/test-data";
 
 test.describe("Authentication", () => {
+  // Cleanup main test user data after each test for isolation
+  test.afterEach(async () => {
+    await cleanupMainTestUserData();
+  });
+
   test.describe("Login Flow", () => {
     test("should show error for invalid credentials", async ({ page }) => {
       await page.goto("/auth/login");

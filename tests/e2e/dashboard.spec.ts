@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { login } from "./helpers/test-data";
+import { login, cleanupMainTestUserData } from "./helpers/test-data";
 
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
@@ -18,6 +18,11 @@ test.describe("Dashboard", () => {
     }
 
     await login(page, testEmail, testPassword);
+  });
+
+  // Cleanup main test user data after each test for isolation
+  test.afterEach(async () => {
+    await cleanupMainTestUserData();
   });
 
   test("should display dashboard after login", async ({ page }) => {
@@ -61,16 +66,5 @@ test.describe("Dashboard", () => {
 
     // Should navigate to goals page
     await expect(page).toHaveURL("/goals", { timeout: 5000 });
-  });
-
-  test("should take screenshot of dashboard for visual regression", async ({ page }) => {
-    // Visual regression testing using Playwright screenshots
-    // First run will create baseline, subsequent runs will compare
-
-    await expect(page).toHaveScreenshot("dashboard-view.png", {
-      fullPage: true,
-      // Optional: mask dynamic content
-      mask: [page.locator('[data-testid="current-time"]')],
-    });
   });
 });

@@ -15,6 +15,9 @@ export default defineConfig({
 
   reporter: [["html", { outputFolder: "playwright-report" }], ["list"]],
 
+  // Global teardown to clean up Supabase database after all tests
+  globalTeardown: "./tests/e2e/helpers/global-teardown.ts",
+
   use: {
     baseURL: process.env.TEST_BASE_URL || "http://localhost:3004",
     trace: "on-first-retry",
