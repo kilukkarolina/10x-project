@@ -149,7 +149,8 @@ export async function logout(page: Page) {
 /**
  * Cleanup main test user data (but keep the user account)
  * This should be called in afterEach to ensure test isolation
- * Deletes: transactions, goals, goal_events, monthly_metrics, audit_log, rate_limits
+ * Deletes: transactions, goals, goal_events, audit_log, rate_limits
+ * Auto-updates: monthly_metrics (via triggers when transactions/goal_events are deleted)
  * Preserves: profile and auth.users record
  */
 export async function cleanupMainTestUserData() {
@@ -167,9 +168,9 @@ export async function cleanupMainTestUserData() {
 
   try {
     // Delete data in order to respect foreign key constraints
+    // Note: monthly_metrics is NOT deleted - it's auto-managed by triggers
     await supabase.from("rate_limits").delete().eq("user_id", mainTestUserId);
     await supabase.from("audit_log").delete().eq("owner_user_id", mainTestUserId);
-    await supabase.from("monthly_metrics").delete().eq("user_id", mainTestUserId);
     await supabase.from("goal_events").delete().eq("user_id", mainTestUserId);
     await supabase.from("goals").delete().eq("user_id", mainTestUserId);
     await supabase.from("transactions").delete().eq("user_id", mainTestUserId);

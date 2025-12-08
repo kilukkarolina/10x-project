@@ -7,6 +7,7 @@
  * 2. Deletes all data from business tables
  * 3. Preserves the main test user (raketap480@alexida.com)
  * 4. Preserves dictionary tables (transaction_categories, goal_types)
+ * 5. Does NOT delete monthly_metrics (auto-managed by triggers)
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -44,6 +45,7 @@ async function globalTeardown() {
 
   try {
     // Step 1: Delete data from business tables (in order to respect foreign keys)
+    // Note: monthly_metrics is NOT deleted - it's auto-managed by triggers
 
     // 1a. Delete rate_limits (no FK dependencies)
     const { error: rateLimitsError } = await supabase.from("rate_limits").delete().neq("user_id", mainTestUserId);
@@ -67,18 +69,7 @@ async function globalTeardown() {
       console.log("✅ Cleaned up audit_log");
     }
 
-    // 1c. Delete monthly_metrics (no FK dependencies)
-    const { error: metricsError } = await supabase.from("monthly_metrics").delete().neq("user_id", mainTestUserId);
-
-    if (metricsError) {
-      // eslint-disable-next-line no-console
-      console.error("❌ Failed to delete monthly_metrics:", metricsError);
-    } else {
-      // eslint-disable-next-line no-console
-      console.log("✅ Cleaned up monthly_metrics");
-    }
-
-    // 1d. Delete goal_events (depends on goals)
+    // 1c. Delete goal_events (depends on goals)
     const { error: goalEventsError } = await supabase.from("goal_events").delete().neq("user_id", mainTestUserId);
 
     if (goalEventsError) {
@@ -89,7 +80,7 @@ async function globalTeardown() {
       console.log("✅ Cleaned up goal_events");
     }
 
-    // 1e. Delete goals
+    // 1d. Delete goals
     const { error: goalsError } = await supabase.from("goals").delete().neq("user_id", mainTestUserId);
 
     if (goalsError) {
@@ -100,7 +91,7 @@ async function globalTeardown() {
       console.log("✅ Cleaned up goals");
     }
 
-    // 1f. Delete transactions
+    // 1e. Delete transactions
     const { error: transactionsError } = await supabase.from("transactions").delete().neq("user_id", mainTestUserId);
 
     if (transactionsError) {

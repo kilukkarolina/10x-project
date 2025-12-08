@@ -176,12 +176,14 @@ Każdy test automatycznie czyści dane głównego test usera w `afterEach` hook.
 **Co jest czyszczone:**
 - Transakcje głównego test usera
 - Cele i zdarzenia celów głównego test usera
-- Metryki miesięczne głównego test usera
 - Logi audytu głównego test usera
 - Limity ratowe głównego test usera
 
 **Co jest zachowywane:**
 - Sam użytkownik (`raketap480@alexida.com`) - tylko jego DANE są usuwane, nie konto
+
+**Co jest auto-aktualizowane:**
+- Metryki miesięczne (zarządzane przez triggery bazy danych)
 
 **Korzyść:** Każdy test startuje z czystym stanem - pełna izolacja! ✅
 

@@ -35,10 +35,10 @@ Lub użyj SQL w Supabase Dashboard:
 -- Podstaw swój E2E_USERNAME_ID
 DELETE FROM rate_limits WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 DELETE FROM audit_log WHERE owner_user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
-DELETE FROM monthly_metrics WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 DELETE FROM goal_events WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 DELETE FROM goals WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 DELETE FROM transactions WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
+-- Uwaga: monthly_metrics zostanie automatycznie zaktualizowana przez triggery
 ```
 
 ### Opcja 2: Global Teardown (wszystkie dane testowe)
@@ -59,11 +59,12 @@ Teardown usuwa WSZYSTKIE dane testowe z następujących tabel:
 - `transactions` (oprócz transakcji głównego test usera)
 - `goals` (oprócz celów głównego test usera)
 - `goal_events` (oprócz zdarzeń głównego test usera)
-- `monthly_metrics` (oprócz metryk głównego test usera)
 - `audit_log` (oprócz logów głównego test usera)
 - `rate_limits` (oprócz limitów głównego test usera)
 - `profiles` (oprócz profilu głównego test usera)
 - Użytkownicy auth (oprócz głównego test usera)
+
+**Uwaga:** `monthly_metrics` NIE jest usuwana - jest zarządzana automatycznie przez triggery bazy danych
 
 ## Co zostanie zachowane?
 
@@ -163,13 +164,15 @@ Po czyszczeniu, sprawdź bazę danych:
 SELECT COUNT(*) FROM transactions WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 SELECT COUNT(*) FROM goals WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 SELECT COUNT(*) FROM goal_events WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
-SELECT COUNT(*) FROM monthly_metrics WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 SELECT COUNT(*) FROM audit_log WHERE owner_user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 SELECT COUNT(*) FROM rate_limits WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 SELECT COUNT(*) FROM profiles WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 
 -- Główny test user powinien nadal istnieć
 SELECT * FROM profiles WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
+
+-- Monthly_metrics może mieć dane (zarządzana przez triggery)
+SELECT * FROM monthly_metrics WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 ```
 
 ## Kontakt

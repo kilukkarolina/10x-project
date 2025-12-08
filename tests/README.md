@@ -375,13 +375,15 @@ test.afterEach(async () => {
 **Co jest czyszczone:**
 - Transactions głównego test usera
 - Goals i goal_events głównego test usera
-- Monthly_metrics głównego test usera
 - Audit_log głównego test usera
 - Rate_limits głównego test usera
 
 **Co jest zachowywane:**
 - Profil głównego test usera (`raketap480@alexida.com`)
 - Auth record głównego test usera
+
+**Co jest auto-aktualizowane:**
+- Monthly_metrics (zarządzana przez triggery bazy danych)
 
 **Korzyści:**
 - ✅ Pełna izolacja między testami
