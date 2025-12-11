@@ -22,11 +22,13 @@ npm run test:unit:coverage
 ### Przykład: Test parsowania kwot
 
 Sprawdź działający test:
+
 ```bash
 cat src/components/transactions/utils/parsePlnInputToCents.test.ts
 ```
 
 Uruchom:
+
 ```bash
 npm run test:unit
 # ✓ 19 tests passed
@@ -96,6 +98,7 @@ Testy E2E używają prawdziwego Supabase Auth i bazy danych.
 Szczegółowa instrukcja: `.ai/e2e-supabase-setup.md`
 
 Skrócona wersja:
+
 1. https://app.supabase.com → "New Project"
 2. Name: `finflow-test`
 3. Database password: zapisz bezpiecznie
@@ -125,6 +128,7 @@ cp env.test.template .env.test
 **⚠️ WAŻNE**: `.env.test` jest w `.gitignore` - nie commituj tego pliku!
 
 **Przykładowa zawartość `.env.test`**:
+
 ```bash
 PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
@@ -138,6 +142,7 @@ E2E_USERNAME_ID=85b37466-4e1b-49d8-a925-ee5c0eb623a1
 #### 4. Stwórz test usera
 
 W Supabase Dashboard → Authentication → Users:
+
 - Add User
 - Email: `raketap480@alexida.com`
 - Password: `TestPassword123!`
@@ -145,6 +150,7 @@ W Supabase Dashboard → Authentication → Users:
 - Skopiuj UUID użytkownika (będzie potrzebny)
 
 Następnie utwórz profil w tabeli `profiles`:
+
 ```sql
 INSERT INTO profiles (user_id, email_confirmed, created_at, updated_at)
 VALUES ('85b37466-4e1b-49d8-a925-ee5c0eb623a1', true, now(), now());
@@ -154,16 +160,28 @@ VALUES ('85b37466-4e1b-49d8-a925-ee5c0eb623a1', true, now(), now());
 
 ### Uruchomienie
 
-```bash
-# Upewnij się że app działa
-npm run dev
+**WAŻNE**: Testy E2E automatycznie używają środowiska z `.env.test` (nie `.env`).
 
-# W nowym terminalu:
+```bash
+# Opcja 1: Playwright automatycznie uruchomi serwer dev z .env.test
 npm run test:e2e
 
-# Lub w UI mode (zalecane)
+# Opcja 2: UI mode (zalecane do debugowania)
 npm run test:e2e:ui
+
+# Opcja 3: Ręczne uruchomienie serwera + testy
+# Terminal 1:
+npm run dev:e2e  # Używa .env.test automatycznie
+
+# Terminal 2:
+npm run test:e2e
 ```
+
+**Jak to działa?**
+
+- `npm run test:e2e` - Playwright automatycznie uruchamia `npm run dev:e2e` przed testami
+- `npm run dev:e2e` - Ustawia `NODE_ENV=test`, co sprawia że `astro.config.mjs` ładuje `.env.test` zamiast `.env`
+- Dzięki temu testy zawsze używają testowej bazy Supabase, nigdy produkcyjnej ✅
 
 ### Automatyczne czyszczenie bazy danych
 
@@ -174,15 +192,18 @@ Projekt używa **dwupoziomowego czyszczenia** dla zapewnienia izolacji testów:
 Każdy test automatycznie czyści dane głównego test usera w `afterEach` hook.
 
 **Co jest czyszczone:**
+
 - Transakcje głównego test usera
 - Cele i zdarzenia celów głównego test usera
 - Logi audytu głównego test usera
 - Limity ratowe głównego test usera
 
 **Co jest zachowywane:**
+
 - Sam użytkownik (`raketap480@alexida.com`) - tylko jego DANE są usuwane, nie konto
 
 **Co jest auto-aktualizowane:**
+
 - Metryki miesięczne (zarządzane przez triggery bazy danych)
 
 **Korzyść:** Każdy test startuje z czystym stanem - pełna izolacja! ✅
@@ -192,15 +213,18 @@ Każdy test automatycznie czyści dane głównego test usera w `afterEach` hook.
 Skrypt `tests/e2e/helpers/global-teardown.ts` uruchamia się raz na końcu.
 
 **Co jest usuwane:**
+
 - Pozostałe dane testowe
 - Użytkownicy utworzeni w testach rejestracji
 - Wszystkie profile i użytkownicy auth (oprócz głównego test usera)
 
 **Co jest zachowywane:**
+
 - Główny test user: `raketap480@alexida.com` (UUID: `85b37466-4e1b-49d8-a925-ee5c0eb623a1`)
 - Tabele słownikowe: `transaction_categories`, `goal_types`
 
 **Wymagania:**
+
 - `.env.test` musi zawierać `SUPABASE_SERVICE_KEY` (service role key)
 - `.env.test` musi zawierać `E2E_USERNAME_ID` (UUID głównego test usera)
 - Bez tych kluczy czyszczenie zostanie pominięte z ostrzeżeniem
@@ -219,6 +243,7 @@ open coverage/index.html
 ```
 
 Cele (zgodnie z test-plan.md):
+
 - **Unit tests**: ≥80% (logika finansowa: 100%)
 - **Integration tests**: 100% API endpoints
 - **UI components**: ≥70%
@@ -272,16 +297,19 @@ npm install
 ## ✅ Checklist pierwszego uruchomienia
 
 ### Unit Tests
+
 - [ ] `npm run test:unit` działa
 - [ ] Widzisz ✓ 19 tests passed
 - [ ] `npm run test:unit:watch` działa w watch mode
 
 ### Integration Tests (opcjonalnie na start)
+
 - [ ] Docker jest zainstalowany i działa
 - [ ] `docker ps` zwraca wynik bez błędów
 - [ ] `npm run test:integration` pobiera obraz i startuje
 
 ### E2E Tests (opcjonalnie na start)
+
 - [ ] Utworzony projekt Supabase dla testów
 - [ ] `.env.test` wypełniony
 - [ ] Test user utworzony w Supabase
@@ -309,4 +337,3 @@ npm install
 ---
 
 Pytania? Sprawdź `tests/README.md` lub otwórz issue! 🎯
-

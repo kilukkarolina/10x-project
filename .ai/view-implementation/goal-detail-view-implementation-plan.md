@@ -1,14 +1,17 @@
 # Plan implementacji widoku Szczegóły celu
 
 ## 1. Przegląd
+
 Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz historię jego zdarzeń (DEPOSIT/WITHDRAW) z filtrami i paginacją. Umożliwia dodawanie wpłat/wypłat, podgląd i edycję zdarzeń, wgląd w miesięczną zmianę oraz szybkie rozpoznanie statusu (priorytet, archiwum). Zawiera baner „korekty historyczne” przy operacjach poza bieżącym miesiącem. Zgodny z PRD, typami DTO i istniejącymi endpointami.
 
 ## 2. Routing widoku
+
 - Ścieżka: `/goals/:id`
 - Plik strony: `src/pages/goals/[id].astro`
 - React island: `GoalDetailApp` (montowany w pliku .astro)
 
 ## 3. Struktura komponentów
+
 - `GoalDetailApp` (kontener widoku)
   - `BackdateBanner` (reuse z dashboardu; warunkowo)
   - Layout 2-kolumnowy (desktop): lewa kolumna – przegląd; prawa kolumna – historia
@@ -27,7 +30,9 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
   - `ErrorState`, `EmptyState`, `Skeleton` (reuse wzorców projekcie)
 
 ## 4. Szczegóły komponentów
+
 ### GoalDetailApp
+
 - Opis: Kontener odpowiedzialny za routing param `id`, pobieranie danych, stan filtrów (miesiąc, typ), paginację, optimistic updates i synchronizację podkomponentów.
 - Główne elementy: wrapper strony, kolumny layoutu, provider kontekstu (opcjonalnie), toast area.
 - Obsługiwane interakcje:
@@ -43,6 +48,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: brak (odczyt `:id` z Astro i `window.location` lub przekazany przez `data-*` z `[id].astro`).
 
 ### GoalOverviewCard
+
 - Opis: Karta podsumowania – nazwa, typ (etykieta PL), target, saldo, progres %, status (priorytet/archiwum) i CTA (DEPOSIT/WITHDRAW).
 - Główne elementy: tytuł z nazwą, badge typu, progress bar (shadcn/ui `progress.tsx`), pola liczbowe (PLN), przyciski akcji.
 - Zdarzenia: kliknięcia „Wpłać”/„Wypłać” (otwarcie modala), (opcjonalnie) toggle priorytetu (jeśli dostępny endpoint PATCH).
@@ -51,6 +57,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: `{ goal: GoalDTO; onDeposit: () => void; onWithdraw: () => void; isArchived: boolean; }`
 
 ### GoalMonthlyChangeBadge
+
 - Opis: Badge pokazujący „zmiana w miesiącu” (Σ(DEPOSIT − WITHDRAW) w wybranym miesiącu) dla danego celu.
 - Główne elementy: liczba PLN z trendem (+/−/0), mini-legend.
 - Zdarzenia: brak (wyłącznie prezentacja).
@@ -59,6 +66,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: `{ monthNetCents: number; }`
 
 ### GoalEventsFilters
+
 - Opis: Panel filtrów listy zdarzeń (miesiąc YYYY-MM i typ: ALL/DEPOSIT/WITHDRAW) + podsumowania (miesięczne i łączne).
 - Główne elementy: picker miesiąca (reuse `useMonthState`), select typu (shadcn/ui `select.tsx`), pola sum.
 - Zdarzenia: `onMonthChange`, `onTypeChange`, `onReset` (opcjonalnie).
@@ -67,6 +75,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: `{ filters: GoalEventFilterState; aggregates: GoalEventsAggregates; onChange: (f: GoalEventFilterState) => void; }`
 
 ### GoalEventsListVirtual
+
 - The purpose: Wirtualizowana lista zdarzeń sortowana po `created_at DESC, id DESC` z paginacją cursorową.
 - Główne elementy: scroller, item renderer `GoalEventRow`, przechwycenie końca listy.
 - Zdarzenia: `onEndReached` (ładowanie kolejnej strony), `onEdit(event)`.
@@ -75,6 +84,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: `{ events: GoalEventDTO[]; hasMore: boolean; isLoading: boolean; onLoadMore: () => void; onEdit: (e: GoalEventDTO) => void; }`
 
 ### GoalEventRow
+
 - Opis: Wiersz zdarzenia (data wystąpienia, typ, kwota, data utworzenia w tooltipie), akcja „Edytuj” (modal).
 - Główne elementy: label typu (badge), kwota (kolor +/−), daty, przycisk Edytuj.
 - Zdarzenia: `onEdit`.
@@ -83,6 +93,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: `{ event: GoalEventDTO; onEdit: (e: GoalEventDTO) => void; }`
 
 ### GoalEventFormModal
+
 - Opis: Modal do dodania/edycji zdarzenia (DEPOSIT/WITHDRAW). Pola: typ, data, kwota, (ukryty) `client_request_id` przy create.
 - Główne elementy: `dialog.tsx`, `input.tsx`, `select.tsx`, przyciski Zapisz/Anuluj.
 - Zdarzenia: `onSubmit(values)`, `onClose()`; blokada double-submit.
@@ -95,6 +106,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Propsy: `{ mode: "create" | "edit"; initialValues?: GoalEventFormValues; goalId: string; currentBalanceCents: number; onSubmit: (values) => Promise<void>; onClose: () => void; }`
 
 ## 5. Typy
+
 - DTO (reuse z `src/types.ts`):
   - `GoalDTO`: id, name, type_code, type_label, target_amount_cents, current_balance_cents, progress_percentage, is_priority, archived_at, created_at, updated_at.
   - `GoalEventDTO`: id, goal_id, goal_name, type ("DEPOSIT" | "WITHDRAW"), amount_cents, occurred_on, created_at.
@@ -123,6 +135,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
     - `client_request_id?: string` (tworzone przy `create` – `crypto.randomUUID()`)
 
 ## 6. Zarządzanie stanem
+
 - Hooki niestandardowe:
   - `useGoalDetailData(goalId: string)`
     - Odpowiada za: pobranie `GoalDTO` (Plan A: GET /api/v1/goals/:id – jeśli dostępny; Plan B: GET /api/v1/goals i filtracja po id), utrzymanie `goal` i `isArchived`.
@@ -131,7 +144,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
     - Odpowiada za: pobieranie listy z `GET /api/v1/goal-events`, utrzymanie `events[]`, `pagination`, `isLoading`, `error`, `loadMore`.
     - Oblicza `GoalEventsAggregates` (miesięczne i łączne) po stronie FE na podstawie załadowanych rekordów i aktywnego `filters.month`.
   - `useMonthState(initial?: string)` (reuse istniejącego hooka; jeśli wspólny, zaimportować z miejsca wspólnego).
-  - `useBackdateFlag()` (reuse; ustawienie flagi po create/edit, jeśli `occurred_on` miesiąc ≠ aktywny `filters.month`). 
+  - `useBackdateFlag()` (reuse; ustawienie flagi po create/edit, jeśli `occurred_on` miesiąc ≠ aktywny `filters.month`).
 - Stan widoku w `GoalDetailApp`:
   - `filters: GoalEventFilterState` (kontrolowany przez `GoalEventsFilters`)
   - `showBackdateBanner: boolean`
@@ -140,6 +153,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
   - `optimisticQueue`: kolejka lokalnych zmian do ewentualnego rollbacku
 
 ## 7. Integracja API
+
 - GET `/api/v1/goals` (tymczasowo do uzyskania `GoalDTO` gdy brak `/goals/:id`)
   - Zapytanie: bez parametrów lub `include_archived=true` (jeśli chcemy również archiwalne).
   - Odpowiedź: `GoalListResponseDTO` → wybór po `id`.
@@ -157,6 +171,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - GET `/api/v1/metrics/priority-goal` (opcjonalnie do synchronizacji dashboardu po zmianach – odświeżenie w tle, gdy dany cel jest priorytetem).
 
 ## 8. Interakcje użytkownika
+
 - „Wpłać”/„Wypłać” → otwarcie `GoalEventFormModal` (tryb create, typ preselektowany).
 - Submit modala (create):
   - Walidacje lokalne (format kwoty, data ≤ dziś, WITHDRAW ≤ saldo).
@@ -174,6 +189,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Paginacja: „Load more” → użycie `next_cursor`.
 
 ## 9. Warunki i walidacja
+
 - WITHDRAW ≤ `goal.current_balance_cents` (lokalnie i przez API).
 - `occurred_on` ≤ dzisiejsza data (lokalnie; API zwróci 422 w razie naruszenia).
 - `amount_pln` > 0; parser akceptuje `,` i `.` (reuse `parsePlnInputToCents`).
@@ -182,6 +198,7 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Baner backdate: ustaw przy create/edit, jeśli `occurred_on` nie należy do aktywnego `filters.month`.
 
 ## 10. Obsługa błędów
+
 - 400/422: podświetlenie pól w formularzu + komunikat PL (inline) oraz toast.
 - 404: zamknięcie modala, komunikat „Cel nie istnieje lub jest zarchiwizowany”; przekierowanie do `/goals` przy twardym 404 celu.
 - 409 DUPLICATE_REQUEST: idempotencja – pokaż toast „Operacja została już zarejestrowana” (brak podwójnych wpisów).
@@ -190,44 +207,46 @@ Widok prezentuje szczegóły pojedynczego celu oszczędnościowego oraz histori�
 - Brak danych miesiąca: neutralny stan „Brak danych w tym miesiącu” (lista i badge pokazują 0).
 
 ## 11. Kroki implementacji
-1) Routing i skeleton
+
+1. Routing i skeleton
    - Utwórz `src/pages/goals/[id].astro` (import globalnego layoutu i mount `GoalDetailApp`).
    - Dodaj kontener layoutu 2-kolumnowego (na desktop), prosty `Skeleton`.
-2) Kontener `GoalDetailApp`
+2. Kontener `GoalDetailApp`
    - Odczytaj `id` z paramów; zainicjuj `useMonthState` (domyślnie bieżący miesiąc).
    - Zaimplementuj `useGoalDetailData` (Plan A: GET `/goals/:id` po dodaniu endpointu; Plan B: GET `/goals` + filtr po `id`).
    - Zaimplementuj `useGoalEventsData` (GET `/goal-events` z `goal_id`, `month`, opcjonalnie `type`, paginacja cursorowa).
    - Oblicz `GoalEventsAggregates` (miesiąc i łącznie dla zakresu wyników).
-3) Komponenty lewa kolumna
+3. Komponenty lewa kolumna
    - `GoalOverviewCard`: prezentacja danych + przyciski akcji (disabled przy archiwum).
    - `GoalMonthlyChangeBadge`: wartość z agregatów.
    - (Opcjonalnie) `GoalPriorityToggle`: reuse istniejącego komponentu; dopasuj API gdy dostępne.
-4) Komponenty prawa kolumna
+4. Komponenty prawa kolumna
    - `GoalEventsFilters`: select typu i picker miesiąca; `onChange` aktualizuje `filters` i resetuje listę.
    - `GoalEventsListVirtual`: wirtualizacja, `GoalEventRow`, `LoadMoreButton` na końcu.
-5) Modal `GoalEventFormModal`
+5. Modal `GoalEventFormModal`
    - Pola: typ (select), data (input type="date"), kwota (input text); mapowanie do groszy parserem.
    - Tryb create: generacja `client_request_id`, optimistic add + update salda i agregatów; obsługa błędów jak w sekcji 10.
    - Tryb edit: UI gotowy, disabled submit (do czasu endpointu PATCH) lub za feature-flagą.
-6) Backdate banner
+6. Backdate banner
    - Reuse `BackdateBanner`; hook `useBackdateFlag` podnosi flagę, gdy create/edit poza `filters.month`.
-7) Formatowanie i i18n
+7. Formatowanie i i18n
    - Format PLN: `Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" })` (spójnie w projekcie).
    - Teksty do centralnego słownika (PL) – komunikaty toasts/tooltipów.
-8) Dostępność i UX
+8. Dostępność i UX
    - Modal: focus na pierwszym polu; ESC zamyka; blokada double-submit; aria-live dla toastów.
    - Przyciski CTA: stany Loading/Disabled (US-097).
-9) Testy ręczne (scenariusze kluczowe)
+9. Testy ręczne (scenariusze kluczowe)
    - DEPOSIT w bieżącym miesiącu (sukces).
    - WITHDRAW z kwotą > saldo (blokada klienta i 409 z serwera – weryfikacja toasta i rollback).
    - Operacja z datą w przeszłym miesiącu → baner backdate.
    - Zarchiwizowany cel → CTA disabled; lista zdarzeń nadal dostępna.
-10) Refine i wydajność
-   - Weryfikacja płynności listy i czasu odpowiedzi ≤200 ms (dla typowych zakresów).
-   - Debounce zmian filtrów (opcjonalnie 200–300 ms).
-11) (Opcjonalnie) Backend follow-ups
-   - Dodać `GET /api/v1/goals/:id` (schema i service są gotowe).
-   - Dodać `PATCH /api/v1/goal-events/:id` lub RPC do edycji zdarzeń (wymagania US-039).
-   - Dodać `POST /api/v1/goals/:id/archive` (już istnieje service), jeśli potrzebne z widoku szczegółów.
+10. Refine i wydajność
 
+- Weryfikacja płynności listy i czasu odpowiedzi ≤200 ms (dla typowych zakresów).
+- Debounce zmian filtrów (opcjonalnie 200–300 ms).
 
+11. (Opcjonalnie) Backend follow-ups
+
+- Dodać `GET /api/v1/goals/:id` (schema i service są gotowe).
+- Dodać `PATCH /api/v1/goal-events/:id` lub RPC do edycji zdarzeń (wymagania US-039).
+- Dodać `POST /api/v1/goals/:id/archive` (już istnieje service), jeśli potrzebne z widoku szczegółów.

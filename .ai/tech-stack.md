@@ -84,13 +84,11 @@ AUTH_EMAIL_FROM="FinFlow <no-reply@twojadomena.pl>"
   - Szybkie (~10ms per test), uruchamiane w watch mode przy każdym zapisie.
   - Wszystkie zależności mockowane.
   - Cel: logika biznesowa (parsowanie kwot, bankierskie zaokrąglanie, obliczenia finansowe).
-  
 - **Level 2 – Integration tests** (Vitest + Testcontainers):
   - Prawdziwa baza Postgres w kontenerze Docker (~100-500ms per test).
   - **Fake auth** (mock userId) – testujemy logikę biznesową, nie Supabase Auth.
   - Migracje z `./supabase/migrations/` uruchamiane automatycznie.
   - Cel: API endpoints, RLS policies, soft-delete, audit_log, agregacje.
-  
 - **Level 3 – E2E tests** (Playwright + Supabase Cloud):
   - Prawdziwy Supabase Auth (GoTrue) + dedykowany projekt testowy.
   - Ethereal Email dla weryfikacji maili (rejestracja, reset hasła).
@@ -98,11 +96,13 @@ AUTH_EMAIL_FROM="FinFlow <no-reply@twojadomena.pl>"
   - Cel: auth flows, critical user journeys, smoke tests.
 
 **CI/CD Pipeline**:
+
 - Unit tests: każdy push (~1-2 min)
 - Integration tests: każdy PR (~5-8 min)
 - E2E tests: merge do master + release (~10-15 min)
 
 **Pominięte w MVP** (świadomie):
+
 - ❌ Performance/load testing (k6, Artillery) – małe obciążenie, Supabase skaluje automatycznie
 - ❌ Security testing (OWASP, pentesty) – RLS testowane funkcjonalnie, Supabase ma wbudowane zabezpieczenia
 - ❌ Mutation testing – opcjonalnie post-MVP

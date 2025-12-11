@@ -13,6 +13,7 @@
 - Zgodność i wydajność: spójne agregaty per miesiąc, paginacja keyset („Load more”), wirtualizacja długich list, UI bez migotania przy przełączaniu miesięcy.
 
 Główne endpointy API (mapa na poziomie UI):
+
 - Transakcje: `GET/POST/PATCH/DELETE /api/v1/transactions`, `GET /api/v1/transactions/:id`
 - Kategorie: `GET /api/v1/categories` (readonly)
 - Cele: `GET/POST/PATCH /api/v1/goals`, `POST /api/v1/goals/:id/archive`
@@ -25,6 +26,7 @@ Główne endpointy API (mapa na poziomie UI):
 ## 2. Lista widoków
 
 ### Widok: Dashboard
+
 - Ścieżka widoku: `/dashboard`
 - Główny cel: szybki przegląd stanu finansów w wybranym miesiącu i kontekstowa nawigacja.
 - Kluczowe informacje do wyświetlenia:
@@ -44,6 +46,7 @@ Główne endpointy API (mapa na poziomie UI):
 - Powiązane historyjki PRD: US‑016, US‑017, US‑018, US‑037, US‑061, US‑065, US‑073, US‑083, US‑055, US‑064, US‑089, US‑090, US‑098, US‑052.
 
 ### Widok: Transakcje
+
 - Ścieżka widoku: `/transactions`
 - Główny cel: przegląd, filtrowanie i CRUD transakcji (soft‑delete) z płynną paginacją i spójnością metryk.
 - Kluczowe informacje do wyświetlenia:
@@ -62,6 +65,7 @@ Główne endpointy API (mapa na poziomie UI):
 - Powiązane historyjki PRD: US‑006, US‑007, US‑008, US‑009, US‑010, US‑011, US‑012, US‑013, US‑014, US‑015, US‑024, US‑028, US‑036, US‑047, US‑050, US‑052, US‑053, US‑057, US‑060, US‑061, US‑073, US‑085, US‑092, US‑097.
 
 ### Widok: Cele
+
 - Ścieżka widoku: `/goals`
 - Główny cel: przegląd i zarządzanie celami (tworzenie, oznaczanie priorytetu, archiwizacja).
 - Kluczowe informacje do wyświetlenia:
@@ -77,6 +81,7 @@ Główne endpointy API (mapa na poziomie UI):
 - Powiązane historyjki PRD: US‑019, US‑020, US‑021, US‑040, US‑055, US‑059, US‑076.
 
 ### Widok: Szczegóły celu
+
 - Ścieżka widoku: `/goals/:id`
 - Główny cel: przegląd stanu celu (lewa kolumna) i historia zdarzeń (prawa kolumna), z możliwością DEPOSIT/WITHDRAW i edycji zdarzeń.
 - Kluczowe informacje do wyświetlenia:
@@ -94,6 +99,7 @@ Główne endpointy API (mapa na poziomie UI):
 - Powiązane historyjki PRD: US‑022, US‑023, US‑039, US‑041, US‑058, US‑064, US‑055, US‑059, US‑076, US‑089.
 
 ### Widok: Audit Log
+
 - Ścieżka widoku: `/audit-log`
 - Główny cel: przegląd historii zmian użytkownika (30 dni, wirtualizacja), szybkie filtrowanie i podgląd diff JSON.
 - Kluczowe informacje do wyświetlenia:
@@ -110,6 +116,7 @@ Główne endpointy API (mapa na poziomie UI):
 - Powiązane historyjki PRD: US‑027, US‑028, US‑069, US‑088, US‑070, US‑100.
 
 ### Widok: Mój profil
+
 - Ścieżka widoku: `/me`
 - Główny cel: podgląd profilu i podstawowych akcji (status weryfikacji, ponowna wysyłka verify, reset hasła – link/CTA, usunięcie konta).
 - Kluczowe informacje do wyświetlenia:
@@ -124,6 +131,7 @@ Główne endpointy API (mapa na poziomie UI):
 - Powiązane historyjki PRD: US‑081, US‑093, US‑033, US‑034, US‑046, US‑030, US‑071.
 
 ### Widok: Globalny błąd i stany systemowe
+
 - Ścieżka widoku: fallback (np. `/error` lub globalny ErrorBoundary)
 - Główny cel: prezentacja błędów krytycznych 5xx, baneru offline, rate‑limit 429 z odliczaniem.
 - Kluczowe komponenty widoku: `GlobalErrorScreen`, `OfflineBanner`, `RateLimitBanner`.
@@ -132,6 +140,7 @@ Główne endpointy API (mapa na poziomie UI):
 ## 3. Mapa podróży użytkownika
 
 ### Flow A: Pierwsze uruchomienie → Dodanie pierwszej transakcji
+
 1. `/dashboard` (brak danych) → placeholder „Dodaj pierwszą transakcję”.
 2. CTA otwiera `TransactionFormModal` (prefill: `type=EXPENSE`, `date=today`).
 3. Zapis (POST `/transactions`) z `Idempotency-Key` → optimistic update.
@@ -139,6 +148,7 @@ Główne endpointy API (mapa na poziomie UI):
 5. UI pokazuje zaktualizowane karty i wykres; brak placeholderów.
 
 ### Flow B: Ustawienie priorytetowego celu i wpłata
+
 1. `/goals` → „Utwórz cel” (modal) → POST `/goals`.
 2. Oznaczenie jako priorytet (PATCH `/goals/:id`, transakcyjne wyłączenie poprzedniego).
 3. `/goals/:id` → `DEPOSIT` (modal) → POST `/goal-events` (idempotencja).
@@ -146,11 +156,13 @@ Główne endpointy API (mapa na poziomie UI):
 5. Dashboard pokazuje wzrost „Odłożone netto” i progres celu.
 
 ### Flow C: Korekta historyczna transakcji (backdate)
+
 1. `/transactions` → edycja (PATCH `/transactions/:id`) zmienia miesiąc.
 2. Serwer zwraca `backdate_warning: true` → UI pokazuje baner z linkiem do nowego miesiąca.
 3. Invalidacje metryk obu miesięcy oraz listy transakcji; płynna aktualizacja kart.
 
 ### Flow D: Przegląd zmian w Audit Log
+
 1. `/audit-log` domyślnie zakres 30 dni.
 2. Użytkownik filtruje po typie/encji, przewija wirtualizowaną listę.
 3. Kliknięcie w wiersz otwiera `JsonDiffDrawer` z czytelnymi różnicami (bezpieczny render).
@@ -185,5 +197,3 @@ Główne endpointy API (mapa na poziomie UI):
   - `apiClient` (nagłówki, idempotencja, adapter błędów, retry/backoff), `DictionariesProvider` (`/categories`, `/goal-types`, staleTime Infinity, soft‑refresh 24h).
 - A11y i bezpieczeństwo:
   - Focus‑trap w modalach, `aria-live` dla toastów, `aria-describedby` dla błędów, sanitizacja notatek, blokady operacji zgodnie z PRD (np. WITHDRAW > saldo).
-
-

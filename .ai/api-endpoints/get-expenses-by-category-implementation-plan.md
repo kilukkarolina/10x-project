@@ -3,12 +3,14 @@
 ## 1. Przegląd punktu końcowego
 
 Endpoint zwraca rozbicie wydatków użytkownika według kategorii dla określonego miesiąca. Dla każdej kategorii, w której użytkownik miał wydatki, zwracany jest:
+
 - kod i etykieta kategorii
 - łączna kwota wydatków w groszach
 - procentowy udział w całkowitych wydatkach miesiąca
 - liczba transakcji w tej kategorii
 
 Dane są agregowane na podstawie tabeli `transactions` z filtrami:
+
 - `type = 'EXPENSE'`
 - `month = <specified_month>` (wygenerowana kolumna)
 - `deleted_at IS NULL` (tylko aktywne transakcje)
@@ -25,6 +27,7 @@ Endpoint jest częścią dashboardu i służy do wizualizacji wydatków (wykres 
 **Struktura URL:** `/api/v1/metrics/expenses-by-category`
 
 **Parametry:**
+
 - **Wymagane:**
   - `month` (query string) - Miesiąc do analizy w formacie YYYY-MM (np. "2025-01")
 
@@ -34,12 +37,14 @@ Endpoint jest częścią dashboardu i służy do wizualizacji wydatków (wykres 
 **Request Body:** Brak (metoda GET)
 
 **Przykładowe zapytanie:**
+
 ```http
 GET /api/v1/metrics/expenses-by-category?month=2025-01 HTTP/1.1
 Host: api.finflow.app
 ```
 
 **Nagłówki wymagane:**
+
 - `Content-Type: application/json` (w odpowiedzi)
 - Uwierzytelnienie: obecnie `DEFAULT_USER_ID`, docelowo `Authorization: Bearer <token>`
 
@@ -50,6 +55,7 @@ Host: api.finflow.app
 ### Istniejące typy (src/types.ts):
 
 **ExpenseByCategoryDTO:**
+
 ```typescript
 export interface ExpenseByCategoryDTO {
   category_code: string;
@@ -61,6 +67,7 @@ export interface ExpenseByCategoryDTO {
 ```
 
 **ExpensesByCategoryResponseDTO:**
+
 ```typescript
 export interface ExpensesByCategoryResponseDTO {
   month: string; // YYYY-MM format
@@ -70,6 +77,7 @@ export interface ExpensesByCategoryResponseDTO {
 ```
 
 **ErrorResponseDTO:**
+
 ```typescript
 export interface ErrorResponseDTO {
   error: string;
@@ -111,9 +119,10 @@ export type GetExpensesByCategoryQuery = z.infer<typeof GetExpensesByCategoryQue
 
 ### **WAŻNA UWAGA - Niespójność w typach:**
 
-W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `ExpenseByCategoryDTO` jest `expense_percentage`. 
+W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `ExpenseByCategoryDTO` jest `expense_percentage`.
 
-**Rekomendacja:** 
+**Rekomendacja:**
+
 - Używać nazwy z types.ts (`expense_percentage`)
 - Lub zmienić interfejs, żeby pasował do specyfikacji
 - **Dla spójności z API Plan należy zmapować w odpowiedzi: `expense_percentage` → `percentage`**
@@ -152,11 +161,14 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ```
 
 **Nagłówki:**
+
 - `Content-Type: application/json`
 - `Cache-Control: private, max-age=300, stale-while-revalidate=60` (cache na 5 minut)
 
 **Specjalne przypadki:**
+
 - **Brak wydatków w miesiącu:**
+
   ```json
   {
     "month": "2025-01",
@@ -185,6 +197,7 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ### Błędy:
 
 #### 400 Bad Request - Brak parametru month
+
 ```json
 {
   "error": "Validation Error",
@@ -196,6 +209,7 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ```
 
 #### 400 Bad Request - Nieprawidłowy format miesiąca
+
 ```json
 {
   "error": "Validation Error",
@@ -207,6 +221,7 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ```
 
 #### 400 Bad Request - Miesiąc w przyszłości
+
 ```json
 {
   "error": "Validation Error",
@@ -218,6 +233,7 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ```
 
 #### 401 Unauthorized (przyszłość, po implementacji auth)
+
 ```json
 {
   "error": "Unauthorized",
@@ -226,6 +242,7 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ```
 
 #### 500 Internal Server Error
+
 ```json
 {
   "error": "Internal Server Error",
@@ -238,6 +255,7 @@ W specyfikacji API (linie 546-578) pole nazywa się `percentage`, ale w `Expense
 ## 5. Przepływ danych
 
 ### Architektura warstw:
+
 ```
 Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 ```
@@ -261,16 +279,17 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
    - Wywołanie `getExpensesByCategory(supabase, userId, month)`
 
 5. **Database Query (Service)**
+
    ```sql
-   SELECT 
+   SELECT
      t.category_code,
      tc.label_pl as category_label,
      SUM(t.amount_cents) as total_cents,
      COUNT(*) as transaction_count
    FROM transactions t
-   INNER JOIN transaction_categories tc 
+   INNER JOIN transaction_categories tc
      ON t.category_code = tc.code
-   WHERE 
+   WHERE
      t.user_id = <userId>
      AND t.type = 'EXPENSE'
      AND t.month = <normalized_month>
@@ -299,6 +318,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
    - Zwrócenie 500 w przypadku nieoczekiwanych błędów
 
 ### RLS (Row Level Security):
+
 - Tabela `transactions` automatycznie filtruje rekordy przez `user_id = auth.uid()`
 - Dodatkowa weryfikacja `email_confirmed = true` (przez politykę RLS)
 
@@ -307,23 +327,27 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 ## 6. Względy bezpieczeństwa
 
 ### 1. Uwierzytelnianie
+
 **Obecnie:**
+
 - Używany jest `DEFAULT_USER_ID` (tymczasowe rozwiązanie)
 
 **Docelowo:**
+
 - Sprawdzenie tokena JWT przez middleware Astro
 - `context.locals.supabase.auth.getUser()` zwraca zalogowanego użytkownika
 - Zwrócenie 401 jeśli użytkownik nie jest zalogowany
 
 ### 2. Autoryzacja (RLS)
+
 - Row Level Security w Supabase automatycznie filtruje dane użytkownika
 - Polityka na tabeli `transactions`:
   ```sql
   USING (
-    user_id = auth.uid() 
+    user_id = auth.uid()
     AND EXISTS (
-      SELECT 1 FROM profiles p 
-      WHERE p.user_id = auth.uid() 
+      SELECT 1 FROM profiles p
+      WHERE p.user_id = auth.uid()
       AND p.email_confirmed = true
     )
   )
@@ -332,6 +356,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 - Wymóg potwierdzonego emaila
 
 ### 3. Walidacja danych wejściowych
+
 - **Query param `month`:**
   - Regex walidacja formatu YYYY-MM
   - Sprawdzenie zakresu miesiąca (01-12)
@@ -339,30 +364,36 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
   - Zod schema zapobiega injection attacks
 
 ### 4. SQL Injection
+
 - **Ochrona:** Supabase automatycznie parametryzuje zapytania
 - `.eq("type", "EXPENSE")` jest bezpieczne
 - Nie używać string interpolacji w zapytaniach SQL
 
 ### 5. Rate Limiting
+
 - **Brak** specjalnych limitów dla endpointów READ-ONLY
 - Dashboard endpoints mogą być cache'owane (5 min)
 - Supabase Free Tier ma własne limity API
 
 ### 6. Wrażliwe dane
+
 - **Brak wrażliwych danych w odpowiedzi:**
   - Kategorie (publiczny słownik)
   - Kwoty (należą do użytkownika, RLS zabezpiecza)
   - Liczba transakcji (nieszkodliwa metryka)
 
 ### 7. CORS
+
 - Konfiguracja w Astro (jeśli frontend na innej domenie)
 - Dla SPA w tym samym pochodzeniu: brak problemu
 
 ### 8. Headers bezpieczeństwa
+
 - `Content-Type: application/json` zapobiega MIME sniffing
 - `Cache-Control: private` - nie cache'ować na shared caches
 
 ### 9. Logowanie błędów
+
 - Nie logować wrażliwych danych (tokeny, hasła)
 - Logować: userId, month, error message
 - Console.error dla development
@@ -377,6 +408,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 #### 1. Błędy walidacji (400 Bad Request)
 
 **Scenariusz:** Brak parametru `month`
+
 - **Przyczyna:** Client nie wysłał query param `month`
 - **Kod:** 400
 - **Response:**
@@ -389,6 +421,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
   ```
 
 **Scenariusz:** Nieprawidłowy format miesiąca
+
 - **Przyczyna:** Client wysłał `month=2025/01` lub `month=202501`
 - **Kod:** 400
 - **Response:**
@@ -401,6 +434,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
   ```
 
 **Scenariusz:** Nieprawidłowy zakres miesiąca
+
 - **Przyczyna:** Client wysłał `month=2025-13` lub `month=2025-00`
 - **Kod:** 400
 - **Response:** (złapane przez regex)
@@ -413,6 +447,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
   ```
 
 **Scenariusz:** Miesiąc w przyszłości
+
 - **Przyczyna:** Client wysłał `month=2026-12` (przyszłość)
 - **Kod:** 400
 - **Response:**
@@ -427,6 +462,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 #### 2. Błędy uwierzytelniania (401 Unauthorized)
 
 **Scenariusz:** Brak tokena autoryzacyjnego (przyszłość)
+
 - **Przyczyna:** Client nie wysłał tokena JWT w nagłówku
 - **Kod:** 401
 - **Response:**
@@ -438,6 +474,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
   ```
 
 **Scenariusz:** Nieważny token (przyszłość)
+
 - **Przyczyna:** Token JWT wygasł lub jest nieprawidłowy
 - **Kod:** 401
 - **Response:**
@@ -451,6 +488,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 #### 3. Błędy bazy danych (500 Internal Server Error)
 
 **Scenariusz:** Błąd połączenia z bazą danych
+
 - **Przyczyna:** Supabase jest niedostępny lub timeout
 - **Kod:** 500
 - **Logowanie:**
@@ -470,6 +508,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
   ```
 
 **Scenariusz:** Błąd zapytania SQL
+
 - **Przyczyna:** Błąd w konstrukcji query lub polityce RLS
 - **Kod:** 500
 - **Logowanie:** Jak wyżej
@@ -478,6 +517,7 @@ Client → API Endpoint → Service Layer → Supabase (PostgreSQL) → Response
 #### 4. Nieoczekiwane błędy (500 Internal Server Error)
 
 **Scenariusz:** Błąd w logice transformacji danych
+
 - **Przyczyna:** Nieoczekiwany typ danych z bazy (np. null w nieoczekiwanym miejscu)
 - **Kod:** 500
 - **Logowanie:**
@@ -530,15 +570,18 @@ try {
 ### Strategia logowania:
 
 **Development:**
+
 - `console.error()` z pełnymi szczegółami błędu
 - Stack trace dla debugging
 
 **Production (przyszłość):**
+
 - Zewnętrzny service (Sentry, LogRocket)
 - Strukturalne logi (JSON)
 - Monitorowanie metryk błędów
 
 **Czego NIE logować:**
+
 - Tokenów autoryzacyjnych
 - Haseł
 - Pełnych danych użytkownika (tylko userId)
@@ -559,6 +602,7 @@ try {
   - **Zastosowanie:** Backup index jeśli query optimizer wybierze inną ścieżkę
 
 **Query plan (spodziewany):**
+
 ```
 → Aggregate (GROUP BY category_code)
   → Nested Loop Join (transactions ⋈ transaction_categories)
@@ -569,10 +613,12 @@ try {
 ```
 
 **Złożoność:**
+
 - **Czas:** O(n log n) gdzie n = liczba transakcji użytkownika w miesiącu
 - **Pamięć:** O(k) gdzie k = liczba kategorii (maksymalnie 9 kategorii EXPENSE)
 
 **Szacunkowe czasy (na Supabase Free Tier):**
+
 - **10 transakcji/miesiąc:** ~5-10ms
 - **100 transakcji/miesiąc:** ~10-20ms
 - **1000 transakcji/miesiąc:** ~50-100ms
@@ -580,6 +626,7 @@ try {
 ### 2. Caching
 
 **HTTP Caching:**
+
 ```typescript
 "Cache-Control": "private, max-age=300, stale-while-revalidate=60"
 ```
@@ -589,11 +636,13 @@ try {
 - **`stale-while-revalidate=60`:** Pozwól na stale content przez dodatkową minutę podczas revalidacji
 
 **Uzasadnienie:**
+
 - Dane miesięczne zmieniają się rzadko (tylko gdy user dodaje/usuwa transakcje)
 - Dashboard może tolerować 5-minutowe opóźnienie
 - Zmniejsza obciążenie bazy danych
 
 **Alternatywy (przyszłość):**
+
 - Redis cache na poziomie service layer
 - Invalidacja cache po utworzeniu/usunięciu transakcji
 - Cache key: `expenses-by-category:${userId}:${month}`
@@ -601,6 +650,7 @@ try {
 ### 3. Paginacja
 
 **Nie wymagana** dla tego endpointu:
+
 - Maksymalnie 9 kategorii wydatków (stały słownik)
 - Response size: ~200-500 bytes (zależnie od liczby kategorii)
 - Brak ryzyka timeoutu
@@ -608,16 +658,19 @@ try {
 ### 4. Agregacja po stronie bazy
 
 **Zalety:**
+
 - Minimalizacja transferu danych (zwracamy sumy, nie poszczególne transakcje)
 - Wykorzystanie mocy obliczeniowej PostgreSQL
 - Mniejsze obciążenie memory na serwerze aplikacyjnym
 
 **Query zwraca tylko:**
+
 ```
 9 rows × (category_code + label + total_cents + count) ≈ 200-400 bytes
 ```
 
 Zamiast:
+
 ```
 100 transactions × (id + amount + category + date + ...) ≈ 10-20 KB
 ```
@@ -625,6 +678,7 @@ Zamiast:
 ### 5. Connection pooling
 
 **Supabase:**
+
 - Automatyczny connection pooling (PgBouncer)
 - Limit połączeń na Free Tier: 60 connections
 - **Best practice:** Używać pojedynczego `supabaseClient` instance
@@ -633,22 +687,24 @@ Zamiast:
 
 **Potencjalne problemy:**
 
-| Problem | Prawdopodobieństwo | Mitygacja |
-|---------|-------------------|-----------|
-| Wolne zapytanie dla power users (>1000 tx/miesiąc) | Niskie | Indeksy częściowe z `deleted_at IS NULL` |
-| Rate limit Supabase (60 req/s) | Średnie | HTTP caching (5 min), debouncing na FE |
-| N+1 query problem | Brak | Single query z JOIN |
-| Timeout na Supabase (2s limit) | Bardzo niskie | Agregacja ograniczona do 1 miesiąca |
+| Problem                                            | Prawdopodobieństwo | Mitygacja                                |
+| -------------------------------------------------- | ------------------ | ---------------------------------------- |
+| Wolne zapytanie dla power users (>1000 tx/miesiąc) | Niskie             | Indeksy częściowe z `deleted_at IS NULL` |
+| Rate limit Supabase (60 req/s)                     | Średnie            | HTTP caching (5 min), debouncing na FE   |
+| N+1 query problem                                  | Brak               | Single query z JOIN                      |
+| Timeout na Supabase (2s limit)                     | Bardzo niskie      | Agregacja ograniczona do 1 miesiąca      |
 
 ### 7. Monitorowanie (przyszłość)
 
 **Metryki do śledzenia:**
+
 - Czas odpowiedzi endpointu (p50, p95, p99)
 - Liczba 500 errors
 - Cache hit rate
 - Supabase query duration
 
 **Alerty:**
+
 - P95 > 500ms → sprawdzić query plan
 - Error rate > 1% → sprawdzić logi
 
@@ -661,11 +717,13 @@ Zamiast:
 **Plik:** `src/lib/schemas/expenses-by-category.schema.ts`
 
 **Zadanie:**
+
 - Skopiować schemat z `monthly-metrics.schema.ts` (identyczna walidacja `month`)
 - Lub zaimportować i reużyć ten sam schemat (DRY principle)
 - Dodać eksport typu TypeScript
 
 **Kod:**
+
 ```typescript
 import { z } from "zod";
 
@@ -689,12 +747,11 @@ export const GetExpensesByCategoryQuerySchema = z.object({
     ),
 });
 
-export type GetExpensesByCategoryQuery = z.infer<
-  typeof GetExpensesByCategoryQuerySchema
->;
+export type GetExpensesByCategoryQuery = z.infer<typeof GetExpensesByCategoryQuerySchema>;
 ```
 
 **Weryfikacja:**
+
 - Import schema w innym pliku - sprawdzić czy nie ma błędów TypeScript
 
 ---
@@ -704,6 +761,7 @@ export type GetExpensesByCategoryQuery = z.infer<
 **Plik:** `src/lib/services/expenses-by-category.service.ts`
 
 **Zadanie:**
+
 1. Stworzyć funkcję `getExpensesByCategory()`
 2. Zaimplementować normalizację miesiąca
 3. Wykonać zapytanie do Supabase z JOIN
@@ -711,6 +769,7 @@ export type GetExpensesByCategoryQuery = z.infer<
 5. Obsłużyć przypadek braku wydatków
 
 **Kod (szkielet):**
+
 ```typescript
 import type { SupabaseClient } from "@/db/supabase.client";
 import type { ExpensesByCategoryResponseDTO, ExpenseByCategoryDTO } from "@/types";
@@ -787,12 +846,15 @@ export async function getExpensesByCategory(
   }
 
   // Manual aggregation (since Supabase doesn't support GROUP BY in JS client)
-  const categoryMap = new Map<string, {
-    category_code: string;
-    category_label: string;
-    total_cents: number;
-    transaction_count: number;
-  }>();
+  const categoryMap = new Map<
+    string,
+    {
+      category_code: string;
+      category_label: string;
+      total_cents: number;
+      transaction_count: number;
+    }
+  >();
 
   for (const row of data) {
     const code = row.category_code;
@@ -843,11 +905,13 @@ export async function getExpensesByCategory(
 ```
 
 **Uwagi:**
+
 - Supabase JS client nie wspiera `GROUP BY` bezpośrednio, więc agregacja odbywa się manualnie w kodzie
 - Alternatywnie: użyć `.rpc()` z funkcją PostgreSQL zwracającą zagregowane dane
 - RLS automatycznie filtruje po `user_id`
 
 **Weryfikacja:**
+
 - Unit test z mockowanym Supabase client
 - Test przypadku: brak wydatków (pusta tablica)
 - Test przypadku: jeden wydatek (100% w jednej kategorii)
@@ -860,6 +924,7 @@ export async function getExpensesByCategory(
 **Plik:** `src/pages/api/v1/metrics/expenses-by-category/index.ts`
 
 **Struktura katalogów:**
+
 ```
 src/pages/api/v1/metrics/
 ├── monthly/
@@ -869,6 +934,7 @@ src/pages/api/v1/metrics/
 ```
 
 **Zadanie:**
+
 1. Zaimportować zależności (Zod, service, typy)
 2. Stworzyć handler GET
 3. Zaimplementować walidację query params
@@ -877,6 +943,7 @@ src/pages/api/v1/metrics/
 6. Zwrócić odpowiedź z odpowiednimi nagłówkami
 
 **Kod (szkielet):**
+
 ```typescript
 import type { APIContext } from "astro";
 import { z } from "zod";
@@ -968,11 +1035,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const userId = DEFAULT_USER_ID;
 
     // Step 3: Fetch expenses by category from service layer
-    const expenses = await getExpensesByCategory(
-      supabaseClient,
-      userId,
-      validatedQuery.month
-    );
+    const expenses = await getExpensesByCategory(supabaseClient, userId, validatedQuery.month);
 
     // Step 4: Map response to match API spec (expense_percentage → percentage)
     const response = {
@@ -1017,11 +1080,13 @@ export async function GET(context: APIContext): Promise<Response> {
 ```
 
 **Uwagi:**
+
 - Mapowanie `expense_percentage` → `percentage` w odpowiedzi (zgodnie z API spec)
 - Cache-Control identyczny jak w `/metrics/monthly`
 - Struktura obsługi błędów identyczna jak w istniejących endpointach
 
 **Weryfikacja:**
+
 - Manualny test: `curl "http://localhost:4321/api/v1/metrics/expenses-by-category?month=2025-01"`
 - Test błędów: brak param, zły format, przyszły miesiąc
 
@@ -1030,17 +1095,20 @@ export async function GET(context: APIContext): Promise<Response> {
 ### Krok 4: (Opcjonalnie) Rozważenie modyfikacji types.ts
 
 **Problem:**
+
 - API spec używa `percentage`
 - `ExpenseByCategoryDTO` używa `expense_percentage`
 
 **Opcje:**
 
 **Opcja A: Zostawić types.ts bez zmian + mapowanie w endpoincie** (ZALECANE)
+
 - ✅ Nie łamie istniejącego kodu
 - ✅ Jasne mapowanie w jednym miejscu (endpoint)
 - ❌ Niewielka duplikacja logiki
 
 **Opcja B: Zmienić interfejs na `percentage`**
+
 ```typescript
 export interface ExpenseByCategoryDTO {
   category_code: string;
@@ -1050,6 +1118,7 @@ export interface ExpenseByCategoryDTO {
   transaction_count: number;
 }
 ```
+
 - ✅ Zgodność z API spec
 - ❌ Wymaga sprawdzenia, czy interface jest używany gdzie indziej
 
@@ -1060,42 +1129,54 @@ export interface ExpenseByCategoryDTO {
 ### Krok 5: Testowanie manualne
 
 **Narzędzia:**
+
 - `curl` lub Postman/Insomnia
 - Dev server: `npm run dev`
 
 **Test Cases:**
 
 **TC1: Prawidłowe zapytanie z wydatkami**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/expenses-by-category?month=2025-01"
 ```
+
 **Oczekiwany result:** 200 OK z danymi
 
 **TC2: Miesiąc bez wydatków**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/expenses-by-category?month=2020-01"
 ```
+
 **Oczekiwany result:** 200 OK z pustą tablicą `data: []`
 
 **TC3: Brak parametru month**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/expenses-by-category"
 ```
+
 **Oczekiwany result:** 400 Bad Request
 
 **TC4: Nieprawidłowy format miesiąca**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/expenses-by-category?month=2025/01"
 ```
+
 **Oczekiwany result:** 400 Bad Request
 
 **TC5: Miesiąc w przyszłości**
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/expenses-by-category?month=2030-12"
 ```
+
 **Oczekiwany result:** 400 Bad Request
 
 **TC6: Wszystkie wydatki w jednej kategorii**
+
 - Przygotować dane testowe z jedną kategorią
 - Sprawdzić, czy `percentage: 100.0`
 
@@ -1104,11 +1185,13 @@ curl -X GET "http://localhost:4321/api/v1/metrics/expenses-by-category?month=203
 ### Krok 6: Weryfikacja cache'owania
 
 **Test:**
+
 1. Wywołać endpoint pierwszy raz → sprawdzić header `Cache-Control`
 2. Wywołać ponownie w ciągu 5 minut → sprawdzić, czy browser cache działa
 3. Użyć DevTools Network tab → sprawdzić status (200 vs 304)
 
 **Oczekiwany header:**
+
 ```
 Cache-Control: private, max-age=300, stale-while-revalidate=60
 ```
@@ -1118,6 +1201,7 @@ Cache-Control: private, max-age=300, stale-while-revalidate=60
 ### Krok 7: Code review i cleanup
 
 **Checklist:**
+
 - [ ] Kod używa podwójnych cudzysłowów (`"`) zamiast pojedynczych (`'`)
 - [ ] Wszystkie instrukcje kończą się średnikami
 - [ ] Nazwy zmiennych są opisowe (nie `x`, `y`, `temp`)
@@ -1129,6 +1213,7 @@ Cache-Control: private, max-age=300, stale-while-revalidate=60
 - [ ] Import paths używają `@/` alias
 
 **Linter:**
+
 ```bash
 npm run lint
 ```
@@ -1142,21 +1227,25 @@ npm run lint
 **Gdy middleware auth będzie gotowe:**
 
 1. **Zamienić `DEFAULT_USER_ID` na:**
+
    ```typescript
-   const { data: { user }, error } = await context.locals.supabase.auth.getUser();
-   
+   const {
+     data: { user },
+     error,
+   } = await context.locals.supabase.auth.getUser();
+
    if (error || !user) {
      const errorResponse: ErrorResponseDTO = {
        error: "Unauthorized",
        message: "Authentication required",
      };
-     
+
      return new Response(JSON.stringify(errorResponse), {
        status: 401,
        headers: { "Content-Type": "application/json" },
      });
    }
-   
+
    const userId = user.id;
    ```
 
@@ -1198,12 +1287,14 @@ npm run lint
 - [ ] Middleware auth jest gotowe (lub świadome użycie DEFAULT_USER_ID)
 
 **Deployment:**
+
 ```bash
 npm run build
 # Deploy według instrukcji hostingu (DigitalOcean / Cloudflare Pages)
 ```
 
 **Po deployment:**
+
 - [ ] Smoke test na produkcji
 - [ ] Sprawdzić logi serwera (brak błędów)
 - [ ] Monitoring: response time, error rate
@@ -1232,14 +1323,14 @@ SECURITY DEFINER
 AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     t.category_code,
     tc.label_pl,
     SUM(t.amount_cents)::bigint,
     COUNT(*)::bigint
   FROM transactions t
   INNER JOIN transaction_categories tc ON t.category_code = tc.code
-  WHERE 
+  WHERE
     t.user_id = p_user_id
     AND t.type = 'EXPENSE'
     AND t.month = p_month
@@ -1251,6 +1342,7 @@ $$;
 ```
 
 **Wywołanie:**
+
 ```typescript
 const { data, error } = await supabase.rpc("get_expenses_by_category", {
   p_user_id: userId,
@@ -1259,23 +1351,24 @@ const { data, error } = await supabase.rpc("get_expenses_by_category", {
 ```
 
 **Zalety:**
+
 - Agregacja w bazie (szybsza)
 - Mniej transferu danych
 
 **Wady:**
+
 - Dodatkowa migracja SQL
 - Trudniejszy debugging
 
 ### 2. Frontendowe integracje
 
 **React component (przykład):**
+
 ```typescript
 const { data, error, isLoading } = useQuery({
   queryKey: ["expenses-by-category", month],
   queryFn: async () => {
-    const response = await fetch(
-      `/api/v1/metrics/expenses-by-category?month=${month}`
-    );
+    const response = await fetch(`/api/v1/metrics/expenses-by-category?month=${month}`);
     if (!response.ok) throw new Error("Failed to fetch expenses");
     return response.json();
   },
@@ -1284,6 +1377,7 @@ const { data, error, isLoading } = useQuery({
 ```
 
 **Wizualizacja (Chart.js / Recharts):**
+
 ```typescript
 <BarChart data={data?.data ?? []}>
   <XAxis dataKey="category_label" />
@@ -1296,6 +1390,7 @@ const { data, error, isLoading } = useQuery({
 ### 3. Przyszłe rozszerzenia
 
 **Możliwe dodatkowe features:**
+
 - Filtr po zakresie dat (multi-month)
 - Porównanie rok-do-roku
 - Export do CSV/PDF
@@ -1312,7 +1407,6 @@ Ten plan wdrożenia obejmuje wszystkie aspekty implementacji endpointu `GET /api
 ✅ **Bezpieczeństwo** - RLS, walidacja, error handling  
 ✅ **Wydajność** - Indeksy, cache, agregacja w bazie  
 ✅ **Spójność** - Zgodność z istniejącym kodem i stylami  
-✅ **Testowalność** - Jasne test cases i weryfikacja  
+✅ **Testowalność** - Jasne test cases i weryfikacja
 
 Implementacja powinna zająć **2-4 godziny** dla doświadczonego developera, uwzględniając testy i dokumentację.
-

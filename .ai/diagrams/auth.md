@@ -33,7 +33,7 @@
   - Gating: wejście na chronione ścieżki bez cookies → 302 do /auth/login.
   - Reset: Browser → API: reset-password (limit) → Auth wysyła link z
     redirectTo=/auth/update-password; finalizacja przez exchangeCodeForSession
-    + updateUser({ password }).
+    - updateUser({ password }).
   - Wylogowanie: Browser → Auth: signOut(); redirect /auth/login.
 
 </authentication_analysis>
@@ -170,5 +170,3 @@ Browser->>Browser: Redirect → /auth/login
 ```
 
 </mermaid_diagram>
-
-

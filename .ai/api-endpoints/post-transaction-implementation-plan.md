@@ -620,6 +620,7 @@ try {
   }
   ```
 - [ ] Implementować `createTransaction()`:
+
   ```typescript
   export async function createTransaction(
     supabase: SupabaseClient,
@@ -722,6 +723,7 @@ try {
   }
   ```
 - [ ] Implementować POST handler:
+
   ```typescript
   export async function POST(context: APIContext) {
     // Auth check (middleware should handle this, but double-check)
