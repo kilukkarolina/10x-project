@@ -43,6 +43,7 @@ npx supabase db push
 3. Wklej zawartość i kliknij **"Run"**
 
 Kolejność plików:
+
 ```
 20251109120000_create_base_schema.sql
 20251109120100_create_business_tables.sql
@@ -65,25 +66,31 @@ W Supabase Dashboard:
 2. Skopiuj następujące wartości:
 
 ### Project URL
+
 ```
 Configuration → URL
 ```
+
 Przykład: `https://abcdefghijklmnop.supabase.co`
 
 ### API Keys
 
 #### anon/public key
+
 ```
 Project API keys → anon public
 ```
+
 To jest **publiczny** klucz, bezpieczny do użycia w frontend code.
 
 Przykład: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI...`
 
 #### service_role key
+
 ```
 Project API keys → service_role secret
 ```
+
 ⚠️ To jest **prywatny** klucz z pełnymi uprawnieniami admin!
 
 **NIGDY nie commituj tego klucza do repozytorium!**
@@ -93,11 +100,13 @@ Używamy go tylko w testach E2E do cleanup (usuwanie test users).
 ## Krok 4: Skonfiguruj zmienne środowiskowe lokalnie
 
 1. Skopiuj template:
+
 ```bash
 cp .env.test.example .env.test
 ```
 
 2. Wypełnij `.env.test`:
+
 ```bash
 PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...  # twój anon key
@@ -148,7 +157,7 @@ Możesz używać Supabase Admin API do bezpośredniego potwierdzenia userów:
 // W teście
 const supabase = createClient(url, serviceKey);
 await supabase.auth.admin.updateUserById(userId, {
-  email_confirmed_at: new Date().toISOString()
+  email_confirmed_at: new Date().toISOString(),
 });
 ```
 
@@ -180,6 +189,7 @@ curl https://your-project-ref.supabase.co
 ### Test login w przeglądarce
 
 1. Uruchom aplikację lokalnie:
+
 ```bash
 npm run dev
 ```
@@ -205,6 +215,7 @@ npm run test:e2e
 ```
 
 Playwright automatycznie:
+
 - Uruchomi przeglądarkę
 - Połączy się z lokalnym dev serverem (http://localhost:4321)
 - Użyje Supabase test project (z `.env.test`)
@@ -215,6 +226,7 @@ Playwright automatycznie:
 ### Problem: "Invalid API key"
 
 **Rozwiązanie**:
+
 - Sprawdź czy `PUBLIC_SUPABASE_ANON_KEY` w `.env.test` jest poprawny
 - Upewnij się że nie ma spacji na początku/końcu klucza
 - Skopiuj ponownie z Supabase Dashboard
@@ -222,6 +234,7 @@ Playwright automatycznie:
 ### Problem: "Database error: relation does not exist"
 
 **Rozwiązanie**:
+
 - Migracje nie zostały uruchomione
 - Uruchom ponownie `npx supabase db push`
 - Lub ręcznie przez SQL Editor
@@ -229,6 +242,7 @@ Playwright automatycznie:
 ### Problem: "User not found" podczas login
 
 **Rozwiązanie**:
+
 - Sprawdź czy test user został utworzony
 - Sprawdź czy email jest potwierdzony (Auto Confirm User)
 - Spróbuj utworzyć usera ponownie
@@ -236,6 +250,7 @@ Playwright automatycznie:
 ### Problem: RLS blokuje dostęp do danych
 
 **Rozwiązanie**:
+
 - Dla projektu testowego możesz wyłączyć RLS:
   ```sql
   -- W SQL Editor
@@ -248,6 +263,7 @@ Playwright automatycznie:
 ### Problem: Email verification nie działa
 
 **Rozwiązanie**:
+
 - Sprawdź SMTP configuration w Supabase
 - Użyj Admin API do manual confirm (patrz Opcja C powyżej)
 - Skip testy email verification na razie (`test.skip()`)
@@ -277,12 +293,13 @@ Okresowo usuwaj stare test users:
 
 ```sql
 -- W Supabase Dashboard → SQL Editor
-DELETE FROM auth.users 
+DELETE FROM auth.users
 WHERE email LIKE 'e2e-test-%@example.com'
 AND created_at < NOW() - INTERVAL '7 days';
 ```
 
 Lub użyj helper w testach:
+
 ```typescript
 import { cleanupTestUser } from "./helpers/test-data";
 await cleanupTestUser("old-test@example.com");
@@ -343,4 +360,3 @@ Przed pierwszym uruchomieniem testów E2E:
 - Sprawdź `tests/README.md` - główna dokumentacja testów
 - Przeczytaj `.ai/test-plan.md` - pełny plan testowy
 - Otwórz issue jeśli coś nie działa
-

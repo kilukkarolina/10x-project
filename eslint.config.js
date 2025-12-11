@@ -57,13 +57,17 @@ const reactConfig = tseslint.config({
 });
 
 const nodeScriptsConfig = tseslint.config({
-  files: ["scripts/**/*.mjs", "scripts/**/*.js"],
+  files: ["scripts/**/*.mjs", "scripts/**/*.js", "*.config.{js,mjs}", "vitest.config.ts", "playwright.config.ts"],
   languageOptions: {
     globals: {
       process: "readonly",
       __dirname: "readonly",
       __filename: "readonly",
+      console: "readonly",
     },
+  },
+  rules: {
+    "no-console": "off", // Console is expected in config and script files
   },
 });
 

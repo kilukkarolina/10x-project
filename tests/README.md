@@ -17,11 +17,11 @@ Kompletny setup środowiska testowego dla projektu FinFlow.
 
 Projekt używa **3-poziomowej strategii testowania**:
 
-| Poziom | Narzędzia | Auth | Database | Uruchamianie | Cel |
-|--------|-----------|------|----------|--------------|-----|
-| **Unit** | Vitest | Brak | Brak (mocki) | Każdy save (watch) | Logika biznesowa |
-| **Integration** | Vitest + Testcontainers | **FAKE** | Postgres (container) | Każdy PR | API + DB |
-| **E2E** | Playwright + Supabase Cloud | **PRAWDZIWY** | Supabase Cloud | Merge to master | User flows |
+| Poziom          | Narzędzia                   | Auth          | Database             | Uruchamianie       | Cel              |
+| --------------- | --------------------------- | ------------- | -------------------- | ------------------ | ---------------- |
+| **Unit**        | Vitest                      | Brak          | Brak (mocki)         | Każdy save (watch) | Logika biznesowa |
+| **Integration** | Vitest + Testcontainers     | **FAKE**      | Postgres (container) | Każdy PR           | API + DB         |
+| **E2E**         | Playwright + Supabase Cloud | **PRAWDZIWY** | Supabase Cloud       | Merge to master    | User flows       |
 
 ### Kluczowe decyzje
 
@@ -48,6 +48,7 @@ npm install
 - **npm** 9+
 
 Sprawdź Docker:
+
 ```bash
 docker --version
 # Docker version 24.0.0 lub nowszy
@@ -56,6 +57,7 @@ docker --version
 ### 3. Zmienne środowiskowe
 
 Dla testów E2E, skopiuj template:
+
 ```bash
 cp .env.test.example .env.test
 ```
@@ -171,11 +173,7 @@ tests/
 ```typescript
 // tests/integration/transactions.integration.test.ts
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import {
-  setupIntegrationTests,
-  teardownIntegrationTests,
-  seedTestUser,
-} from "../setup-integration";
+import { setupIntegrationTests, teardownIntegrationTests, seedTestUser } from "../setup-integration";
 
 describe("Transactions API", () => {
   let pool, container;
@@ -244,6 +242,7 @@ npx supabase db push
 #### 3. Skonfiguruj SMTP (opcjonalnie dla testów email)
 
 W Supabase Dashboard:
+
 - Settings → Auth → SMTP Settings
 - Użyj Ethereal Email lub innego test SMTP providera
 
@@ -351,6 +350,7 @@ Dla podstawowych testów login/dashboard, stwórz ręcznie test usera:
 5. UUID: `85b37466-4e1b-49d8-a925-ee5c0eb623a1`
 6. Potwierdź email (kliknij "Verify email")
 7. Utwórz profil:
+
 ```sql
 INSERT INTO profiles (user_id, email_confirmed, created_at, updated_at)
 VALUES ('85b37466-4e1b-49d8-a925-ee5c0eb623a1', true, now(), now());
@@ -373,19 +373,23 @@ test.afterEach(async () => {
 ```
 
 **Co jest czyszczone:**
+
 - Transactions głównego test usera
 - Goals i goal_events głównego test usera
 - Audit_log głównego test usera
 - Rate_limits głównego test usera
 
 **Co jest zachowywane:**
+
 - Profil głównego test usera (`raketap480@alexida.com`)
 - Auth record głównego test usera
 
 **Co jest auto-aktualizowane:**
+
 - Monthly_metrics (zarządzana przez triggery bazy danych)
 
 **Korzyści:**
+
 - ✅ Pełna izolacja między testami
 - ✅ Każdy test startuje z czystym stanem
 - ✅ Brak "brudnych" danych z poprzednich testów
@@ -396,12 +400,14 @@ test.afterEach(async () => {
 Po zakończeniu wszystkich testów E2E, automatycznie uruchamia się `tests/e2e/helpers/global-teardown.ts`.
 
 **Co robi teardown:**
+
 1. Usuwa wszystkie dane testowe z bazy (transactions, goals, goal_events, monthly_metrics, audit_log, rate_limits)
 2. Usuwa profile i użytkowników auth utworzonych podczas testów rejestracji
 3. **Zachowuje** głównego test usera (`raketap480@alexida.com`)
 4. **Zachowuje** tabele słownikowe (transaction_categories, goal_types)
 
 **Kiedy jest potrzebny:**
+
 - Cleanup użytkowników utworzonych w testach rejestracji
 - Dodatkowe zabezpieczenie na wypadek failujących testów
 - Końcowe "sprzątanie" środowiska testowego
@@ -409,6 +415,7 @@ Po zakończeniu wszystkich testów E2E, automatycznie uruchamia się `tests/e2e/
 #### Konfiguracja
 
 W `.env.test` wymagane są:
+
 ```bash
 PUBLIC_SUPABASE_URL=...
 SUPABASE_SERVICE_KEY=...  # Service role key - WYMAGANY do teardown
@@ -419,10 +426,12 @@ Bez `SUPABASE_SERVICE_KEY` czyszczenie zostanie pominięte z ostrzeżeniem.
 #### Debugowanie
 
 Jeśli teardown nie działa:
+
 1. Sprawdź logi konsoli po testach - powinny zawierać `🧹 Starting database cleanup...`
 2. Sprawdź czy `.env.test` ma poprawne wartości
 3. Sprawdź czy service role key ma pełne uprawnienia
 4. Uruchom teardown ręcznie:
+
 ```bash
 # Używając npm script
 npm run test:e2e:cleanup
@@ -454,6 +463,7 @@ npm run test:all
 ### Problem: "Docker not found" w testach integracyjnych
 
 **Rozwiązanie**:
+
 ```bash
 # Sprawdź czy Docker działa
 docker ps
@@ -466,6 +476,7 @@ sudo systemctl start docker  # Linux
 ### Problem: Testcontainers timeout
 
 **Rozwiązanie**:
+
 - Zwiększ timeout w `beforeAll`:
   ```typescript
   beforeAll(async () => {
@@ -477,6 +488,7 @@ sudo systemctl start docker  # Linux
 ### Problem: E2E testy failują - "Cannot connect to Supabase"
 
 **Rozwiązanie**:
+
 1. Sprawdź czy `.env.test` istnieje i ma poprawne wartości
 2. Sprawdź czy `PUBLIC_SUPABASE_URL` jest dostępny:
    ```bash
@@ -487,6 +499,7 @@ sudo systemctl start docker  # Linux
 ### Problem: "Verification link not working"
 
 **Rozwiązanie**:
+
 - Testy email verification wymagają skonfigurowanego SMTP w Supabase
 - Alternatywnie użyj Supabase Admin API do bezpośredniego potwierdzenia usera
 - Zobacz helper `EtherealMailClient` - wymaga implementacji email parsing
@@ -494,6 +507,7 @@ sudo systemctl start docker  # Linux
 ### Problem: Flaky E2E tests
 
 **Rozwiązanie**:
+
 - Użyj `page.waitForURL()` zamiast `expect(page).toHaveURL()` bez wait
 - Zwiększ timeouty dla slow operations:
   ```typescript
@@ -507,6 +521,7 @@ sudo systemctl start docker  # Linux
 ### Problem: Coverage za niski
 
 **Rozwiązanie**:
+
 - Sprawdź które pliki nie są pokryte:
   ```bash
   npm run test:unit:coverage
@@ -518,6 +533,7 @@ sudo systemctl start docker  # Linux
 ### Problem: Testy integracyjne zostawiają kontener
 
 **Rozwiązanie**:
+
 - Upewnij się że `afterAll` jest wywołany:
   ```typescript
   afterAll(async () => {
@@ -562,6 +578,7 @@ Zgodnie z test-plan.md:
 - **UI components**: ≥70%
 
 Sprawdź coverage:
+
 ```bash
 npm run test:unit:coverage
 # Raport w: coverage/index.html
@@ -575,4 +592,3 @@ Pytania lub problemy? Otwórz issue w repo lub skontaktuj się z zespołem QA.
 
 **Dokumentacja**: `.ai/test-plan.md` - pełny plan testów  
 **Guidelines**: `.cursor/rules/vitest-unit-testing.mdc`, `playwright-e2e-testing.mdc`
-

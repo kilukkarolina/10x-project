@@ -42,6 +42,7 @@ Poza zakresem UI na ten etap: zaawansowane animacje, eksperymentalne funkcje spo
 W zakresie:
 
 **API Endpoints** (`src/pages/api/v1/**`):
+
 - `/auth/*` - helpery wokół Supabase Auth (rate limiting, custom logic)
 - `/transactions`, `/transactions/[id]` - CRUD transakcji
 - `/goals`, `/goals/[id]`, `/goals/[id]/archive` - CRUD celów + archiwizacja
@@ -51,6 +52,7 @@ W zakresie:
 - `/audit-log` - historia operacji
 
 **Strategia testowania API**:
+
 - **Testy integracyjne**: Testcontainers + Postgres + **fake auth** (mock userId)
   - Testujemy: logikę biznesową, obliczenia, agregacje, RLS, soft-delete
   - NIE testujemy: prawdziwego Supabase Auth (to będzie w E2E)
@@ -58,16 +60,19 @@ W zakresie:
   - Testujemy: pełne user flows włącznie z rejestracją i logowaniem
 
 **Warstwa serwisów** (`src/lib/services/*`):
+
 - `transaction.service`, `goal.service`, `goal-event.service`
 - `monthly-metrics.service`, `expenses-by-category.service`
 - `rate-limit.service`, `audit-log.service`
 - `auth.service`, serwisy kategorii/typów
 
 **Strategia testowania serwisów**:
+
 - **Testy unit**: Czysta logika bez DB (mocki)
 - **Testy integracyjne**: Z prawdziwą DB (Testcontainers)
 
 **Integracja z Supabase**:
+
 - Auth (GoTrue) - testowana w E2E z prawdziwym Supabase Cloud
 - RLS - testowana funkcjonalnie w testach integracyjnych (fake auth)
 - Soft-delete (`deleted_at`) - testy integracyjne
@@ -76,7 +81,8 @@ W zakresie:
 - Idempotencja `goal_events` - testy integracyjne
 - Agregacje z bankierskim zaokrąglaniem - testy unit + integracyjne
 
-**Poza zakresem**: 
+**Poza zakresem**:
+
 - Integracje z zewnętrznymi bankami
 - Płatności
 - Zaawansowane logowanie bezpieczeństwa
@@ -88,7 +94,7 @@ W zakresie:
 
 **Środowiska testowe - 3 poziomy**:
 
-1. **Unit tests**: 
+1. **Unit tests**:
    - In-memory, bez infrastruktury
    - Vitest watch mode
    - Uruchamiane: lokalnie przez devs + CI na każdy push
@@ -106,32 +112,38 @@ W zakresie:
    - Uruchamiane: lokalnie (opcjonalnie) + CI przed merge do master
 
 **CI/CD Pipeline** (GitHub Actions):
+
 - Workflow 1: Unit tests (każdy push)
 - Workflow 2: Integration tests (każdy PR)
 - Workflow 3: E2E tests (merge do master + releases)
 - Workflow 4: Post-deploy smoke (po wdrożeniu na prod)
 
 **SMTP i Email Testing**:
+
 - Dev/Integration: Brak (nie potrzeba dla fake auth)
 - E2E: Ethereal Email (https://ethereal.email) lub własny mailcatcher
 - Prod: Supabase SMTP (Postmark/sandbox)
 
 **Backup/Restore**:
+
 - Poza zakresem MVP (tylko manualne sanity check)
 - Post-MVP: automated tests (wykonanie backup + restore + smoke test)
 
 **Monitoring i Observability**:
+
 - CI metrics (success rate, duration)
 - Test coverage reports (Codecov)
 - Defect tracking (GitHub Issues)
 
 **Świadomie poza zakresem**:
+
 - ❌ Testy bezpieczeństwa (SQL injection, CSRF, XSS, pentesty)
 - ❌ Load/stress testing (k6, Artillery)
 - ❌ Advanced monitoring (Sentry, DataDog)
 - ❌ Chaos engineering
 
 **Uzasadnienie**:
+
 - MVP scope
 - Małe oczekiwane obciążenie
 - Supabase ma wbudowane zabezpieczenia
@@ -146,6 +158,7 @@ W zakresie:
 **Narzędzia**: Vitest + in-memory mocking
 
 **Zakres**:
+
 - Funkcje biznesowe:
   - Parsowanie kwot (kropka/przecinek/spacje) do groszy.
   - Bankierskie zaokrąglanie w agregacjach.
@@ -162,25 +175,27 @@ W zakresie:
 **Strategia**: Dla każdej funkcji/serwisu: **happy path + typowe błędy (niepoprawne argumenty) + wartości brzegowe**.
 
 **Charakterystyka**:
+
 - Szybkość: ~10ms per test
 - Uruchamiane: przy każdym save (watch mode)
 - Bez prawdziwej bazy danych
 - Wszystkie zależności mockowane
 
 **Przykład**:
+
 ```typescript
 // src/lib/utils.test.ts
-describe('parsePlnInputToCents', () => {
-  it('should parse comma format', () => {
-    expect(parsePlnInputToCents('1 234,56')).toBe(123456);
+describe("parsePlnInputToCents", () => {
+  it("should parse comma format", () => {
+    expect(parsePlnInputToCents("1 234,56")).toBe(123456);
   });
-  
-  it('should throw on invalid input', () => {
-    expect(() => parsePlnInputToCents('abc')).toThrow();
+
+  it("should throw on invalid input", () => {
+    expect(() => parsePlnInputToCents("abc")).toThrow();
   });
-  
-  it('should handle edge case: zero', () => {
-    expect(parsePlnInputToCents('0,00')).toBe(0);
+
+  it("should handle edge case: zero", () => {
+    expect(parsePlnInputToCents("0,00")).toBe(0);
   });
 });
 ```
@@ -190,6 +205,7 @@ describe('parsePlnInputToCents', () => {
 **Narzędzia**: Vitest + Testcontainers + Playwright API Testing
 
 **Zakres**:
+
 - Testy endpointów `src/pages/api/v1/**` z prawdziwą bazą danych:
   - Poprawne przepływy (happy path).
   - Błędne dane wejściowe (walidacje, błędy domenowe).
@@ -201,29 +217,29 @@ describe('parsePlnInputToCents', () => {
   - Agregacje finansowe (sumy, progress celów).
   - Idempotencja operacji.
 
-**Strategia autoryzacji**: 
+**Strategia autoryzacji**:
+
 - **FAKE AUTH** - nie testujemy prawdziwego Supabase Auth
 - Seed test userId bezpośrednio do DB
 - Mockowanie tokenów JWT dla middleware
 - Auth flow testowany osobno w E2E
 
 **Setup środowiska**:
+
 ```typescript
 // tests/setup-integration.ts
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { PostgreSqlContainer } from "@testcontainers/postgresql";
 
 let container: StartedPostgreSqlContainer;
 
 beforeAll(async () => {
   // Start Postgres container
-  container = await new PostgreSqlContainer('postgres:15')
-    .withDatabase('finflow_test')
-    .start();
-  
+  container = await new PostgreSqlContainer("postgres:15").withDatabase("finflow_test").start();
+
   process.env.DATABASE_URL = container.getConnectionUri();
-  
+
   // Run Supabase migrations
-  await runMigrations('./supabase/migrations');
+  await runMigrations("./supabase/migrations");
 }, 60000);
 
 afterAll(async () => {
@@ -233,62 +249,58 @@ afterAll(async () => {
 beforeEach(async () => {
   // Seed test user (fake, bez Supabase Auth)
   const testUserId = crypto.randomUUID();
-  await db.query(
-    'INSERT INTO public.users (id, email) VALUES ($1, $2)',
-    [testUserId, 'test@example.com']
-  );
+  await db.query("INSERT INTO public.users (id, email) VALUES ($1, $2)", [testUserId, "test@example.com"]);
 });
 
 afterEach(async () => {
   // Clean tables
-  await db.query('TRUNCATE transactions, goals, goal_events, audit_log CASCADE');
+  await db.query("TRUNCATE transactions, goals, goal_events, audit_log CASCADE");
 });
 ```
 
 **Charakterystyka**:
+
 - Szybkość: ~100-500ms per test
 - Uruchamiane: na każdy commit (pre-commit hook)
 - Prawdziwa Postgres przez Testcontainers
 - Izolacja między testami (truncate po każdym)
 
 **Przykład**:
+
 ```typescript
 // tests/integration/transactions.integration.test.ts
-describe('POST /api/v1/transactions', () => {
+describe("POST /api/v1/transactions", () => {
   let testUserId: string;
-  
+
   beforeEach(async () => {
     testUserId = await seedTestUser();
   });
-  
-  it('should create transaction with valid data', async () => {
+
+  it("should create transaction with valid data", async () => {
     const response = await request(app)
-      .post('/api/v1/transactions')
-      .set('Authorization', `Bearer ${mockToken(testUserId)}`)
+      .post("/api/v1/transactions")
+      .set("Authorization", `Bearer ${mockToken(testUserId)}`)
       .send({
         amount: 10000,
-        category_id: 'food',
-        transaction_date: '2024-01-15',
-        type: 'EXPENSE'
+        category_id: "food",
+        transaction_date: "2024-01-15",
+        type: "EXPENSE",
       });
-    
+
     expect(response.status).toBe(201);
     expect(response.body.amount).toBe(10000);
-    
+
     // Verify in DB
-    const dbRecord = await db.query(
-      'SELECT * FROM transactions WHERE user_id = $1',
-      [testUserId]
-    );
+    const dbRecord = await db.query("SELECT * FROM transactions WHERE user_id = $1", [testUserId]);
     expect(dbRecord.rows).toHaveLength(1);
   });
-  
-  it('should return 400 for invalid amount', async () => {
+
+  it("should return 400 for invalid amount", async () => {
     const response = await request(app)
-      .post('/api/v1/transactions')
-      .set('Authorization', `Bearer ${mockToken(testUserId)}`)
+      .post("/api/v1/transactions")
+      .set("Authorization", `Bearer ${mockToken(testUserId)}`)
       .send({ amount: -100 });
-    
+
     expect(response.status).toBe(400);
   });
 });
@@ -299,6 +311,7 @@ describe('POST /api/v1/transactions', () => {
 **Narzędzia**: Vitest + React Testing Library + MSW (Mock Service Worker)
 
 **Zakres**:
+
 - Formularze auth, transakcji, celów, goal_events.
 - Filtry list i paginacja.
 - Reakcja UI na błędy API (toasty, komunikaty).
@@ -310,12 +323,14 @@ describe('POST /api/v1/transactions', () => {
 **Mockowanie API**: MSW dla deterministycznych odpowiedzi API.
 
 **Charakterystyka**:
+
 - Szybkość: ~50-200ms per test
 - Uruchamiane: na każdy commit
 - Bez prawdziwego API (MSW handlers)
 - Testowanie z perspektywy użytkownika
 
 **Przykład**:
+
 ```typescript
 // src/components/transactions/TransactionForm.test.tsx
 import { render, screen, userEvent } from '@testing-library/react';
@@ -334,11 +349,11 @@ afterAll(() => server.close());
 
 test('should submit transaction successfully', async () => {
   render(<TransactionForm />);
-  
+
   await userEvent.type(screen.getByLabelText('Amount'), '100.00');
   await userEvent.selectOptions(screen.getByLabelText('Category'), 'food');
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-  
+
   expect(await screen.findByText('Transaction saved')).toBeInTheDocument();
 });
 
@@ -348,10 +363,10 @@ test('should show error on API failure', async () => {
       return HttpResponse.json({ error: 'Invalid data' }, { status: 400 });
     })
   );
-  
+
   render(<TransactionForm />);
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-  
+
   expect(await screen.findByText('Invalid data')).toBeInTheDocument();
 });
 ```
@@ -361,6 +376,7 @@ test('should show error on API failure', async () => {
 **Narzędzia**: Playwright + Supabase Cloud (test project) + Ethereal Email / Mailcatcher
 
 **Zakres**:
+
 - **Auth flows** (prawdziwy Supabase Auth):
   - Rejestracja → weryfikacja e-mail przez mailcatcher → pierwsze logowanie.
   - Logowanie z poprawnymi/błędnymi danymi.
@@ -376,86 +392,90 @@ test('should show error on API failure', async () => {
 **Strategia**: Dla każdego przepływu: **co najmniej jeden happy path** + minimalny scenariusz błędu (np. błędne hasło, brak wymaganych pól).
 
 **Konfiguracja środowiska**:
+
 - Aplikacja: deployed na test URL lub local dev server
 - Database: Supabase Cloud (dedykowany projekt test)
 - Email: Ethereal Email (ethereal.email) lub lokalny Mailcatcher
 - Auth: prawdziwy Supabase GoTrue
 
 **Setup przed testami**:
+
 ```typescript
 // playwright.config.ts
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: "./tests/e2e",
   use: {
-    baseURL: process.env.TEST_BASE_URL || 'http://localhost:4321',
-    trace: 'on-first-retry',
+    baseURL: process.env.TEST_BASE_URL || "http://localhost:4321",
+    trace: "on-first-retry",
   },
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
 });
 ```
 
 **Charakterystyka**:
+
 - Szybkość: ~5-15s per flow
 - Uruchamiane: przed merge do master + przed release
 - Prawdziwa aplikacja + Supabase Cloud
 - Pełny przepływ użytkownika
 
 **Przykład**:
+
 ```typescript
 // tests/e2e/auth.spec.ts
-import { test, expect } from '@playwright/test';
-import { EtherealMailClient } from './helpers/ethereal';
+import { test, expect } from "@playwright/test";
+import { EtherealMailClient } from "./helpers/ethereal";
 
-test.describe('Authentication', () => {
+test.describe("Authentication", () => {
   let mailClient: EtherealMailClient;
-  
+
   test.beforeAll(async () => {
     mailClient = new EtherealMailClient();
   });
-  
-  test('full registration and login flow', async ({ page }) => {
+
+  test("full registration and login flow", async ({ page }) => {
     const email = `test-${Date.now()}@example.com`;
-    const password = 'SecurePassword123!';
-    
+    const password = "SecurePassword123!";
+
     // 1. Register
-    await page.goto('/auth/register');
+    await page.goto("/auth/register");
     await page.fill('[name="email"]', email);
     await page.fill('[name="password"]', password);
     await page.click('button[type="submit"]');
-    
-    await expect(page.locator('text=Check your email')).toBeVisible();
-    
+
+    await expect(page.locator("text=Check your email")).toBeVisible();
+
     // 2. Get verification link from email
     await page.waitForTimeout(2000);
     const verificationLink = await mailClient.getLastVerificationLink(email);
-    
+
     // 3. Activate account
     await page.goto(verificationLink);
-    await expect(page.locator('text=Email confirmed')).toBeVisible();
-    
+    await expect(page.locator("text=Email confirmed")).toBeVisible();
+
     // 4. Login
-    await page.goto('/auth/login');
+    await page.goto("/auth/login");
     await page.fill('[name="email"]', email);
     await page.fill('[name="password"]', password);
     await page.click('button[type="submit"]');
-    
+
     // 5. Verify access
-    await expect(page).toHaveURL('/dashboard');
-    await expect(page.locator('h1')).toContainText('Dashboard');
+    await expect(page).toHaveURL("/dashboard");
+    await expect(page.locator("h1")).toContainText("Dashboard");
   });
-  
-  test('should show error for invalid credentials', async ({ page }) => {
-    await page.goto('/auth/login');
-    await page.fill('[name="email"]', 'wrong@example.com');
-    await page.fill('[name="password"]', 'wrongpass');
+
+  test("should show error for invalid credentials", async ({ page }) => {
+    await page.goto("/auth/login");
+    await page.fill('[name="email"]', "wrong@example.com");
+    await page.fill('[name="password"]', "wrongpass");
     await page.click('button[type="submit"]');
-    
-    await expect(page.locator('text=Invalid credentials')).toBeVisible();
+
+    await expect(page.locator("text=Invalid credentials")).toBeVisible();
   });
 });
 ```
@@ -463,12 +483,14 @@ test.describe('Authentication', () => {
 ### 3.5. Testy regresji
 
 **Strategia**:
+
 - Zestaw unit + API + kluczowe E2E uruchamiany:
   - **Na każdym PR**: unit + integracyjne.
   - **Przed releasem**: unit + integracyjne + E2E smoke.
   - **Po deploy na prod**: smoke E2E (tylko happy paths).
 
 **CI/CD Pipeline**:
+
 ```yaml
 # .github/workflows/test.yml
 name: Tests
@@ -483,7 +505,7 @@ jobs:
       - uses: actions/setup-node@v4
       - run: npm ci
       - run: npm run test:unit
-  
+
   integration-tests:
     runs-on: ubuntu-latest
     steps:
@@ -491,7 +513,7 @@ jobs:
       - uses: actions/setup-node@v4
       - run: npm ci
       - run: npm run test:integration
-  
+
   e2e-tests:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
@@ -649,30 +671,34 @@ Rozdzielamy środowiska testowe według typu testów, optymalizując pod kątem 
 
 ### 5.1. Środowisko dla testów UNIT (lokalne, in-memory)
 
-**Infrastruktura**: 
+**Infrastruktura**:
+
 - Brak - wszystko in-memory
 - Vitest watch mode
 - Mocki dla wszystkich zależności
 
 **Konfiguracja**:
+
 ```typescript
 // vitest.config.ts
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    environment: 'jsdom', // dla testów React
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    environment: "jsdom", // dla testów React
     globals: true,
-    setupFiles: ['./tests/setup-unit.ts'],
+    setupFiles: ["./tests/setup-unit.ts"],
   },
 });
 ```
 
 **Zastosowanie**:
+
 - Development workflow (watch mode przy każdym save)
 - Szybka weryfikacja logiki biznesowej
 - Pre-commit hook
 
 **Charakterystyka**:
+
 - Szybkość: ~10ms per test
 - Izolacja: pełna (brak side effects)
 - Setup: zero
@@ -682,12 +708,14 @@ export default defineConfig({
 ### 5.2. Środowisko dla testów INTEGRACYJNYCH (Testcontainers)
 
 **Infrastruktura**:
+
 - **Testcontainers** - dynamiczne kontenery Docker per test suite
 - Postgres 15 (bez Supabase Auth/GoTrue)
 - Migracje z `./supabase/migrations/`
 - Fake auth (mock userId + tokens)
 
 **Dlaczego Testcontainers zamiast stałego docker-compose:**
+
 - ✅ Dynamiczne tworzenie/usuwanie kontenerów
 - ✅ Pełna izolacja między test suites
 - ✅ Działa identycznie lokalnie i w CI
@@ -695,16 +723,17 @@ export default defineConfig({
 - ✅ Deterministyczne środowisko
 
 **Konfiguracja**:
+
 ```typescript
 // vitest.config.integration.ts
 export default defineConfig({
   test: {
-    include: ['tests/integration/**/*.integration.test.ts'],
-    environment: 'node',
-    setupFiles: ['./tests/setup-integration.ts'],
+    include: ["tests/integration/**/*.integration.test.ts"],
+    environment: "node",
+    setupFiles: ["./tests/setup-integration.ts"],
     testTimeout: 30000, // dłuższy timeout dla kontenerów
     // Run serially to avoid port conflicts
-    pool: 'forks',
+    pool: "forks",
     poolOptions: {
       forks: {
         singleFork: true,
@@ -716,49 +745,50 @@ export default defineConfig({
 
 ```typescript
 // tests/setup-integration.ts
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
 let container: StartedPostgreSqlContainer;
 
 export async function setup() {
-  console.log('Starting Postgres container...');
-  
-  container = await new PostgreSqlContainer('postgres:15')
-    .withDatabase('finflow_test')
-    .withUsername('postgres')
-    .withPassword('postgres')
+  console.log("Starting Postgres container...");
+
+  container = await new PostgreSqlContainer("postgres:15")
+    .withDatabase("finflow_test")
+    .withUsername("postgres")
+    .withPassword("postgres")
     .start();
-  
+
   const connectionUri = container.getConnectionUri();
   process.env.DATABASE_URL = connectionUri;
-  
-  console.log('Running Supabase migrations...');
+
+  console.log("Running Supabase migrations...");
   await runMigrations(connectionUri);
-  
-  console.log('Test environment ready!');
+
+  console.log("Test environment ready!");
 }
 
 export async function teardown() {
-  console.log('Stopping container...');
+  console.log("Stopping container...");
   await container?.stop();
 }
 
 async function runMigrations(dbUrl: string) {
   // Uruchom migracje z ./supabase/migrations/
-  const migrationFiles = await fs.readdir('./supabase/migrations');
-  
+  const migrationFiles = await fs.readdir("./supabase/migrations");
+
   for (const file of migrationFiles.sort()) {
-    const sql = await fs.readFile(`./supabase/migrations/${file}`, 'utf-8');
+    const sql = await fs.readFile(`./supabase/migrations/${file}`, "utf-8");
     await db.query(sql);
   }
 }
 ```
 
 **Helpers dla testów**:
+
 ```typescript
 // tests/helpers/test-auth.ts
 export function createMockToken(userId: string): string {
@@ -766,12 +796,9 @@ export function createMockToken(userId: string): string {
   return `mock-${userId}`;
 }
 
-export async function seedTestUser(email = 'test@example.com'): Promise<string> {
+export async function seedTestUser(email = "test@example.com"): Promise<string> {
   const userId = crypto.randomUUID();
-  await db.query(
-    'INSERT INTO public.users (id, email, created_at) VALUES ($1, $2, NOW())',
-    [userId, email]
-  );
+  await db.query("INSERT INTO public.users (id, email, created_at) VALUES ($1, $2, NOW())", [userId, email]);
   return userId;
 }
 
@@ -785,44 +812,48 @@ export async function cleanDatabase() {
 ```
 
 **Middleware adaptation dla testów**:
+
 ```typescript
 // src/middleware/index.ts
 export async function authMiddleware(context: APIContext) {
-  const token = context.request.headers.get('Authorization')?.replace('Bearer ', '');
-  
+  const token = context.request.headers.get("Authorization")?.replace("Bearer ", "");
+
   // TEST MODE: akceptuj mock tokeny
-  if (import.meta.env.MODE === 'test' && token?.startsWith('mock-')) {
-    const userId = token.replace('mock-', '');
+  if (import.meta.env.MODE === "test" && token?.startsWith("mock-")) {
+    const userId = token.replace("mock-", "");
     context.locals.userId = userId;
-    context.locals.user = { id: userId, email: 'test@example.com' };
+    context.locals.user = { id: userId, email: "test@example.com" };
     return;
   }
-  
+
   // PRODUCTION: prawdziwa weryfikacja Supabase
   const supabase = createServerClient(/* ... */);
   const { data, error } = await supabase.auth.getUser(token);
-  
+
   if (error || !data.user) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response("Unauthorized", { status: 401 });
   }
-  
+
   context.locals.userId = data.user.id;
   context.locals.user = data.user;
 }
 ```
 
 **Zastosowanie**:
+
 - Testy API endpoints (wszystkie CRUD operacje)
 - Testy serwisów z DB (agregacje, soft-delete, RLS)
 - Testy logiki biznesowej wymagającej Postgres
 - Pre-commit hook + CI na każdym PR
 
 **Charakterystyka**:
+
 - Szybkość: ~100-500ms per test (+ ~10s startup kontenera)
 - Izolacja: per test suite (cleanup między testami)
 - Setup: automatyczny (Testcontainers)
 
 **CI Configuration**:
+
 ```yaml
 # .github/workflows/integration-tests.yml
 jobs:
@@ -832,9 +863,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
       - run: npm ci
-      
+
       # Testcontainers potrzebuje Dockera (już jest w GitHub Actions)
       - name: Run integration tests
         run: npm run test:integration
@@ -845,12 +876,14 @@ jobs:
 ### 5.3. Środowisko dla testów E2E (Supabase Cloud)
 
 **Infrastruktura**:
+
 - **Supabase Cloud** - dedykowany projekt testowy
 - **Prawdziwy Supabase Auth** (GoTrue)
 - **Ethereal Email** (https://ethereal.email) lub własny mailcatcher
 - Aplikacja: deployed na test URL lub local dev server
 
 **Dlaczego Supabase Cloud (nie lokalne):**
+
 - ✅ Pełny stack Supabase (Auth, Storage, Edge Functions)
 - ✅ Prawdziwy Auth flow (rejestracja, weryfikacja email, reset hasła)
 - ✅ SMTP skonfigurowane (wysyłka maili)
@@ -858,6 +891,7 @@ jobs:
 - ✅ Identyczne jak produkcja
 
 **Setup projektu Supabase test**:
+
 ```bash
 # 1. Utwórz nowy projekt w Supabase Dashboard
 # Nazwa: finflow-test
@@ -873,45 +907,46 @@ supabase db push
 ```
 
 **Konfiguracja**:
+
 ```typescript
 // playwright.config.ts
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: "./tests/e2e",
   fullyParallel: false, // Sequentially dla stabilności
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 1,
-  
-  reporter: [
-    ['html'],
-    ['list'],
-  ],
-  
+
+  reporter: [["html"], ["list"]],
+
   use: {
-    baseURL: process.env.TEST_BASE_URL || 'http://localhost:4321',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
+    baseURL: process.env.TEST_BASE_URL || "http://localhost:4321",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
-  
+
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
-  
+
   // Start dev server lokalnie (opcjonalnie)
-  webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:4321',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: process.env.CI
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: "http://localhost:4321",
+        reuseExistingServer: !process.env.CI,
+      },
 });
 ```
 
 **Environment variables**:
+
 ```bash
 # .env.test (dla E2E)
 PUBLIC_SUPABASE_URL=https://your-test-project.supabase.co
@@ -924,20 +959,21 @@ ETHEREAL_PASS=your-ethereal-pass
 ```
 
 **Helper dla email verification**:
+
 ```typescript
 // tests/e2e/helpers/ethereal.ts
-import nodemailer from 'nodemailer';
-import { simpleParser } from 'mailparser';
+import nodemailer from "nodemailer";
+import { simpleParser } from "mailparser";
 
 export class EtherealMailClient {
   private transporter: any;
-  
+
   async init() {
     // Utwórz test account w Ethereal
     const testAccount = await nodemailer.createTestAccount();
-    
+
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
+      host: "smtp.ethereal.email",
       port: 587,
       secure: false,
       auth: {
@@ -946,12 +982,11 @@ export class EtherealMailClient {
       },
     });
   }
-  
+
   async getLastVerificationLink(email: string): Promise<string> {
     // Pobierz ostatni email z Ethereal API
     // Parsuj link weryfikacyjny
     // Return link
-    
     // Implementacja zależy od ustawienia Supabase SMTP
     // Alternatywnie: użyj Supabase Admin API do pobrania linku
   }
@@ -959,25 +994,26 @@ export class EtherealMailClient {
 ```
 
 **Cleanup między testami**:
+
 ```typescript
 // tests/e2e/setup.ts
-import { test as base } from '@playwright/test';
-import { createClient } from '@supabase/supabase-js';
+import { test as base } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
 export const test = base.extend({
   cleanupUser: async ({}, use) => {
     const users: string[] = [];
-    
+
     await use(async (email: string) => {
       users.push(email);
     });
-    
+
     // Cleanup after test
     const supabase = createClient(
       process.env.PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!, // service key dla admin operacji
+      process.env.SUPABASE_SERVICE_KEY! // service key dla admin operacji
     );
-    
+
     for (const email of users) {
       // Delete test users
       await supabase.auth.admin.deleteUser(email);
@@ -987,18 +1023,21 @@ export const test = base.extend({
 ```
 
 **Zastosowanie**:
+
 - Testy auth flow (rejestracja, login, reset hasła)
 - Pełne user journeys (dashboard, transakcje, cele)
 - Visual regression testing (opcjonalnie)
 - Smoke testy po deploy
 
 **Charakterystyka**:
+
 - Szybkość: ~5-15s per flow
 - Izolacja: per test (cleanup users)
 - Setup: jednorazowy (Supabase projekt + env vars)
 - Uruchamiane: przed merge do master + przed release
 
 **CI Configuration**:
+
 ```yaml
 # .github/workflows/e2e-tests.yml
 jobs:
@@ -1006,15 +1045,15 @@ jobs:
     runs-on: ubuntu-latest
     # Only on master or release branches
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
-    
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: npm ci
-      
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-      
+
       - name: Run E2E tests
         run: npm run test:e2e
         env:
@@ -1022,7 +1061,7 @@ jobs:
           PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_KEY }}
-      
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -1036,6 +1075,7 @@ jobs:
 ### 5.4. Środowisko `prod`
 
 **Zastosowanie** (ograniczone):
+
 - Smoke testy po wdrożeniu:
   - Login z prawdziwym kontem testowym
   - Odczyt dashboardu
@@ -1043,11 +1083,13 @@ jobs:
 - Monitoring uptime/health checks
 
 **NIE używamy do**:
+
 - ❌ Rozwojowych testów
 - ❌ Testów destrukcyjnych
 - ❌ Load testing
 
 **Charakterystyka**:
+
 - Uruchamiane: tylko po deploy
 - Zakres: minimal smoke (2-3 critical paths)
 - Timeout: krótki (fail fast)
@@ -1065,34 +1107,34 @@ Unit Testing:
   coverage: Vitest Coverage (v8 provider)
   mocking: Vitest (built-in)
   environment: jsdom (React) / node (pure TS)
-  
+
 UI Testing:
   framework: React Testing Library
   runner: Vitest
   mocking: MSW (Mock Service Worker) - API responses
   assertions: @testing-library/jest-dom
   user_interactions: @testing-library/user-event
-  
+
 Integration Testing:
   framework: Vitest
   database: Testcontainers (PostgreSqlContainer)
   api_testing: Playwright API Testing
   migrations: Supabase migrations (from ./supabase/migrations/)
   cleanup: truncate between tests
-  
+
 E2E Testing:
   framework: Playwright
   browsers: Chromium (primary), Firefox/WebKit (optional)
   visual_regression: Playwright Screenshots (built-in)
   email_testing: Ethereal Email (ethereal.email)
   auth: Supabase Cloud (real Auth/GoTrue)
-  
+
 Quality & Analysis:
   linting: ESLint
   formatting: Prettier
   type_checking: TypeScript (strict mode)
   mutation_testing: Stryker Mutator (optional, for critical logic)
-  
+
 CI/CD:
   platform: GitHub Actions
   workflows:
@@ -1104,39 +1146,44 @@ CI/CD:
 ### Dlaczego te narzędzia?
 
 #### **Vitest** (zamiast Jest)
+
 ✅ Natywna integracja z Vite/Astro  
 ✅ Znacznie szybszy (~10x) dzięki ESM  
 ✅ Out-of-the-box TypeScript support  
 ✅ Hot Module Reload dla testów (watch mode)  
 ✅ API kompatybilne z Jest (łatwa migracja)  
-✅ Single config dla unit + integration  
+✅ Single config dla unit + integration
 
 #### **Playwright** (zamiast Cypress)
+
 ✅ Lepsza wydajność i stabilność  
 ✅ Natywne wsparcie dla wielu przeglądarek  
 ✅ Built-in API testing (nie potrzeba Supertest)  
 ✅ Auto-waiting i retry logic  
 ✅ Lepsze headless mode dla CI  
-✅ Trace viewer dla debugging  
+✅ Trace viewer dla debugging
 
 #### **Testcontainers** (zamiast docker-compose)
+
 ✅ Dynamiczne tworzenie kontenerów per test suite  
 ✅ Programmatic control (seed, cleanup)  
 ✅ Pełna izolacja między testami  
 ✅ Działa identycznie lokalnie i w CI  
-✅ Brak manual setup  
+✅ Brak manual setup
 
 #### **MSW** (Mock Service Worker)
+
 ✅ Mockowanie API na poziomie network  
 ✅ Działa w testach i przeglądarce  
 ✅ Deterministyczne odpowiedzi API  
-✅ Symulacja błędów i edge cases  
+✅ Symulacja błędów i edge cases
 
 #### **Supabase Cloud** dla E2E (nie lokalne)
+
 ✅ Prawdziwy Supabase Auth (GoTrue)  
 ✅ SMTP skonfigurowane (wysyłka maili)  
 ✅ Zero setup dla deweloperów  
-✅ Identyczne jak produkcja  
+✅ Identyczne jak produkcja
 
 ### Instalacja i konfiguracja
 
@@ -1163,21 +1210,21 @@ npm install -D @stryker-mutator/core @stryker-mutator/vitest
 {
   "scripts": {
     "test": "npm run test:unit && npm run test:integration",
-    
+
     "test:unit": "vitest run src/**/*.test.{ts,tsx}",
     "test:unit:watch": "vitest watch src/**/*.test.{ts,tsx}",
     "test:unit:coverage": "vitest run --coverage src/**/*.test.{ts,tsx}",
-    
+
     "test:integration": "vitest run tests/integration/**/*.integration.test.ts",
     "test:integration:watch": "vitest watch tests/integration/**/*.integration.test.ts",
-    
+
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
-    
+
     "test:mutation": "stryker run",
-    
+
     "test:all": "npm run test && npm run test:e2e"
   }
 }
@@ -1227,36 +1274,29 @@ npm install -D @stryker-mutator/core @stryker-mutator/vitest
 ### Konfiguracje
 
 **vitest.config.ts**:
+
 ```typescript
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  
+
   test: {
     // Unit tests
-    include: [
-      'src/**/*.test.{ts,tsx}',
-      'tests/integration/**/*.integration.test.ts'
-    ],
-    
+    include: ["src/**/*.test.{ts,tsx}", "tests/integration/**/*.integration.test.ts"],
+
     globals: true,
-    environment: 'jsdom',
-    
-    setupFiles: ['./tests/setup-unit.ts'],
-    
+    environment: "jsdom",
+
+    setupFiles: ["./tests/setup-unit.ts"],
+
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: [
-        'src/**/*.test.{ts,tsx}',
-        'src/**/*.spec.{ts,tsx}',
-        'src/types.ts',
-        'src/env.d.ts',
-      ],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}", "src/types.ts", "src/env.d.ts"],
       // Targets
       lines: 80,
       functions: 80,
@@ -1264,60 +1304,63 @@ export default defineConfig({
       statements: 80,
     },
   },
-  
+
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });
 ```
 
 **playwright.config.ts**:
-```typescript
-import { defineConfig, devices } from '@playwright/test';
-import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.test' });
+```typescript
+import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.test" });
 
 export default defineConfig({
-  testDir: './tests/e2e',
-  
+  testDir: "./tests/e2e",
+
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1,
-  
+
   reporter: [
-    ['html', { outputFolder: 'playwright-report' }],
-    ['list'],
-    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ["html", { outputFolder: "playwright-report" }],
+    ["list"],
+    ["junit", { outputFile: "test-results/junit.xml" }],
   ],
-  
+
   use: {
-    baseURL: process.env.TEST_BASE_URL || 'http://localhost:4321',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-    
+    baseURL: process.env.TEST_BASE_URL || "http://localhost:4321",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+
     // Timeout per action
     actionTimeout: 10000,
   },
-  
+
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
-  
+
   // Start dev server lokalnie
-  webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:4321',
-    reuseExistingServer: true,
-    timeout: 120000,
-  },
+  webServer: process.env.CI
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: "http://localhost:4321",
+        reuseExistingServer: true,
+        timeout: 120000,
+      },
 });
 ```
 
@@ -1334,20 +1377,20 @@ on: [push, pull_request]
 jobs:
   unit:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       - run: npm ci
-      
+
       - name: Run unit tests
         run: npm run test:unit:coverage
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
@@ -1363,17 +1406,17 @@ on: [pull_request]
 jobs:
   integration:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       - run: npm ci
-      
+
       # Docker już jest dostępny w GitHub Actions
       - name: Run integration tests
         run: npm run test:integration
@@ -1394,20 +1437,20 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          node-version: "20"
+          cache: "npm"
+
       - run: npm ci
-      
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-      
+
       - name: Run E2E tests
         run: npm run test:e2e
         env:
@@ -1415,7 +1458,7 @@ jobs:
           PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_KEY }}
-      
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -1441,6 +1484,7 @@ jobs:
 **Cel**: Ustanowienie infrastruktury testowej i pokrycie logiki biznesowej.
 
 **Zadania**:
+
 1. **Setup środowiska testowego**:
    - Konfiguracja Vitest + TypeScript
    - Setup Testcontainers dla testów integracyjnych
@@ -1459,6 +1503,7 @@ jobs:
    - `rate-limit.service` (okna czasowe)
 
 **Deliverables**:
+
 - ✅ Vitest działa w watch mode
 - ✅ >80% coverage dla logiki finansowej
 - ✅ CI uruchamia testy unit na każdym push
@@ -1472,6 +1517,7 @@ jobs:
 **Cel**: Pokrycie wszystkich endpointów API z prawdziwą bazą danych.
 
 **Zadania**:
+
 1. **Setup Testcontainers**:
    - Konfiguracja PostgreSQL container
    - Automatyczne uruchamianie migracji Supabase
@@ -1503,6 +1549,7 @@ jobs:
    - Audit log (wpisy dla każdej zmiany)
 
 **Deliverables**:
+
 - ✅ Wszystkie endpointy API pokryte testami integracyjnymi
 - ✅ Testcontainers działają lokalnie i w CI
 - ✅ CI uruchamia testy integracyjne na każdym PR
@@ -1516,6 +1563,7 @@ jobs:
 **Cel**: Pokrycie React components z perspektywy użytkownika.
 
 **Zadania**:
+
 1. **Setup React Testing Library + MSW**:
    - Konfiguracja jsdom environment
    - Setup MSW handlers dla API
@@ -1539,6 +1587,7 @@ jobs:
    - Loading states
 
 **Deliverables**:
+
 - ✅ Wszystkie kluczowe komponenty pokryte testami
 - ✅ MSW mockuje API responses
 - ✅ >70% coverage dla komponentów
@@ -1552,6 +1601,7 @@ jobs:
 **Cel**: Pokrycie krytycznych user flows z prawdziwym auth i infrastrukturą.
 
 **Zadania**:
+
 1. **Setup Playwright + Supabase Cloud**:
    - Konfiguracja projektu test w Supabase
    - Setup Ethereal Email dla weryfikacji maili
@@ -1584,6 +1634,7 @@ jobs:
    - Progress celu priorytetowego
 
 **Deliverables**:
+
 - ✅ Playwright uruchomiony lokalnie i w CI
 - ✅ Wszystkie krytyczne user flows pokryte
 - ✅ Ethereal Email integration działa
@@ -1597,6 +1648,7 @@ jobs:
 **Cel**: Dopracowanie testów, CI/CD i przygotowanie do produkcji.
 
 **Zadania**:
+
 1. **Optymalizacja CI/CD**:
    - Parallel runs dla testów unit
    - Retry logic dla flaky E2E tests
@@ -1625,12 +1677,14 @@ jobs:
    - Post-deployment verification
 
 **Deliverables**:
+
 - ✅ Pełny zestaw testów regresyjnych
 - ✅ CI/CD w pełni zautomatyzowane
 - ✅ Dokumentacja testowa
 - ✅ Smoke tests na prod
 
-**Metryka sukcesu**: 
+**Metryka sukcesu**:
+
 - Zero known severity 1 bugs
 - All CI checks pass
 - <5% flaky E2E tests
@@ -1642,16 +1696,17 @@ jobs:
 
 **Strategia testowania na różnych etapach**:
 
-| Etap | Testy uruchamiane | Czas | Blokujące? |
-|------|-------------------|------|-----------|
-| **Development (watch mode)** | Unit tests | ~instant | Nie |
-| **Pre-commit hook** | Unit + linting | <30s | Tak |
-| **Push / PR** | Unit + Integration | ~2-5min | Tak |
-| **Merge to master** | Unit + Integration + E2E smoke | ~10-15min | Tak |
-| **Release** | Full suite (wszystkie) | ~20-30min | Tak |
-| **Post-deploy (prod)** | Smoke E2E | ~2-3min | Monitoring |
+| Etap                         | Testy uruchamiane              | Czas      | Blokujące? |
+| ---------------------------- | ------------------------------ | --------- | ---------- |
+| **Development (watch mode)** | Unit tests                     | ~instant  | Nie        |
+| **Pre-commit hook**          | Unit + linting                 | <30s      | Tak        |
+| **Push / PR**                | Unit + Integration             | ~2-5min   | Tak        |
+| **Merge to master**          | Unit + Integration + E2E smoke | ~10-15min | Tak        |
+| **Release**                  | Full suite (wszystkie)         | ~20-30min | Tak        |
+| **Post-deploy (prod)**       | Smoke E2E                      | ~2-3min   | Monitoring |
 
 **Developer workflow**:
+
 ```bash
 # 1. Development - watch mode
 npm run test:unit:watch
@@ -1667,6 +1722,7 @@ npm run test:e2e:ui  # Playwright UI mode
 ```
 
 **Pre-commit hook** (Husky):
+
 ```bash
 # .husky/pre-commit
 #!/bin/sh
@@ -1681,6 +1737,7 @@ npm run lint
 ### 8.1. Pokrycie funkcjonalne
 
 **Wymagania minimalne**:
+
 - ✅ Wszystkie kluczowe user stories z PRD (auth, transakcje, cele, dashboard, audit_log) mają:
   - Co najmniej **jeden happy path** przetestowany automatycznie
   - Co najmniej **jeden scenariusz błędu** (walidacje, błędy API)
@@ -1690,6 +1747,7 @@ npm run lint
 - ✅ Krytyczne user flows pokryte testami E2E (minimum 10 flows)
 
 **Metryka**:
+
 ```
 Total test count (target):
 - Unit tests: ~150-200
@@ -1703,21 +1761,21 @@ Total: ~250-355 tests
 ### 8.2. Jakość kodu i testów
 
 **Coverage targets**:
+
 - Unit tests:
   - Lines: ≥80%
   - Functions: ≥80%
   - Branches: ≥75%
   - **Logika finansowa: 100%** (krytyczna)
-  
 - Integration tests (API):
   - Endpoints coverage: 100%
   - Business logic paths: ≥90%
-  
 - UI tests:
   - Components coverage: ≥70%
   - Critical forms: 100%
 
 **Quality gates**:
+
 - ✅ Zero console.errors w testach
 - ✅ Zero flaky tests (jeśli test failuje losowo → napraw lub disable)
 - ✅ Wszystkie testy mają czytelne nazewnictwo (describe/it)
@@ -1727,6 +1785,7 @@ Total: ~250-355 tests
 ### 8.3. Jakość danych i obliczeń
 
 **Krytyczne wymogi**:
+
 - ✅ **Brak znanych błędów w obliczeniach finansowych** (potwierdzone testami unit + integration)
 - ✅ Bankierskie zaokrąglanie poprawnie zaimplementowane i przetestowane
 - ✅ Agregacje miesięczne (Dochód, Wydatki, Odłożone netto, Wolne środki) zgodne ze wzorami z PRD
@@ -1734,6 +1793,7 @@ Total: ~250-355 tests
 - ✅ Backdate i korekty historyczne aktualizują agregatów poprawnie
 
 **Przypadki testowe**:
+
 - Różne formaty kwot: "1234,56", "1 234.50", "0,01"
 - Skrajne kwoty: 0.01 PLN, 999999999.99 PLN
 - Różne miesiące: styczeń (1), grudzień (12), lata przestępne
@@ -1742,16 +1802,19 @@ Total: ~250-355 tests
 ### 8.4. Stabilność systemu
 
 **Defekty**:
+
 - ✅ **Zero otwartych defektów Severity 1** (blokujące funkcjonalność)
 - ✅ Otwarte defekty Severity 2 opisane, priorytetyzowane i zaakceptowane przez PO
 - ✅ Defekty Severity 3 (kosmetyczne) udokumentowane w backlogu
 
 **Severity definitions**:
+
 - **Severity 1**: Crash, data loss, broken auth, broken critical flow (transakcje/cele)
 - **Severity 2**: Partial feature broken, workaround exists, visual bugs in key areas
 - **Severity 3**: Cosmetic issues, minor UX problems, edge case bugs
 
 **CI/CD stability**:
+
 - ✅ Pipeline success rate ≥95% (bez flaky tests)
 - ✅ Average pipeline time: <10 min (unit + integration)
 - ✅ E2E pipeline time: <15 min
@@ -1760,12 +1823,14 @@ Total: ~250-355 tests
 ### 8.5. Wydajność (basic sanity, bez dedicated performance testing)
 
 **Akceptowalne czasy odpowiedzi** (observed during integration tests):
+
 - API GET requests (list): <500ms dla typowych rozmiarów (50 items)
 - API POST/PUT/DELETE: <200ms
 - Dashboard metrics: <1s (all 3 API calls combined)
 - Page loads (E2E): <3s (initial + hydration)
 
 **Uwaga**: To są **sanity checks**, nie pełne testy wydajnościowe. Świadomie pomijamy:
+
 - ❌ Load testing (concurrent users)
 - ❌ Stress testing (breaking points)
 - ❌ Soak testing (long-running stability)
@@ -1777,24 +1842,28 @@ Uzasadnienie: MVP, małe obciążenie spodziewane, Supabase skaluje automatyczni
 **Zakres na tym etapie**: **OGRANICZONY** (świadoma decyzja)
 
 **Testujemy tylko funkcjonalnie**:
+
 - ✅ RLS policies (użytkownik widzi tylko swoje dane) - testy integracyjne
 - ✅ Soft-delete (brak dostępu do usuniętych) - testy integracyjne
 - ✅ Rate limiting (3/30 min dla verify/reset) - testy E2E
 - ✅ Podstawowa walidacja inputów (Zod schemas) - testy unit
 
 **Świadomie POMIJAMY**:
+
 - ❌ Penetration testing
 - ❌ OWASP Top 10 (SQL injection, XSS, CSRF, etc.)
 - ❌ Security audits
 - ❌ Automated vulnerability scanning (Snyk, Dependabot - opcjonalnie można dodać)
 
-**Uzasadnienie**: 
+**Uzasadnienie**:
+
 - MVP scope
 - Supabase ma built-in zabezpieczenia (RLS, SQL injection protection)
 - Można dodać w post-MVP
 - PO akceptuje to ryzyko
 
 **Akcje post-MVP** (backlog):
+
 - [ ] Dodać automated security scanning (npm audit, Snyk)
 - [ ] Code review z focus na security
 - [ ] Penetration testing przed public release
@@ -1802,6 +1871,7 @@ Uzasadnienie: MVP, małe obciążenie spodziewane, Supabase skaluje automatyczni
 ### 8.7. Dokumentacja testowa
 
 **Wymagania**:
+
 - ✅ README w `/tests/` z instrukcjami setup i run
 - ✅ Każdy test ma czytelną nazwę (BDD style: "should X when Y")
 - ✅ Skomplikowane test cases mają komentarze
@@ -1809,6 +1879,7 @@ Uzasadnienie: MVP, małe obciążenie spodziewane, Supabase skaluje automatyczni
 - ✅ CI/CD pipeline opisany w dokumentacji
 
 **Przykład dobrej nazwy testu**:
+
 ```typescript
 // ❌ Bad
 test('transaction test 1', () => { ... });
@@ -1823,7 +1894,7 @@ describe('POST /api/v1/transactions', () => {
     it('should update monthly income/expenses', () => { ... });
     it('should create audit log entry', () => { ... });
   });
-  
+
   describe('when user provides invalid amount', () => {
     it('should return 400 with validation error', () => { ... });
   });
@@ -1833,6 +1904,7 @@ describe('POST /api/v1/transactions', () => {
 ### 8.8. Release readiness checklist
 
 **Przed każdym releasem**:
+
 - [ ] ✅ All CI checks pass (unit + integration + E2E)
 - [ ] ✅ Coverage targets met (≥80% unit, 100% API endpoints)
 - [ ] ✅ Zero Severity 1 defects open
@@ -1843,6 +1915,7 @@ describe('POST /api/v1/transactions', () => {
 - [ ] ✅ Changelog updated
 
 **Post-deploy verification** (production smoke):
+
 - [ ] Login works (real test user)
 - [ ] Dashboard loads with correct data
 - [ ] Can create transaction
@@ -1850,9 +1923,10 @@ describe('POST /api/v1/transactions', () => {
 - [ ] Email delivery works (verify + reset)
 
 **Rollback criteria**:
+
 - Smoke tests fail on production
 - Severity 1 defect discovered post-deploy
-- >5% error rate in monitoring (if available)
+- > 5% error rate in monitoring (if available)
 
 ---
 
@@ -1861,6 +1935,7 @@ describe('POST /api/v1/transactions', () => {
 ### 9.1. QA Engineer / Test Lead
 
 **Odpowiedzialności**:
+
 - ✅ Utrzymanie i aktualizacja tego planu testów
 - ✅ Projektowanie scenariuszy testowych (happy path + error + edge cases)
 - ✅ Code review testów pisanych przez deweloperów
@@ -1871,12 +1946,14 @@ describe('POST /api/v1/transactions', () => {
 - ✅ Utrzymanie test helpers i utilities
 
 **Deliverables**:
+
 - Test plan (ten dokument)
 - E2E test suite (Playwright)
 - Test reports przed każdym releasem
 - Quality metrics dashboard (opcjonalnie)
 
 **Tools**:
+
 - Playwright (E2E)
 - GitHub Issues (bug tracking)
 - CI/CD monitoring
@@ -1886,6 +1963,7 @@ describe('POST /api/v1/transactions', () => {
 ### 9.2. Developers (Frontend + Backend)
 
 **Odpowiedzialności**:
+
 - ✅ Pisanie testów unit dla swoich modułów (funkcje, serwisy, utils)
 - ✅ Pisanie testów integracyjnych dla API endpoints
 - ✅ Pisanie testów komponentowych dla UI (React)
@@ -1896,6 +1974,7 @@ describe('POST /api/v1/transactions', () => {
 - ✅ Local testing przed push (pre-commit hook)
 
 **Definition of Done** dla feature:
+
 - [ ] Kod zaimplementowany
 - [ ] Testy unit napisane (happy + error + edge)
 - [ ] Testy integracyjne napisane (dla API)
@@ -1906,6 +1985,7 @@ describe('POST /api/v1/transactions', () => {
 - [ ] Dokumentacja zaktualizowana (jeśli potrzeba)
 
 **Praktyki**:
+
 - Test-Driven Development (opcjonalnie, zalecane dla logiki finansowej)
 - Pair programming dla skomplikowanych testów
 - Watch mode podczas development (`npm run test:unit:watch`)
@@ -1915,6 +1995,7 @@ describe('POST /api/v1/transactions', () => {
 ### 9.3. Product Owner / Project Manager
 
 **Odpowiedzialności**:
+
 - ✅ Priorytetyzacja funkcji i defektów
 - ✅ Akceptacja user stories (definition of done includes tests)
 - ✅ Akceptacja, że zakres bezpieczeństwa jest ograniczony w MVP
@@ -1923,11 +2004,13 @@ describe('POST /api/v1/transactions', () => {
 - ✅ Komunikacja z stakeholderami o jakości
 
 **Kluczowe decyzje**:
+
 - Czy Severity 2 defekty blokują release?
 - Jakie features są must-have vs nice-to-have w następnym sprincie?
 - Czy akceptujemy technical debt w testach (do spłacenia później)?
 
 **Raportowanie** (otrzymuje od QA):
+
 - Weekly test status report
 - Pre-release quality report (defects, coverage, risks)
 - Post-release smoke test results
@@ -1937,6 +2020,7 @@ describe('POST /api/v1/transactions', () => {
 ### 9.4. DevOps / Infrastructure Engineer
 
 **Odpowiedzialności**:
+
 - ✅ Konfiguracja i utrzymanie CI/CD pipelines (GitHub Actions)
 - ✅ Setup projektów Supabase (dev, test, prod)
 - ✅ Zarządzanie secrets w CI (Supabase keys, API tokens)
@@ -1946,6 +2030,7 @@ describe('POST /api/v1/transactions', () => {
 - ✅ Post-deploy smoke tests automation
 
 **Infrastructure setup**:
+
 - GitHub Actions workflows:
   - unit-tests.yml
   - integration-tests.yml
@@ -1960,6 +2045,7 @@ describe('POST /api/v1/transactions', () => {
   - `.env.test` templates dla lokalnego development
 
 **Monitoring**:
+
 - CI pipeline success rate (target: ≥95%)
 - Average pipeline duration (target: <10 min dla unit+integration)
 - Flaky test detection (tests that fail intermittently)
@@ -1970,6 +2056,7 @@ describe('POST /api/v1/transactions', () => {
 ### 9.5. Tech Lead / Architect
 
 **Odpowiedzialności**:
+
 - ✅ Architektura testowa (strategia, narzędzia, best practices)
 - ✅ Code review krytycznych testów (zwłaszcza logika finansowa)
 - ✅ Mentoring zespołu w testowaniu (knowledge sharing)
@@ -1978,12 +2065,14 @@ describe('POST /api/v1/transactions', () => {
 - ✅ Zapewnienie test maintainability (DRY, helpers, patterns)
 
 **Technical decisions**:
+
 - Wybór narzędzi (Vitest vs Jest, Playwright vs Cypress) ✅ Decided
 - Test architecture (Testcontainers vs docker-compose) ✅ Decided
 - Coverage targets (80% vs 90%?) ✅ Decided
 - Mutation testing (now vs later?) → Opcjonalnie, później
 
 **Knowledge sharing**:
+
 - Tech talks o testowaniu (np. "How to write good integration tests")
 - Documentation best practices
 - Code review feedback z focus na quality
@@ -1993,21 +2082,25 @@ describe('POST /api/v1/transactions', () => {
 ### 9.6. Współpraca i komunikacja
 
 **Daily standup**:
+
 - Deweloper: "Skończyłem feature X, wszystkie testy przechodzą"
 - QA: "Znalazłem bug w Y, utworzyłem issue #123"
 - DevOps: "CI ma problem z flaky testem Z, potrzebuje pomocy"
 
 **Weekly sync**:
+
 - Review quality metrics (coverage, defects, CI stability)
 - Priorytetyzacja bug fixes
 - Planning test automation tasks
 
 **Pre-release meeting**:
+
 - QA prezentuje release readiness report
 - PO decyduje czy release jest go/no-go
 - DevOps potwierdza gotowość infrastruktury
 
 **Escalation path**:
+
 ```
 Severity 1 defect found
   → QA creates issue + notifies team immediately (Slack/email)
@@ -2029,6 +2122,7 @@ Flaky test detected
 ### 10.1. Wykrywanie błędów
 
 **Źródła**:
+
 - ✅ Automatyczne testy (unit, integration, E2E) - failure w CI
 - ✅ Manualne testy QA
 - ✅ Code review (potential bugs)
@@ -2041,19 +2135,22 @@ Flaky test detected
 **Platforma**: GitHub Issues (lub Jira, jeśli używane)
 
 **Template issue**:
+
 ```markdown
 ## Bug Report
 
 **Title**: [Component/Feature] Brief description
 
-**Environment**: 
+**Environment**:
+
 - [ ] Dev (local)
 - [ ] Test (CI / Supabase test project)
 - [ ] Prod
 
 **Version/Commit**: `abc123def` (commit hash lub tag)
 
-**Severity**: 
+**Severity**:
+
 - [ ] Severity 1 - Blocker (crash, data loss, broken critical flow)
 - [ ] Severity 2 - Major (feature partially broken, workaround exists)
 - [ ] Severity 3 - Minor (cosmetic, edge case)
@@ -2061,9 +2158,11 @@ Flaky test detected
 ---
 
 ### Description
+
 Clear description of what went wrong.
 
 ### Steps to Reproduce
+
 1. Go to `/transactions`
 2. Click "Add Transaction"
 3. Enter amount "1234,56"
@@ -2072,25 +2171,30 @@ Clear description of what went wrong.
 6. Observe error
 
 ### Expected Result
+
 Transaction should be created and appear in the list with amount 1234.56 PLN.
 
 ### Actual Result
+
 Error message: "Invalid amount format"
 
 ### Screenshots/Videos
+
 [Attach if applicable]
 
 ### Logs
 ```
+
 // Console errors (Frontend)
 TypeError: Cannot read property 'id' of undefined
-  at TransactionForm.tsx:45
+at TransactionForm.tsx:45
 
 // API response (if applicable)
 {
-  "error": "Invalid amount format",
-  "code": "VALIDATION_ERROR"
+"error": "Invalid amount format",
+"code": "VALIDATION_ERROR"
 }
+
 ```
 
 ### Additional Context
@@ -2103,6 +2207,7 @@ Suggestion how to fix, if known.
 ```
 
 **Wymagane pola**:
+
 - Title (descriptive)
 - Environment
 - Severity
@@ -2110,6 +2215,7 @@ Suggestion how to fix, if known.
 - Expected vs Actual result
 
 **Opcjonalne ale zalecane**:
+
 - Screenshots/videos (dla UI bugs)
 - Logs (console, API responses, Supabase logs)
 - Proposed fix
@@ -2121,6 +2227,7 @@ Suggestion how to fix, if known.
 **Definicja**: Błąd blokujący kluczową funkcjonalność, brak workaround.
 
 **Przykłady**:
+
 - ❌ Application crash / white screen
 - ❌ Cannot login (auth completely broken)
 - ❌ Cannot create/edit/delete transactions
@@ -2128,12 +2235,14 @@ Suggestion how to fix, if known.
 - ❌ Poważne błędy obliczeń finansowych (np. saldo jest ujemne gdy powinno być dodatnie)
 - ❌ Security breach (dane jednego usera widoczne dla innego)
 
-**SLA**: 
+**SLA**:
+
 - Response time: <2h (podczas business hours)
 - Fix target: <24h
 - Requires: Immediate team notification
 
 **Actions**:
+
 - Stop release (if found before deploy)
 - Hotfix (if found in production)
 - All hands on deck
@@ -2145,6 +2254,7 @@ Suggestion how to fix, if known.
 **Definicja**: Istotny błąd funkcjonalny, ale istnieje workaround lub dotyczy mniej krytycznej funkcji.
 
 **Przykłady**:
+
 - ⚠️ Filtry transakcji nie działają (ale można zobaczyć wszystkie)
 - ⚠️ Banner "korekty historyczne" nie pojawia się
 - ⚠️ Optimistic update działa, ale rollback nie działa przy błędzie
@@ -2153,11 +2263,13 @@ Suggestion how to fix, if known.
 - ⚠️ Email weryfikacyjny nie wysyła (ale można użyć innego emaila)
 
 **SLA**:
+
 - Response time: <1 business day
 - Fix target: Before next release (1-2 weeks)
 - Requires: Triage by PO (czy blokuje release?)
 
 **Actions**:
+
 - Może blokować release (decyzja PO)
 - Priorytet w backlogu
 - Dokumentacja workaround
@@ -2169,6 +2281,7 @@ Suggestion how to fix, if known.
 **Definicja**: Błąd kosmetyczny, UX improvement, edge case o minimalnym wpływie.
 
 **Przykłady**:
+
 - 🟡 Typo w tekście
 - 🟡 Spacing/alignment w UI
 - 🟡 Icon niepoprawny (ale funkcjonalność działa)
@@ -2177,11 +2290,13 @@ Suggestion how to fix, if known.
 - 🟡 Validation message mogłaby być bardziej czytelna
 
 **SLA**:
+
 - Response time: Best effort
 - Fix target: Nice to have (może poczekać kilka release'ów)
 - Requires: PO priorytetyzuje w backlogu
 
 **Actions**:
+
 - Nie blokuje release
 - Fix gdy jest wolny slot
 - Może być zgrupowany z innymi małymi fixami
@@ -2232,6 +2347,7 @@ CLOSED (verified fixed) / REOPENED (still broken)
    - Labels update: `closed` or `reopened`
 
 **Verification checklist** (QA):
+
 - [ ] Steps to reproduce no longer produce the bug
 - [ ] Expected result is achieved
 - [ ] No new bugs introduced (regression testing)
@@ -2247,34 +2363,41 @@ CLOSED (verified fixed) / REOPENED (still broken)
 **Format**: GitHub Discussion lub Slack post
 
 **Content**:
+
 ```markdown
 # Test Status Report - Week 48, 2024
 
 ## Test Execution
+
 - Unit tests: 187 passed, 0 failed ✅
 - Integration tests: 62 passed, 1 failed ⚠️ (investigating)
 - E2E tests: 12 passed, 0 failed ✅
 - Total: 261 tests
 
 ## Coverage
+
 - Unit: 84% (target: 80%) ✅
 - Integration: 95% (target: 90%) ✅
 - UI: 72% (target: 70%) ✅
 
 ## Defects Summary
+
 - Severity 1: 0 open 🟢
 - Severity 2: 3 open (2 in progress, 1 triaged) 🟡
 - Severity 3: 8 open (backlog) ⚪
 
 ## CI/CD Health
+
 - Pipeline success rate: 96% (target: 95%) ✅
 - Average duration: 8m 32s (target: <10m) ✅
 - Flaky tests: 1 (investigating #234)
 
 ## Blockers
+
 - None
 
 ## Next Week Focus
+
 - Fix Severity 2 bugs before release
 - Improve E2E test coverage for goals module
 ```
@@ -2288,6 +2411,7 @@ CLOSED (verified fixed) / REOPENED (still broken)
 **Format**: Detailed document (GitHub Discussion)
 
 **Content**:
+
 ```markdown
 # Release Readiness Report - v1.2.0
 
@@ -2299,16 +2423,18 @@ CLOSED (verified fixed) / REOPENED (still broken)
 ## Test Results
 
 ### Automated Tests
-| Test Type | Total | Passed | Failed | Skipped |
-|-----------|-------|--------|--------|---------|
-| Unit | 187 | 187 | 0 | 0 |
-| Integration | 62 | 62 | 0 | 0 |
-| E2E | 12 | 12 | 0 | 0 |
-| **TOTAL** | **261** | **261** | **0** | **0** |
+
+| Test Type   | Total   | Passed  | Failed | Skipped |
+| ----------- | ------- | ------- | ------ | ------- |
+| Unit        | 187     | 187     | 0      | 0       |
+| Integration | 62      | 62      | 0      | 0       |
+| E2E         | 12      | 12      | 0      | 0       |
+| **TOTAL**   | **261** | **261** | **0**  | **0**   |
 
 ✅ All tests passing
 
 ### Coverage
+
 - Unit: 84% ✅
 - Integration: 95% ✅
 - Critical business logic: 100% ✅
@@ -2318,14 +2444,17 @@ CLOSED (verified fixed) / REOPENED (still broken)
 ## Defects Status
 
 ### Severity 1 (Blockers)
+
 - **0 open** ✅
 
 ### Severity 2 (Major)
+
 - **1 open** - #245: Filtry transakcji nie zapisują się w localStorage
   - Status: Triaged, not blocking release (workaround: user can re-apply filters)
   - Plan: Fix in v1.2.1 (next week)
 
 ### Severity 3 (Minor)
+
 - **8 open** - cosmetic issues, documented in backlog
   - Not blocking release
 
@@ -2334,13 +2463,14 @@ CLOSED (verified fixed) / REOPENED (still broken)
 ## Functional Coverage
 
 ### User Stories Coverage
-| Story | Unit | Integration | E2E | Status |
-|-------|------|-------------|-----|--------|
-| US-001: Registration | ✅ | ✅ | ✅ | Full |
-| US-002: Login | ✅ | ✅ | ✅ | Full |
-| US-007: Add Expense | ✅ | ✅ | ✅ | Full |
-| US-016: Dashboard | ✅ | ✅ | ✅ | Full |
-| ... | | | | |
+
+| Story                | Unit | Integration | E2E | Status |
+| -------------------- | ---- | ----------- | --- | ------ |
+| US-001: Registration | ✅   | ✅          | ✅  | Full   |
+| US-002: Login        | ✅   | ✅          | ✅  | Full   |
+| US-007: Add Expense  | ✅   | ✅          | ✅  | Full   |
+| US-016: Dashboard    | ✅   | ✅          | ✅  | Full   |
+| ...                  |      |             |     |        |
 
 ✅ All critical user stories fully covered
 
@@ -2349,6 +2479,7 @@ CLOSED (verified fixed) / REOPENED (still broken)
 ## Known Risks
 
 ### Accepted Risks
+
 1. **Limited security testing** (no penetration testing, no OWASP audit)
    - Mitigation: RLS tested functionally, Supabase has built-in protections
    - Plan: Security audit post-MVP (Q1 2025)
@@ -2364,6 +2495,7 @@ CLOSED (verified fixed) / REOPENED (still broken)
 ---
 
 ## CI/CD Stability
+
 - Pipeline success rate: 97% (last 30 days) ✅
 - Flaky tests: 0 (all fixed) ✅
 - Average pipeline time: 8m 20s ✅
@@ -2375,6 +2507,7 @@ CLOSED (verified fixed) / REOPENED (still broken)
 **🟢 GO for release**
 
 Justification:
+
 - All critical tests passing
 - Zero Severity 1 defects
 - 1 Severity 2 defect accepted by PO (non-blocking)
@@ -2386,6 +2519,7 @@ Justification:
 ## Post-Deploy Verification Plan
 
 Smoke tests to run on production:
+
 1. Login with test account
 2. Dashboard loads with data
 3. Create transaction
@@ -2405,6 +2539,7 @@ Auto-rollback if any smoke test fails.
 **Format**: Brief summary
 
 **Content**:
+
 ```markdown
 # Post-Deploy Report - v1.2.0
 
@@ -2412,6 +2547,7 @@ Auto-rollback if any smoke test fails.
 **Environment**: Production
 
 ## Smoke Tests
+
 - ✅ Login: Passed
 - ✅ Dashboard: Passed
 - ✅ Create transaction: Passed
@@ -2419,14 +2555,17 @@ Auto-rollback if any smoke test fails.
 - ✅ Email delivery: Passed (verified email received in 30s)
 
 ## Monitoring (first 2 hours)
+
 - Uptime: 100%
 - Error rate: 0%
 - P95 response time: 180ms (good)
 
 ## User Feedback
+
 - No issues reported
 
 ## Conclusion
+
 ✅ Deployment successful, no issues detected.
 ```
 
@@ -2435,6 +2574,7 @@ Auto-rollback if any smoke test fails.
 ### 10.6. Bug Tracking Best Practices
 
 **Do's**:
+
 - ✅ Provide clear steps to reproduce
 - ✅ Include screenshots/videos for UI bugs
 - ✅ Include logs (console, API, Supabase)
@@ -2444,6 +2584,7 @@ Auto-rollback if any smoke test fails.
 - ✅ Reference related issues (#123)
 
 **Don'ts**:
+
 - ❌ Vague titles ("It doesn't work")
 - ❌ No steps to reproduce
 - ❌ Mixing multiple bugs in one issue
@@ -2454,6 +2595,7 @@ Auto-rollback if any smoke test fails.
 **Examples**:
 
 ❌ **Bad issue**:
+
 ```
 Title: Bug in transactions
 
@@ -2461,6 +2603,7 @@ The transactions page is broken.
 ```
 
 ✅ **Good issue**:
+
 ```
 Title: [Transactions] Amount validation rejects valid format "1 234,56"
 
@@ -2491,12 +2634,14 @@ Related: #123 (original implementation of amount parsing)
 ### 10.7. Escalation
 
 **When to escalate**:
+
 - Severity 1 defect found (anytime)
 - Multiple Severity 2 defects found before release (risk assessment needed)
 - Flaky tests blocking CI (> 3 consecutive failures)
 - Production incident
 
 **How to escalate**:
+
 1. Create GitHub issue (as usual)
 2. Notify team immediately:
    - Slack: @channel in #development
@@ -2505,6 +2650,7 @@ Related: #123 (original implementation of amount parsing)
 4. Tag Tech Lead in issue
 
 **Response**:
+
 - Tech Lead assigns developer ASAP
 - Developer provides ETA
 - Team stays updated (daily standup or more frequently)
@@ -2518,11 +2664,11 @@ Related: #123 (original implementation of amount parsing)
 
 Ten plan testów przyjmuje **3-poziomową strategię** testowania, zoptymalizowaną pod kątem szybkości i izolacji:
 
-| Poziom | Narzędzia | Auth | Database | Uruchamianie | Cel |
-|--------|-----------|------|----------|--------------|-----|
-| **Unit** | Vitest | Brak | Brak (mocki) | Każdy save (watch) | Logika biznesowa |
-| **Integration** | Vitest + Testcontainers | **FAKE** | Postgres (container) | Każdy PR | API + DB |
-| **E2E** | Playwright + Supabase Cloud | **PRAWDZIWY** | Supabase Cloud | Merge to master | User flows |
+| Poziom          | Narzędzia                   | Auth          | Database             | Uruchamianie       | Cel              |
+| --------------- | --------------------------- | ------------- | -------------------- | ------------------ | ---------------- |
+| **Unit**        | Vitest                      | Brak          | Brak (mocki)         | Każdy save (watch) | Logika biznesowa |
+| **Integration** | Vitest + Testcontainers     | **FAKE**      | Postgres (container) | Każdy PR           | API + DB         |
+| **E2E**         | Playwright + Supabase Cloud | **PRAWDZIWY** | Supabase Cloud       | Merge to master    | User flows       |
 
 **Kluczowa innowacja**: Rozdzielenie testów logiki biznesowej (fake auth) od testów auth flow (prawdziwy Supabase).
 
@@ -2532,7 +2678,7 @@ Ten plan testów przyjmuje **3-poziomową strategię** testowania, zoptymalizowa
 
 ```yaml
 Testing Framework: Vitest (not Jest)
-Reasoning: 
+Reasoning:
   - Natywna integracja z Vite/Astro
   - 10x szybszy dzięki ESM
   - Single config dla unit + integration
@@ -2592,6 +2738,7 @@ k6/Artillery: Odrzucony → Performance testing pominięte w MVP
 **Rozwiązanie**: Rozdzielenie odpowiedzialności
 
 #### Testy integracyjne API (fake auth)
+
 ```typescript
 // Testujemy: logikę biznesową, nie auth
 const testUserId = await seedTestUser();
@@ -2599,23 +2746,25 @@ const mockToken = createMockToken(testUserId);
 
 // Middleware w test mode akceptuje mock tokeny
 const response = await request(app)
-  .post('/api/v1/transactions')
-  .set('Authorization', `Bearer ${mockToken}`)
+  .post("/api/v1/transactions")
+  .set("Authorization", `Bearer ${mockToken}`)
   .send({ amount: 10000 });
 
 expect(response.status).toBe(201);
 ```
 
 **Korzyści**:
+
 - ⚡ Szybkie (bez prawdziwego auth)
 - 🎯 Focused (testujemy business logic, nie auth)
 - 🔄 Deterministyczne (fake userId)
 - 💰 Darmowe (bez external API calls)
 
 #### Testy E2E (prawdziwy auth)
+
 ```typescript
 // Testujemy: pełny user flow włącznie z auth
-await page.goto('/auth/register');
+await page.goto("/auth/register");
 await page.fill('[name="email"]', email);
 await page.fill('[name="password"]', password);
 await page.click('button[type="submit"]');
@@ -2626,10 +2775,11 @@ await page.goto(verificationLink);
 
 // Prawdziwe logowanie
 await login(page, email, password);
-expect(page).toHaveURL('/dashboard');
+expect(page).toHaveURL("/dashboard");
 ```
 
 **Korzyści**:
+
 - 🎭 Realistic (jak prawdziwy user)
 - 🔒 Testuje auth security
 - 📧 Testuje email flow
@@ -2638,9 +2788,11 @@ expect(page).toHaveURL('/dashboard');
 ### 11.4. Pominięte w MVP (świadome decyzje)
 
 #### Performance Testing
+
 **Decyzja**: Pominięte całkowicie w MVP
 
 **Uzasadnienie**:
+
 - Małe oczekiwane obciążenie
 - Supabase skaluje automatycznie
 - Basic sanity checks wystarczą (response time <500ms w integration tests)
@@ -2651,9 +2803,11 @@ expect(page).toHaveURL('/dashboard');
 ---
 
 #### Security Testing
+
 **Decyzja**: Tylko funkcjonalne (RLS, rate limiting), bez dedicated security testing
 
 **Uzasadnienie**:
+
 - Supabase ma wbudowane zabezpieczenia (SQL injection protection)
 - RLS testowane funkcjonalnie w integration tests
 - OWASP Top 10 i pentesty są overkill dla MVP
@@ -2664,9 +2818,11 @@ expect(page).toHaveURL('/dashboard');
 ---
 
 #### Mutation Testing
+
 **Decyzja**: Opcjonalne, nie required dla MVP
 
 **Uzasadnienie**:
+
 - Dodatkowy overhead (Stryker setup + CI time)
 - High coverage (>80%) + code review wystarczą na start
 - Można dodać selektywnie dla krytycznej logiki finansowej
@@ -2676,9 +2832,11 @@ expect(page).toHaveURL('/dashboard');
 ---
 
 #### Visual Regression Testing
+
 **Decyzja**: Opcjonalne (Playwright screenshots)
 
 **Uzasadnienie**:
+
 - Nice to have, nie must-have
 - Manual review w PR wystarcza dla MVP
 - Można dodać baseline screenshots później
@@ -2706,7 +2864,7 @@ CI/CD:
   Pipeline success rate: ≥95%
   Unit + Integration time: <10 min
   E2E time: <15 min
-  
+
 Quality:
   Severity 1 defects: 0
   Flaky tests: <5%
@@ -2723,13 +2881,14 @@ Team Velocity:
 **Priorytetowa kolejność**:
 
 1. **Week 1-2**: Setup + Unit tests dla logiki finansowej ✅ MUST
-2. **Week 2-3**: Integration tests dla API (wszystkie endpointy) ✅ MUST  
+2. **Week 2-3**: Integration tests dla API (wszystkie endpointy) ✅ MUST
 3. **Week 3-4**: UI component tests (formularze, listy) ✅ MUST
 4. **Week 4-5**: E2E tests (auth + critical flows) ✅ MUST
 5. **Week 5-6**: Stabilizacja + dokumentacja ✅ MUST
 6. **Post-MVP**: Visual regression, mutation testing, security audit ⭐ NICE TO HAVE
 
 **Gotowość do release**:
+
 - [ ] Wszystkie MUST kroki ukończone (1-5)
 - [ ] Coverage targets met
 - [ ] Zero Severity 1 defects
@@ -2741,6 +2900,7 @@ Team Velocity:
 Ten plan testów jest **living document** - będzie aktualizowany gdy zespół zdobędzie więcej doświadczenia.
 
 **Feedback mile widziany**:
+
 - Czy strategia testowa jest jasna?
 - Czy coś jest overkill / underkill?
 - Czy są niewykryte risk areas?

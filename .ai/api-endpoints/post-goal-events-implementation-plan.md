@@ -1125,6 +1125,7 @@ WHERE deleted_at IS NULL AND archived_at IS NULL;
 3. Utility function `formatZodErrors` (copy z goals/index.ts)
 
 4. Implementować `POST` handler:
+
    ```typescript
    export async function POST(context: APIContext) {
      try {

@@ -25,7 +25,7 @@ Jeśli potrzebujesz wyczyścić tylko dane głównego test usera (bez usuwania k
 
 ```typescript
 // W konsoli Node.js lub w osobnym skrypcie
-import { cleanupMainTestUserData } from './tests/e2e/helpers/test-data';
+import { cleanupMainTestUserData } from "./tests/e2e/helpers/test-data";
 await cleanupMainTestUserData();
 ```
 
@@ -56,6 +56,7 @@ npx tsx tests/e2e/helpers/global-teardown.ts
 ## Co zostanie usunięte?
 
 Teardown usuwa WSZYSTKIE dane testowe z następujących tabel:
+
 - `transactions` (oprócz transakcji głównego test usera)
 - `goals` (oprócz celów głównego test usera)
 - `goal_events` (oprócz zdarzeń głównego test usera)
@@ -100,6 +101,7 @@ DELETE FROM profiles WHERE user_id != '85b37466-4e1b-49d8-a925-ee5c0eb623a1';
 **Problem**: `.env.test` nie zawiera wymaganych zmiennych lub plik nie istnieje.
 
 **Rozwiązanie**:
+
 ```bash
 # Sprawdź czy plik istnieje
 ls -la .env.test
@@ -112,6 +114,7 @@ nano .env.test
 ```
 
 **Wymagane zmienne**:
+
 - `PUBLIC_SUPABASE_URL` - URL projektu Supabase
 - `SUPABASE_SERVICE_KEY` - Service role key
 - `E2E_USERNAME_ID` - UUID głównego test usera (85b37466-4e1b-49d8-a925-ee5c0eb623a1)
@@ -121,6 +124,7 @@ nano .env.test
 **Problem**: Kolejność usuwania danych narusza ograniczenia klucza obcego.
 
 **Rozwiązanie**: Teardown usuwa dane w poprawnej kolejności. Jeśli problem występuje:
+
 1. Sprawdź logi - który DELETE failuje
 2. Sprawdź strukturę bazy (czy nie dodano nowych tabel z FK)
 3. Zaktualizuj teardown, aby usuwać w poprawnej kolejności
@@ -130,6 +134,7 @@ nano .env.test
 **Problem**: `SUPABASE_SERVICE_KEY` nie ma wystarczających uprawnień.
 
 **Rozwiązanie**:
+
 1. Sprawdź czy używasz **service_role key**, nie anon key
 2. W Supabase Dashboard → Settings → API → Project API keys
 3. Skopiuj "service_role" key (long token starting with `eyJhbGc...`)
@@ -140,11 +145,13 @@ nano .env.test
 **Problem**: Po testach nadal widzisz dane testowe w bazie.
 
 **Możliwe przyczyny**:
+
 1. Teardown nie uruchomił się (sprawdź logi testów)
 2. Teardown zakończył się błędem (sprawdź logi)
 3. Brakuje `SUPABASE_SERVICE_KEY` w `.env.test`
 
 **Rozwiązanie**:
+
 ```bash
 # 1. Sprawdź logi ostatniego uruchomienia testów
 # Powinny zawierać: "🧹 Starting database cleanup..."
@@ -178,7 +185,7 @@ SELECT * FROM monthly_metrics WHERE user_id = '85b37466-4e1b-49d8-a925-ee5c0eb62
 ## Kontakt
 
 Jeśli nadal masz problemy, sprawdź:
+
 - `tests/README.md` - główna dokumentacja testów
 - `TESTING-QUICKSTART.md` - quick start guide
 - Otwórz issue w repo z logami błędów
-

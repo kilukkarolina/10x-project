@@ -5,12 +5,14 @@
 **Cel**: Pobranie celu priorytetowego użytkownika wraz z jego postępem i zmianą miesięczną (suma wpłat i wypłat w danym miesiącu).
 
 **Funkcjonalność**:
+
 - Zwraca szczegóły celu oznaczonego jako priorytetowy (`is_priority=true`)
 - Oblicza procent realizacji celu (`progress_percentage`)
 - Agreguje zdarzenia celu (DEPOSIT/WITHDRAW) dla podanego miesiąca
 - Jeśli użytkownik nie ma celu priorytetowego, zwraca 404
 
 **Przypadki użycia**:
+
 - Dashboard: wyświetlenie głównego celu użytkownika z podsumowaniem miesięcznym
 - Tracking: monitorowanie postępu najważniejszego celu finansowego
 
@@ -19,9 +21,11 @@
 ## 2. Szczegóły żądania
 
 ### Metoda HTTP
+
 `GET`
 
 ### Struktura URL
+
 ```
 /api/v1/metrics/priority-goal
 ```
@@ -29,10 +33,11 @@
 ### Query Parameters
 
 #### Opcjonalne:
+
 - **`month`** (string, format: YYYY-MM)
   - **Opis**: Miesiąc, dla którego obliczana jest zmiana miesięczna (suma DEPOSIT - WITHDRAW)
   - **Format**: YYYY-MM (np. "2025-01")
-  - **Walidacja**: 
+  - **Walidacja**:
     - Regex: `/^\d{4}-\d{2}$/`
     - Rok: 4 cyfry
     - Miesiąc: 01-12
@@ -40,9 +45,11 @@
   - **Przykład**: `?month=2025-01`
 
 ### Request Headers
+
 - **Authorization**: Bearer token z Supabase Auth (automatycznie obsługiwany przez middleware)
 
 ### Request Body
+
 Brak (GET request)
 
 ---
@@ -55,15 +62,15 @@ Z `src/types.ts` (linie 278-289):
 
 ```typescript
 export interface PriorityGoalMetricsDTO {
-  goal_id: string;              // UUID celu
-  name: string;                 // Nazwa celu
-  type_code: string;            // Kod typu celu (np. "VACATION")
-  type_label: string;           // Etykieta typu w języku polskim (np. "Wakacje")
-  target_amount_cents: number;  // Docelowa kwota w groszach
+  goal_id: string; // UUID celu
+  name: string; // Nazwa celu
+  type_code: string; // Kod typu celu (np. "VACATION")
+  type_label: string; // Etykieta typu w języku polskim (np. "Wakacje")
+  target_amount_cents: number; // Docelowa kwota w groszach
   current_balance_cents: number; // Aktualne saldo w groszach
-  progress_percentage: number;  // Procent realizacji (0-100+)
+  progress_percentage: number; // Procent realizacji (0-100+)
   monthly_change_cents: number; // Zmiana w podanym miesiącu (DEPOSIT - WITHDRAW)
-  month: string;                // Miesiąc w formacie YYYY-MM
+  month: string; // Miesiąc w formacie YYYY-MM
 }
 ```
 
@@ -96,6 +103,7 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "goal_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -111,6 +119,7 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ```
 
 **Opis pól**:
+
 - `progress_percentage`: Obliczane jako `(current_balance_cents / target_amount_cents) * 100`
 - `monthly_change_cents`: Suma `DEPOSIT` minus suma `WITHDRAW` dla goal_events w podanym miesiącu
 - `month`: Echo parametru zapytania (lub domyślny bieżący miesiąc)
@@ -118,6 +127,7 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ### Error Responses
 
 #### `400 Bad Request` - Nieprawidłowy format parametru
+
 ```json
 {
   "error": "Bad Request",
@@ -129,11 +139,13 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ```
 
 **Przykłady nieprawidłowych wartości**:
+
 - `month=2025-13` (nieprawidłowy miesiąc)
 - `month=2025/01` (niewłaściwy separator)
 - `month=25-01` (niepełny rok)
 
 #### `401 Unauthorized` - Brak lub nieprawidłowa autentykacja
+
 ```json
 {
   "error": "Unauthorized",
@@ -142,11 +154,13 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ```
 
 **Przyczyny**:
+
 - Brak tokena Bearer w nagłówku Authorization
 - Token wygasły
 - Token nieprawidłowy
 
 #### `404 Not Found` - Brak celu priorytetowego
+
 ```json
 {
   "error": "Not Found",
@@ -155,11 +169,13 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ```
 
 **Przyczyny**:
+
 - Użytkownik nie ma żadnego celu z `is_priority=true`
 - Wszystkie cele priorytetowe są zarchiwizowane (`archived_at IS NOT NULL`)
 - Wszystkie cele priorytetowe są soft-deleted (`deleted_at IS NOT NULL`)
 
 #### `500 Internal Server Error` - Błąd serwera/bazy danych
+
 ```json
 {
   "error": "Internal Server Error",
@@ -168,6 +184,7 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ```
 
 **Przyczyny**:
+
 - Błąd połączenia z bazą danych
 - Timeout zapytania
 - Błąd wewnętrzny Supabase
@@ -228,8 +245,9 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ### Interakcje z bazą danych
 
 #### Query 1: Pobranie priority goal
+
 ```sql
-SELECT 
+SELECT
   g.id,
   g.name,
   g.type_code,
@@ -247,14 +265,16 @@ LIMIT 1;
 ```
 
 **Wykorzystane indeksy**:
+
 - `uniq_goals_priority(user_id) WHERE is_priority AND archived_at IS NULL`
 - `idx_goals_active(user_id) WHERE deleted_at IS NULL AND archived_at IS NULL`
 
 **RLS Policy**: Goals SELECT policy (wymaga email_confirmed=true)
 
 #### Query 2: Obliczenie miesięcznej zmiany
+
 ```sql
-SELECT 
+SELECT
   type,
   SUM(amount_cents) as total
 FROM goal_events
@@ -265,14 +285,16 @@ GROUP BY type;
 ```
 
 **Wykorzystane indeksy**:
+
 - `idx_ge_goal_month(goal_id, month)`
 
 **RLS Policy**: Goal_events SELECT policy (wymaga email_confirmed=true)
 
 **Post-processing w aplikacji**:
+
 ```typescript
-const deposits = results.find(r => r.type === "DEPOSIT")?.total || 0;
-const withdrawals = results.find(r => r.type === "WITHDRAW")?.total || 0;
+const deposits = results.find((r) => r.type === "DEPOSIT")?.total || 0;
+const withdrawals = results.find((r) => r.type === "WITHDRAW")?.total || 0;
 const monthlyChangeCents = deposits - withdrawals;
 ```
 
@@ -281,10 +303,11 @@ const monthlyChangeCents = deposits - withdrawals;
 ## 6. Względy bezpieczeństwa
 
 ### Autentykacja
+
 - **Mechanizm**: Supabase Auth z Bearer token
 - **Middleware**: `src/middleware/index.ts` weryfikuje token i ustawia `context.locals.user`
 - **Wymaganie**: Endpoint wymaga zalogowanego użytkownika
-- **Obsługa braku auth**: 
+- **Obsługa braku auth**:
   ```typescript
   if (!context.locals.user) {
     return new Response(
@@ -298,6 +321,7 @@ const monthlyChangeCents = deposits - withdrawals;
   ```
 
 ### Autoryzacja
+
 - **Row Level Security (RLS)**: Wszystkie tabele mają włączone RLS
 - **Polityki**:
   - `goals` SELECT: `USING (user_id = auth.uid() AND EXISTS(SELECT 1 FROM profiles WHERE user_id=auth.uid() AND email_confirmed))`
@@ -308,6 +332,7 @@ const monthlyChangeCents = deposits - withdrawals;
 ### Walidacja danych wejściowych
 
 #### Query parameter: `month`
+
 - **Schema**: Zod z regexem `/^\d{4}-\d{2}$/`
 - **Sanitization**: Nie jest potrzebna (parametr używany tylko w parametryzowanych zapytaniach)
 - **Edge cases**:
@@ -316,19 +341,23 @@ const monthlyChangeCents = deposits - withdrawals;
   - Brak parametru: Użycie domyślnej wartości (current month)
 
 #### Ochrona przed SQL Injection
+
 - **Supabase Client**: Automatyczne parametryzowanie zapytań
 - **Brak raw SQL**: Wszystkie zapytania przez query builder
 
 #### Ochrona przed XSS
+
 - **Nie dotyczy**: Endpoint zwraca tylko JSON (Content-Type: application/json)
 - **Brak renderowania HTML**: Dane nie są renderowane po stronie serwera
 
 ### Rate Limiting
+
 - **Implementacja**: Obecnie brak (opcjonalne do dodania w przyszłości)
 - **Rekomendacja**: Ograniczenie do 60 requestów/minutę per użytkownik
 - **Mechanizm**: Middleware z wykorzystaniem `rate_limits` table lub Redis
 
 ### Logging i Monitoring
+
 - **Błędy**: Logowanie do `console.error` (widoczne w logach Supabase/hosting)
 - **Audit**: Endpoint tylko czyta dane (brak zapisów do `audit_log`)
 - **Metryki**: Monitorowanie czasu odpowiedzi i błędów 500
@@ -349,7 +378,7 @@ try {
 
   // Service call
   const result = await getPriorityGoalMetrics(supabase, userId, month);
-  
+
   if (!result) {
     // → 404 Not Found
   }
@@ -367,14 +396,14 @@ try {
 
 ### Scenariusze błędów
 
-| Kod | Sytuacja | Message | Details | Akcja użytkownika |
-|-----|----------|---------|---------|-------------------|
-| 400 | Nieprawidłowy format `month` | "Invalid month format. Expected YYYY-MM" | `{ month: "..." }` | Poprawić format parametru |
-| 401 | Brak lub nieprawidłowy token | "Authentication required" | - | Zalogować się ponownie |
-| 404 | Brak priority goal | "No priority goal set" | - | Ustawić cel jako priorytetowy |
-| 500 | Błąd bazy danych | "An unexpected error occurred" | - | Spróbować ponownie / zgłosić problem |
-| 500 | Timeout | "Request timeout" | - | Spróbować ponownie |
-| 500 | Błąd Supabase | "Database error occurred" | - | Spróbować ponownie |
+| Kod | Sytuacja                     | Message                                  | Details            | Akcja użytkownika                    |
+| --- | ---------------------------- | ---------------------------------------- | ------------------ | ------------------------------------ |
+| 400 | Nieprawidłowy format `month` | "Invalid month format. Expected YYYY-MM" | `{ month: "..." }` | Poprawić format parametru            |
+| 401 | Brak lub nieprawidłowy token | "Authentication required"                | -                  | Zalogować się ponownie               |
+| 404 | Brak priority goal           | "No priority goal set"                   | -                  | Ustawić cel jako priorytetowy        |
+| 500 | Błąd bazy danych             | "An unexpected error occurred"           | -                  | Spróbować ponownie / zgłosić problem |
+| 500 | Timeout                      | "Request timeout"                        | -                  | Spróbować ponownie                   |
+| 500 | Błąd Supabase                | "Database error occurred"                | -                  | Spróbować ponownie                   |
 
 ### Mapowanie błędów serwisu
 
@@ -396,10 +425,7 @@ if (result === null) {
   );
 }
 
-return new Response(
-  JSON.stringify(result),
-  { status: 200, headers: { "Content-Type": "application/json" } }
-);
+return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
 ```
 
 ### Logging strategia
@@ -424,6 +450,7 @@ if (error) {
 ### Optymalizacje zapytań
 
 #### 1. Wykorzystanie indeksów
+
 - **`uniq_goals_priority(user_id)`**: WHERE is_priority=true AND archived_at IS NULL
   - Index scan zamiast sequential scan
   - Bardzo szybkie wyszukiwanie (max 1 rekord per user)
@@ -432,6 +459,7 @@ if (error) {
   - Eliminuje potrzebę sortowania
 
 #### 2. Minimalizacja round-trips
+
 - **Query 1 (goal)**: Single query z JOIN do goal_types
   - Zamiast 2 osobnych zapytań (goal + goal_type lookup)
 - **Query 2 (events)**: Agregacja na bazie danych
@@ -439,26 +467,31 @@ if (error) {
 - **Łącznie**: 2 round-trips do bazy (nie da się połączyć, bo events zależą od goal_id)
 
 #### 3. Brak paginacji
+
 - **Uzasadnienie**: Zawsze max 1 priority goal per user
 - **Brak overhead**: Nie trzeba liczyć total_count ani obsługiwać cursor
 
 #### 4. Projection (SELECT specific columns)
-- **Goals**: Tylko potrzebne kolumny (nie SELECT *)
+
+- **Goals**: Tylko potrzebne kolumny (nie SELECT \*)
 - **Goal_events**: Tylko type i amount_cents (nie cały wiersz)
 
 ### Potencjalne wąskie gardła
 
 #### 1. Agregacja goal_events dla aktywnych użytkowników
+
 - **Problem**: Jeśli cel ma tysiące zdarzeń w miesiącu
 - **Mitigacja**: Indeks `idx_ge_goal_month` optymalizuje agregację
 - **Realność**: Mało prawdopodobne (max kilkadziesiąt zdarzeń/miesiąc per cel)
 
 #### 2. JOIN z goal_types
+
 - **Problem**: Potencjalnie slow JOIN jeśli goal_types jest duża tabela
 - **Mitigacja**: goal_types to mały słownik (10-20 rekordów), JOIN bardzo szybki
 - **Realność**: Nie stanowi problemu
 
 #### 3. RLS overhead
+
 - **Problem**: RLS policies dodają warunek do każdego zapytania
 - **Mitigacja**: Indeks `idx_goals_active(user_id)` obejmuje warunki RLS
 - **Realność**: Minimalny overhead (< 1ms)
@@ -466,11 +499,13 @@ if (error) {
 ### Caching strategia
 
 #### Nie zalecane na MVP
+
 - **Powód 1**: Dane real-time (użytkownicy oczekują aktualnych danych)
 - **Powód 2**: Prostota implementacji (brak cache invalidation)
 - **Powód 3**: Szybkość zapytań z indeksami (< 50ms)
 
 #### Opcjonalne w przyszłości
+
 - **Redis cache**: Klucz `priority_goal_metrics:{userId}:{month}`
 - **TTL**: 5 minut
 - **Invalidation**: Po dodaniu goal_event lub zmianie is_priority
@@ -497,9 +532,11 @@ if (duration > 1000) {
 ## 9. Etapy wdrożenia
 
 ### Krok 1: Utworzenie validation schema
+
 **Plik**: `src/lib/schemas/priority-goal-metrics.schema.ts`
 
 **Kod**:
+
 ```typescript
 import { z } from "zod";
 
@@ -518,6 +555,7 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ```
 
 **Testy walidacji**:
+
 - ✅ `undefined` → pass (brak parametru)
 - ✅ `"2025-01"` → pass
 - ✅ `"2024-12"` → pass
@@ -529,9 +567,11 @@ export type PriorityGoalMetricsQuery = z.infer<typeof PriorityGoalMetricsQuerySc
 ---
 
 ### Krok 2: Rozszerzenie goal.service.ts
+
 **Plik**: `src/lib/services/goal.service.ts`
 
 **Dodać funkcję**:
+
 ```typescript
 /**
  * Get priority goal metrics with monthly change calculation
@@ -598,9 +638,7 @@ export async function getPriorityGoalMetrics(
 
   // Step 4: Compute progress_percentage
   const progressPercentage =
-    goal.target_amount_cents > 0
-      ? (goal.current_balance_cents / goal.target_amount_cents) * 100
-      : 0;
+    goal.target_amount_cents > 0 ? (goal.current_balance_cents / goal.target_amount_cents) * 100 : 0;
 
   // Step 5: Query goal_events for monthly change calculation
   // Convert month from YYYY-MM to YYYY-MM-01 for database query (month column is date type)
@@ -650,24 +688,27 @@ export async function getPriorityGoalMetrics(
 ```
 
 **Import PriorityGoalMetricsDTO**:
+
 ```typescript
 // Dodać do istniejących importów w goal.service.ts
-import type { 
-  CreateGoalCommand, 
-  GoalDTO, 
-  GoalDetailDTO, 
-  UpdateGoalCommand, 
+import type {
+  CreateGoalCommand,
+  GoalDTO,
+  GoalDetailDTO,
+  UpdateGoalCommand,
   ArchiveGoalResponseDTO,
-  PriorityGoalMetricsDTO  // <-- NOWY
+  PriorityGoalMetricsDTO, // <-- NOWY
 } from "@/types";
 ```
 
 ---
 
 ### Krok 3: Utworzenie API route
+
 **Plik**: `src/pages/api/v1/metrics/priority-goal/index.ts`
 
 **Kod**:
+
 ```typescript
 import type { APIRoute } from "astro";
 import { PriorityGoalMetricsQuerySchema } from "@/lib/schemas/priority-goal-metrics.schema";
@@ -675,12 +716,12 @@ import { getPriorityGoalMetrics } from "@/lib/services/goal.service";
 
 /**
  * GET /api/v1/metrics/priority-goal
- * 
+ *
  * Returns priority goal progress with monthly change calculation.
- * 
+ *
  * Query Parameters:
  * - month (optional): Month in YYYY-MM format (default: current month)
- * 
+ *
  * Success Response: 200 OK
  * {
  *   "goal_id": "uuid",
@@ -693,7 +734,7 @@ import { getPriorityGoalMetrics } from "@/lib/services/goal.service";
  *   "monthly_change_cents": 50000,
  *   "month": "2025-01"
  * }
- * 
+ *
  * Error Responses:
  * - 400 Bad Request: Invalid month format
  * - 401 Unauthorized: Authentication required
@@ -794,6 +835,7 @@ export const prerender = false;
 ### Krok 4: Testowanie endpointu
 
 #### Test 1: Success case (priority goal istnieje)
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal?month=2025-01" \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -803,6 +845,7 @@ curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal?month=2025-01" \
 **Oczekiwany wynik**: `200 OK` z PriorityGoalMetricsDTO
 
 #### Test 2: Default month (brak parametru)
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -812,6 +855,7 @@ curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
 **Oczekiwany wynik**: `200 OK` z `month` = bieżący miesiąc
 
 #### Test 3: Invalid month format
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal?month=2025-13" \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -821,6 +865,7 @@ curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal?month=2025-13" \
 **Oczekiwany wynik**: `400 Bad Request` z validation error
 
 #### Test 4: No priority goal
+
 ```bash
 # Najpierw unset is_priority na wszystkich celach
 curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
@@ -831,6 +876,7 @@ curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
 **Oczekiwany wynik**: `404 Not Found` z message "No priority goal set"
 
 #### Test 5: Unauthorized
+
 ```bash
 curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
   -H "Content-Type: application/json"
@@ -843,6 +889,7 @@ curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
 ### Krok 5: Weryfikacja integracji
 
 #### Checklist:
+
 - [ ] Schema validation działa poprawnie (Zod)
 - [ ] Service layer zwraca poprawne dane (getPriorityGoalMetrics)
 - [ ] API route obsługuje wszystkie kody błędów (400, 401, 404, 500)
@@ -859,6 +906,7 @@ curl -X GET "http://localhost:4321/api/v1/metrics/priority-goal" \
 ### Krok 6: Opcjonalne usprawnienia (post-MVP)
 
 #### 1. Cache z TTL
+
 ```typescript
 // W getPriorityGoalMetrics
 const cacheKey = `priority_goal_metrics:${userId}:${month}`;
@@ -871,6 +919,7 @@ await redis.setex(cacheKey, 300, JSON.stringify(result)); // 5 min TTL
 ```
 
 #### 2. Rate limiting
+
 ```typescript
 // W API route
 const rateLimitKey = `rate_limit:priority_goal:${userId}`;
@@ -889,6 +938,7 @@ if (count > 60) {
 ```
 
 #### 3. Response caching headers
+
 ```typescript
 return new Response(JSON.stringify(result), {
   status: 200,
@@ -904,6 +954,7 @@ return new Response(JSON.stringify(result), {
 ## 10. Podsumowanie
 
 ### Co zostanie zaimplementowane:
+
 1. ✅ Validation schema dla query parameters
 2. ✅ Service function w goal.service.ts
 3. ✅ API route handler
@@ -912,12 +963,14 @@ return new Response(JSON.stringify(result), {
 6. ✅ Indeksy DB są wykorzystywane
 
 ### Zależności:
+
 - Istniejąca tabela `goals` z kolumną `is_priority`
 - Istniejąca tabela `goal_events` z kolumną `month` (generated)
 - Istniejący middleware Supabase Auth
 - Indeksy: `uniq_goals_priority`, `idx_ge_goal_month`
 
 ### Estimated effort:
+
 - **Schema**: 10 minut
 - **Service**: 30 minut
 - **Route**: 20 minut
@@ -925,8 +978,8 @@ return new Response(JSON.stringify(result), {
 - **Łącznie**: ~90 minut (1.5h)
 
 ### Kolejność implementacji:
+
 1. Schema (niezależne)
 2. Service (wymaga schema dla type-safety)
 3. Route (wymaga schema + service)
 4. Testing (wymaga wszystkiego powyżej)
-

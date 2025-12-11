@@ -44,6 +44,7 @@ Zainstalowano wszystkie wymagane pakiety testowe:
 - Alias: `@` → `./src`
 
 **Setup file**: `tests/setup-unit.ts`
+
 - Auto cleanup React components
 - Mock `window.matchMedia`
 - Mock `IntersectionObserver`
@@ -84,23 +85,27 @@ tests/
 ### ✅ 5. Test helpers
 
 #### Fake Auth (Integration tests)
+
 - `mockSupabaseAuth()` - mockuje Supabase client
 - `createMockToken()` - generuje mock JWT tokens
 - `mockAuthHeaders()` - headers dla authenticated requests
 
 #### Test Factories
+
 - `createTestTransaction()` - generuje test transaction
 - `createTestGoal()` - generuje test goal
 - `createTestGoalEvent()` - generuje test goal event
 - `createTestUserEmail()` - unikalne email adresy
 
 #### Integration DB Helpers
+
 - `setupIntegrationTests()` - start Postgres container + migracje
 - `teardownIntegrationTests()` - cleanup kontenera
 - `cleanDatabase()` - truncate tabel między testami
 - `seedTestUser()` - fake user (bez Supabase Auth)
 
 #### E2E Helpers
+
 - `EtherealMailClient` - email verification helper
 - `generateTestUser()` - generuje credentials
 - `cleanupTestUser()` - usuwa test users (Supabase Admin API)
@@ -109,9 +114,11 @@ tests/
 ### ✅ 6. Przykładowe testy
 
 #### Unit Test (działający!)
+
 **Plik**: `src/components/transactions/utils/parsePlnInputToCents.test.ts`
 
 19 testów dla parsowania kwot PLN:
+
 - Happy path (różne formaty)
 - Error cases (invalid inputs)
 - Edge cases (boundaries, whitespace)
@@ -119,9 +126,11 @@ tests/
 **Status**: ✅ Wszystkie 19 testów przechodzi!
 
 #### Integration Test (template)
+
 **Plik**: `tests/integration/transactions.integration.test.ts`
 
 Przykłady:
+
 - Create transaction
 - Validate constraints
 - RLS policies
@@ -131,11 +140,14 @@ Przykłady:
 **Status**: ⚙️ Wymaga Supabase Postgres image lub uproszczonych migracji
 
 #### E2E Tests (template)
-**Pliki**: 
+
+**Pliki**:
+
 - `tests/e2e/auth.spec.ts`
 - `tests/e2e/dashboard.spec.ts`
 
 Przykłady:
+
 - Login flow (invalid credentials)
 - Login flow (successful)
 - Registration (validation)
@@ -197,6 +209,7 @@ Przykłady:
 ### ✅ 9. Gitignore updates
 
 Dodano do `.gitignore`:
+
 ```
 .env.test
 coverage/
@@ -230,6 +243,7 @@ npm run test:unit
 ```
 
 **Co działa:**
+
 - Vitest konfiguracja
 - React Testing Library setup
 - Przykładowy test finansowej logiki
@@ -237,6 +251,7 @@ npm run test:unit
 - Coverage reporting
 
 **Next steps:**
+
 - Pisz testy dla nowej logiki podczas development
 - Używaj `npm run test:unit:watch`
 - Dążyj do ≥80% coverage
@@ -249,16 +264,19 @@ npm run test:integration
 ```
 
 **Co działa:**
+
 - Testcontainers konfiguracja
 - Setup/teardown infrastructure
 - Przykładowe testy (template)
 
 **Known issue:**
+
 - Migracje Supabase wymagają `auth` schema
 - Rozwiązanie: użyć `supabase/postgres` image zamiast `postgres:15`
 - Lub: stworzyć uproszczone migracje testowe
 
 **Next steps:**
+
 1. Wybierz approach (Supabase image vs uproszczone migracje)
 2. Dostosuj `tests/setup-integration.ts`
 3. Pisz testy API endpoints
@@ -271,12 +289,14 @@ npm run test:e2e
 ```
 
 **Co działa:**
+
 - Playwright konfiguracja
 - Chromium zainstalowany
 - Przykładowe testy (template)
 - Helpers gotowe
 
 **Wymaga setup:**
+
 1. Utworzenie Supabase test project
 2. Wypełnienie `.env.test`
 3. Utworzenie test usera
@@ -284,6 +304,7 @@ npm run test:e2e
 **Szczegółowa instrukcja**: `.ai/e2e-supabase-setup.md`
 
 **Next steps:**
+
 1. Follow `.ai/e2e-supabase-setup.md`
 2. Uruchom `npm run test:e2e`
 3. Pisz testy dla critical user flows
@@ -299,36 +320,38 @@ npm run test:e2e
 **Rozwiązanie**: Rozdzielenie odpowiedzialności
 
 #### Integration Tests = FAKE AUTH
+
 ```typescript
 // Testujemy: logikę biznesową, nie auth
 const userId = await seedTestUser(pool);
 const mockToken = createMockToken(userId);
 
 // Request używa mock token
-const response = await request(app)
-  .set('Authorization', `Bearer ${mockToken}`)
-  .send({ amount: 10000 });
+const response = await request(app).set("Authorization", `Bearer ${mockToken}`).send({ amount: 10000 });
 ```
 
 **Korzyści:**
+
 - ⚡ Szybkie (bez external API calls)
 - 🎯 Focused (business logic)
 - 🔄 Deterministyczne
 - 💰 Darmowe
 
 #### E2E Tests = PRAWDZIWY AUTH
+
 ```typescript
 // Testujemy: pełny user flow
-await page.goto('/auth/login');
+await page.goto("/auth/login");
 await page.fill('[name="email"]', email);
 await page.fill('[name="password"]', password);
 await page.click('button[type="submit"]');
 
 // Prawdziwy Supabase Auth
-await expect(page).toHaveURL('/dashboard');
+await expect(page).toHaveURL("/dashboard");
 ```
 
 **Korzyści:**
+
 - 🎭 Realistic (jak user)
 - 🔒 Testuje security
 - 📧 Testuje email flow
@@ -342,34 +365,36 @@ await expect(page).toHaveURL('/dashboard');
 
 Zgodnie z `.ai/test-plan.md`:
 
-| Typ testu | Target | Actual | Status |
-|-----------|--------|--------|--------|
-| **Unit - general** | ≥80% | TBD | 🟡 W trakcie |
-| **Unit - financial logic** | 100% | ~95% | 🟢 Dobry start |
-| **Integration - API endpoints** | 100% | 0% | 🔴 Wymaga setup |
-| **UI components** | ≥70% | 0% | 🔴 Wymaga testów |
+| Typ testu                       | Target | Actual | Status           |
+| ------------------------------- | ------ | ------ | ---------------- |
+| **Unit - general**              | ≥80%   | TBD    | 🟡 W trakcie     |
+| **Unit - financial logic**      | 100%   | ~95%   | 🟢 Dobry start   |
+| **Integration - API endpoints** | 100%   | 0%     | 🔴 Wymaga setup  |
+| **UI components**               | ≥70%   | 0%     | 🔴 Wymaga testów |
 
 ### Test Count (docelowo)
 
-| Typ | Target | Actual | Status |
-|-----|--------|--------|--------|
-| Unit | 150-200 | 19 | 🟡 10% |
-| Integration | 50-80 | 0 | 🔴 0% |
-| UI Component | 40-60 | 0 | 🔴 0% |
-| E2E | 10-15 | 0 | 🔴 0% |
-| **TOTAL** | **250-355** | **19** | 🟡 **5%** |
+| Typ          | Target      | Actual | Status    |
+| ------------ | ----------- | ------ | --------- |
+| Unit         | 150-200     | 19     | 🟡 10%    |
+| Integration  | 50-80       | 0      | 🔴 0%     |
+| UI Component | 40-60       | 0      | 🔴 0%     |
+| E2E          | 10-15       | 0      | 🔴 0%     |
+| **TOTAL**    | **250-355** | **19** | 🟡 **5%** |
 
 ---
 
 ## Roadmap (Next Steps)
 
 ### Priorytet 1: Unit Tests (teraz)
+
 - [ ] Dodaj testy dla `lib/utils.ts`
 - [ ] Dodaj testy dla Zod schemas
 - [ ] Dodaj testy dla services (z mockami)
 - [ ] Cel: ≥80% coverage dla `src/lib/`
 
 ### Priorytet 2: UI Component Tests
+
 - [ ] Test `TransactionForm` (happy path + validation)
 - [ ] Test `GoalForm` (happy path + validation)
 - [ ] Test `DashboardApp` (rendering + data display)
@@ -377,6 +402,7 @@ Zgodnie z `.ai/test-plan.md`:
 - [ ] Cel: ≥70% coverage dla `src/components/`
 
 ### Priorytet 3: Integration Tests
+
 - [ ] Zdecyduj: Supabase image vs uproszczone migracje
 - [ ] Dostosuj `setup-integration.ts`
 - [ ] Testy dla `/api/v1/transactions` (wszystkie endpoints)
@@ -385,6 +411,7 @@ Zgodnie z `.ai/test-plan.md`:
 - [ ] Cel: 100% API endpoints
 
 ### Priorytet 4: E2E Tests
+
 - [ ] Setup Supabase Cloud project (follow `.ai/e2e-supabase-setup.md`)
 - [ ] Wypełnij `.env.test`
 - [ ] Test auth flow (login, register)
@@ -393,6 +420,7 @@ Zgodnie z `.ai/test-plan.md`:
 - [ ] Cel: 10-15 E2E tests
 
 ### Priorytet 5: CI/CD (przyszłość)
+
 - [ ] GitHub Actions workflow dla unit tests
 - [ ] GitHub Actions workflow dla integration tests
 - [ ] GitHub Actions workflow dla E2E tests
@@ -404,6 +432,7 @@ Zgodnie z `.ai/test-plan.md`:
 ## Dostępne komendy
 
 ### Development
+
 ```bash
 # Watch mode (używaj podczas pisania kodu)
 npm run test:unit:watch
@@ -413,6 +442,7 @@ npm run test:unit:coverage
 ```
 
 ### CI/Testing
+
 ```bash
 # Wszystkie unit tests
 npm run test:unit
@@ -431,6 +461,7 @@ npm run test:all
 ```
 
 ### Playwright UI
+
 ```bash
 # Interactive UI mode
 npm run test:e2e:ui
@@ -447,18 +478,21 @@ npm run test:e2e:headed
 ## Quick Links
 
 ### Dokumentacja
+
 - **Quick Start**: `TESTING-QUICKSTART.md`
 - **Główna docs**: `tests/README.md`
 - **E2E Setup**: `.ai/e2e-supabase-setup.md`
 - **Test Plan**: `.ai/test-plan.md`
 
 ### Przykładowe testy
+
 - **Unit**: `src/components/transactions/utils/parsePlnInputToCents.test.ts`
 - **Integration**: `tests/integration/transactions.integration.test.ts`
 - **E2E Auth**: `tests/e2e/auth.spec.ts`
 - **E2E Dashboard**: `tests/e2e/dashboard.spec.ts`
 
 ### Helpers
+
 - **Test Auth**: `tests/helpers/test-auth.ts`
 - **Factories**: `tests/helpers/factories.ts`
 - **E2E Data**: `tests/e2e/helpers/test-data.ts`
@@ -504,4 +538,3 @@ Pytania? Problemy? Otwórz issue lub sprawdź dokumentację w `tests/README.md`
 **Setup wykonany przez**: AI Assistant  
 **Data**: 2025-12-07  
 **Status**: ✅ Lokalny setup zakończony, gotowe do pisania testów
-
