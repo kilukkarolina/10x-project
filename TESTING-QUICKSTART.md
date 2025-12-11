@@ -154,16 +154,27 @@ VALUES ('85b37466-4e1b-49d8-a925-ee5c0eb623a1', true, now(), now());
 
 ### Uruchomienie
 
-```bash
-# Upewnij się że app działa
-npm run dev
+**WAŻNE**: Testy E2E automatycznie używają środowiska z `.env.test` (nie `.env`).
 
-# W nowym terminalu:
+```bash
+# Opcja 1: Playwright automatycznie uruchomi serwer dev z .env.test
 npm run test:e2e
 
-# Lub w UI mode (zalecane)
+# Opcja 2: UI mode (zalecane do debugowania)
 npm run test:e2e:ui
+
+# Opcja 3: Ręczne uruchomienie serwera + testy
+# Terminal 1:
+npm run dev:e2e  # Używa .env.test automatycznie
+
+# Terminal 2:
+npm run test:e2e
 ```
+
+**Jak to działa?**
+- `npm run test:e2e` - Playwright automatycznie uruchamia `npm run dev:e2e` przed testami
+- `npm run dev:e2e` - Ustawia `NODE_ENV=test`, co sprawia że `astro.config.mjs` ładuje `.env.test` zamiast `.env`
+- Dzięki temu testy zawsze używają testowej bazy Supabase, nigdy produkcyjnej ✅
 
 ### Automatyczne czyszczenie bazy danych
 
