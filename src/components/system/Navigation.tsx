@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutDashboard, Coins, Target, LogOut, Loader2 } from "lucide-react";
+import { LayoutDashboard, Coins, Target, UserCircle, LogOut, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseBrowser } from "@/db/supabase.browser";
 
@@ -103,8 +103,27 @@ export function Navigation({ currentPath }: NavigationProps) {
             })}
           </ul>
 
-          {/* Logout button - prawy górny róg */}
-          <div className="ml-auto">
+          {/* Account and Logout buttons - prawy górny róg */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Account button */}
+            <a
+              href="/profile"
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
+                ${
+                  currentPath === "/profile"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }
+              `}
+              aria-label="Moje konto"
+              data-test-id="account-button"
+            >
+              <UserCircle className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Konto</span>
+            </a>
+
+            {/* Logout button */}
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}

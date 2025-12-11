@@ -10,7 +10,7 @@ Kluczowi użytkownicy:
 2. Oszczędzający na konkretny cel – chce śledzić progres do celu (np. wakacje).
 3. Freelancer z nieregularnymi dochodami – potrzebuje przejrzystego podsumowania miesięcy i wolnych środków.
 
-Stack i operacje (dla kontekstu realizacyjnego): Astro/React/Tailwind, Supabase (Auth + DB z RLS), Recharts. Waluta PLN, kwoty w bazie w groszach (int), bankierskie zaokrąglanie. API REST v1: /auth, /transactions, /goals, /goal-events, /me.
+Stack i operacje (dla kontekstu realizacyjnego): Astro/React/Tailwind, Supabase (Auth + DB z RLS), Recharts. Waluta PLN, kwoty w bazie w groszach (int), bankierskie zaokrąglanie. API REST v1: /auth, /transactions, /goals, /goal-events.
 
 ## 2. Problem użytkownika
 
@@ -60,7 +60,7 @@ d) Wydajność: zapytania listy do 200 ms dla typowych zakresów.
 3.6 E-maile systemowe i operacje
 a) Postmark: nadawca „FinFlow [no-reply@twojadomena.pl](mailto:no-reply@twojadomena.pl)”, linki ważne 30 min; wymogi DKIM/SPF/DMARC.
 b) Środowiska: dev, prod; backup bazy codziennie (retencja 7 dni); comiesięczny test odtworzenia (dev-restore + smoke test).
-c) API REST v1: /auth, /transactions, /goals, /goal-events, /me (tylko operacje potrzebne w MVP).
+c) API REST v1: /auth, /transactions, /goals, /goal-events (tylko operacje potrzebne w MVP).
 
 ## 4. Granice produktu
 
@@ -379,7 +379,7 @@ US-044 Stabilne API minimalne
 Opis: Jako klient FE chcę przewidywalnego API REST v1.
 Kryteria akceptacji:
 
-- Endpointy: /auth, /transactions, /goals, /goal-events, /me; tylko potrzebne metody.
+- Endpointy: /auth, /transactions, /goals, /goal-events; tylko potrzebne metody.
 - Błędy 4xx/5xx mają spójny format.
 
 US-045 Backup i odtworzenie
@@ -593,11 +593,11 @@ Kryteria akceptacji:
 
 - Wszystkie liczby pieniężne w UI sformatowane według PL; brak mieszania separatorów.
 
-US-081 Widok mojego profilu (/me)
+US-081 Widok mojego profilu (/profile)
 Opis: Jako użytkownik chcę podejrzeć podstawowe informacje o koncie.
 Kryteria akceptacji:
 
-- Endpoint /me zwraca e-mail, status weryfikacji, datę założenia; UI prezentuje dane i akcje verify/reset.
+- Strona /profile prezentuje e-mail, status weryfikacji, datę założenia i datę ostatniego logowania; dane pobierane bezpośrednio z Supabase Auth.
 
 US-082 Blokada „dzikich” pól
 Opis: Jako użytkownik nie chcę, by serwer przyjmował pola spoza kontraktu.

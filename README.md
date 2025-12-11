@@ -31,7 +31,7 @@ Key characteristics from the Product Requirements Document (PRD):
 - Currency: PLN, amounts stored in cents (integers); input normalization accepts comma and dot; half‑even (banker’s) rounding in aggregations.
 - Dates: reports use DATE (calendar month); audit logs use TIMESTAMP WITH TIME ZONE (UTC).
 - Data safety: soft‑delete for business records; account hard delete within 24h (audit_log retained 30 days).
-- API (planned): REST v1 endpoints `/auth`, `/transactions`, `/goals`, `/goal-events`, `/me`.
+- API (planned): REST v1 endpoints `/auth`, `/transactions`, `/goals`, `/goal-events`.
 - UX/quality: optimistic updates with fast rollback, inline validations, Polish i18n, saved filters in localStorage, accessibility for interactive components.
 - Performance target: typical list queries ≤ 200 ms; keyset pagination by `(date, id)` with descending date.
 
@@ -142,7 +142,7 @@ In scope (MVP):
 - Transactions: add/edit/soft‑delete; default sort by date (desc), filters by type/month/category/text; keyset pagination by `(date, id)`; 50 records per page.
 - Dashboard & reporting: four monthly cards (Income, Expenses, Net saved, Free funds) and two visualizations (category expenses bar chart, priority goal progress with current month delta). Time navigation with month/year switch.
 - UX & quality: optimistic updates with quick rollback; inline validations; Polish toasts via centralized i18n; saved filters in localStorage; basic responsiveness and accessibility; idempotency for critical writes.
-- API surface (planned): REST v1 `/auth`, `/transactions`, `/goals`, `/goal-events`, `/me`; consistent error format for 4xx/5xx.
+- API surface (planned): REST v1 `/auth`, `/transactions`, `/goals`, `/goal-events`; consistent error format for 4xx/5xx.
 
 Out of scope (MVP):
 

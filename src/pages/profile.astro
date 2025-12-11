@@ -1,0 +1,11 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { ProfileApp } from "../components/profile/ProfileApp";
+import { GlobalErrorBoundary } from "../components/system/GlobalErrorBoundary";
+---
+
+<Layout title="Moje konto - FinFlow">
+  <GlobalErrorBoundary client:load>
+    <ProfileApp client:load />
+  </GlobalErrorBoundary>
+</Layout>
